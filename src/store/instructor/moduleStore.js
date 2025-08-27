@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import apiClient from '../../api/axios';
+import apiClient from '../../api/axiosClient';
 
 const useModuleStore = create((set, get) => ({
   modules: [],
