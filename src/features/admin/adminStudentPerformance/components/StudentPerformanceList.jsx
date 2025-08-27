@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PerformanceDownloadModal from "../../../../features/admin/adminStudentPerformance/components/PerformanceDownloadModal";
-import BulkPerformanceDownloadModal from "../../features/admin/adminStudentPerformance/components/BulkPerformanceDownloadModal";
+import BulkPerformanceDownloadModal from "../../../../features/admin/adminStudentPerformance/components/BulkPerformanceDownloadModal";
 
 const StudentPerformanceList = ({ students }) => {
   const [selectedStudent, setSelectedStudent] = useState(null);
