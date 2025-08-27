@@ -1,3 +1,9 @@
+@router.get("/api/instructor/modules")
+def get_instructor_modules():
+    modules = list(modules_collection.find({}))
+    for module in modules:
+        module["_id"] = str(module["_id"])
+    return modules
 from fastapi import APIRouter, HTTPException, Query, Form, File, UploadFile
 from database import modules_collection, post_test_collection
 from bson import ObjectId
