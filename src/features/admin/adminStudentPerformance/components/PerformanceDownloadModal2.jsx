@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import StudentReportPDF from "../../../../features/admin/adminStudentPerformance/components/StudentReportPDF";
-import Modal from "../../components/common/Modal";
+import Modal from "../../../../components/common/Modal";
 
 const PerformanceDownloadModal = ({ student, isOpen, onClose }) => {
   return (
