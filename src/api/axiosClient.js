@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://cbrcs-final.onrender.com",
+  baseURL: "https://final-cbrc.onrender.com",
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
