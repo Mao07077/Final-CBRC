@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
-import StudentReportPDF from "../../features/admin/adminStudentPerformance/components/StudentReportPDF";
-import Modal from "../../components/common/Modal";
+import StudentReportPDF from "../../../../features/admin/adminStudentPerformance/components/StudentReportPDF";
+import Modal from "../.././../../components/common/Modal";
 
 const BulkPerformanceDownloadModal = ({ students, isOpen, onClose }) => {
   const [selected, setSelected] = useState([]);
