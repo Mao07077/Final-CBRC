@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import axios from "../../api/axios";
+import axios from "../../api/axiosClient";
 
 const useInstructorDashboardStore = create((set) => ({
   stats: { totalStudents: 0, engagementRate: 0 },

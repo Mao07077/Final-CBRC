@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import axios from "../../api/axios";
-import apiClient from "../../api/axios";
+import axios from "../../api/axiosClient";
+import apiClient from "../../api/axiosClient";
 
 const useStudentPerformanceStore = create((set, get) => ({
     students: [

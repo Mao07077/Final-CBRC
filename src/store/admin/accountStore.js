@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import axios from "../../api/axios";
+import axios from "../../api/axiosClient";
 
 const useAccountStore = create((set, get) => ({
   accounts: [],

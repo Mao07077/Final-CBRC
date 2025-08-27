@@ -1,4 +1,4 @@
-import apiClient from "../api/axios";
+import apiClient from "../api/axiosClient";
 
 const messageService = {
   getMessages: async (sender, receiver) => {

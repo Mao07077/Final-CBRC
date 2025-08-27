@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 
-import axios from "../../api/axios";
+import axios from "../../api/axiosClient";
 
 const useRequestStore = create((set, get) => ({
   requests: [],
