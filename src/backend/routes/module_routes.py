@@ -36,10 +36,14 @@ async def update_module(
         if document:
             import cloudinary.uploader, io
             pdf_bytes = await document.read()
+            filename = document.filename if document.filename.lower().endswith('.pdf') else document.filename + '.pdf'
+            public_id = filename
             pdf_result = cloudinary.uploader.upload(
                 io.BytesIO(pdf_bytes),
                 folder="module_pdfs",
-                resource_type="raw"
+                resource_type="raw",
+                public_id=public_id,
+                format="pdf"
             )
             document_url = pdf_result["secure_url"] + '?attachment=false'
             update_data["document_url"] = document_url
@@ -106,7 +110,7 @@ async def update_module(
             import cloudinary.uploader, io
             pdf_bytes = await document.read()
             filename = document.filename if document.filename.lower().endswith('.pdf') else document.filename + '.pdf'
-            public_id = filename[:-4] if filename.lower().endswith('.pdf') else filename
+            public_id = filename
             pdf_result = cloudinary.uploader.upload(
                 io.BytesIO(pdf_bytes),
                 folder="module_pdfs",
