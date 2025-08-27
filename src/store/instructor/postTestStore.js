@@ -5,7 +5,9 @@ const usePostTestStore = create((set, get) => ({
 
     fetchModules: async () => {
       try {
-        const baseUrl = import.meta.env.VITE_API_URL || "https://final-cbrc.onrender.com";
+        let baseUrl = import.meta.env.VITE_API_URL || "https://final-cbrc.onrender.com";
+        // Remove trailing slash if present
+        if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
         const response = await fetch(`${baseUrl}/api/instructor/modules`);
         if (!response.ok) throw new Error('Failed to fetch modules');
         const data = await response.json();
