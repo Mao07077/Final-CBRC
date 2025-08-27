@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import apiClient from "../../../api/axios";
+import apiClient from "../../../api/axiosClient";
 
 const AttendanceStats = () => {
   const [summary, setSummary] = useState(null);
