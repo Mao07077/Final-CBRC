@@ -41,7 +41,7 @@ async def update_module(
                 folder="module_pdfs",
                 resource_type="raw"
             )
-            document_url = pdf_result["secure_url"]
+            document_url = pdf_result["secure_url"] + '?attachment=false'
             update_data["document_url"] = document_url
         # If new picture uploaded, upload to Cloudinary
         if picture:
@@ -167,10 +167,9 @@ async def create_module(
             folder="module_pdfs",
             resource_type="raw"
         )
-        document_url = pdf_result["secure_url"]
+        document_url = pdf_result["secure_url"] + '?attachment=false'
 
         # Upload picture to Cloudinary (keep existing logic)
-        import cloudinary.uploader, io
         picture_bytes = await picture.read()
         picture_result = cloudinary.uploader.upload(
             io.BytesIO(picture_bytes),
