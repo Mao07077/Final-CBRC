@@ -11,6 +11,18 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 router = APIRouter()
+@router.get("/api/instructor/modules")
+def get_instructor_modules():
+    modules = list(modules_collection.find({}))
+    for module in modules:
+        module["_id"] = str(module["_id"])
+    return modules
+@router.get("/api/instructor/modules")
+def get_instructor_modules():
+    modules = list(modules_collection.find({}))
+    for module in modules:
+        module["_id"] = str(module["_id"])
+    return modules
 
 # Edit (update) module endpoint
 @router.put("/api/modules/{module_id}")
