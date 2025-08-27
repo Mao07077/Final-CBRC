@@ -6,7 +6,9 @@ import os
 from typing import Optional
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-from google.oauth2 import service_account
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 
 router = APIRouter()
 
@@ -67,12 +69,12 @@ import os
 from typing import Optional
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-from google.oauth2 import service_account
+from google_auth_oauthlib.flow import InstalledAppFlow
 
 
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
-CREDENTIALS_FILE = '/etc/secrets/cbrc-470104-2598b873059a.json'  # Updated to match Render Secret File name
+CREDENTIALS_FILE = 'client_secret.json'  # Use OAuth2 client secret file
 DRIVE_FOLDER_ID = '1KvA0Z0PJ_1n1YN0zRhI8FKfgbt7YayGm'  # Your shared folder ID
 
 
@@ -127,9 +129,8 @@ async def update_module(
         raise HTTPException(status_code=500, detail="Module update failed")
 
 def authenticate_drive():
-    creds = service_account.Credentials.from_service_account_file(
-        CREDENTIALS_FILE, scopes=SCOPES
-    )
+    flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+    creds = flow.run_local_server(port=0)
     return creds
 
 def upload_pdf_to_drive(file_path, creds):
