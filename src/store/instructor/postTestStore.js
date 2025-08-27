@@ -2,6 +2,17 @@ import { create } from "zustand";
 
 const usePostTestStore = create((set, get) => ({
   modules: [],
+
+  fetchModules: async () => {
+    try {
+      const response = await fetch('/api/instructor/modules');
+      if (!response.ok) throw new Error('Failed to fetch modules');
+      const data = await response.json();
+      set({ modules: data });
+    } catch (error) {
+      set({ error: error.message });
+    }
+  },
   tests: {},
   editingTest: null,
   isModalOpen: false,

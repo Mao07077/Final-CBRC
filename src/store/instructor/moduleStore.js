@@ -35,12 +35,17 @@ const useModuleStore = create((set, get) => ({
     }
   },
 
-  deleteModule: (moduleId) => {
+  deleteModule: async (moduleId) => {
     if (!window.confirm("Are you sure you want to delete this module?")) return;
-
-    set(state => ({
-      modules: state.modules.filter(m => m._id !== moduleId),
-    }));
+    set({ isLoading: true });
+    try {
+      await apiClient.delete(`/api/modules/${moduleId}`);
+      // Refresh modules from backend
+      const modulesResponse = await apiClient.get('/api/instructor/modules');
+      set({ modules: modulesResponse.data, isLoading: false });
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
+    }
   },
 
   // --- Modal Control ---

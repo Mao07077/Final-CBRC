@@ -17,8 +17,8 @@ const ReportDetailsModal = () => {
   }
 
   const handleStatusChange = (e) => {
-    updateReportStatus(selectedReport.id, e.target.value);
-  };
+    updateReportStatus(selectedReport._id, e.target.value);
+  }
 
   return (
     <Modal
@@ -30,7 +30,7 @@ const ReportDetailsModal = () => {
         {selectedReport.screenshot && (
           <div className="mb-4">
             <img
-              src={`${process.env.REACT_APP_API_URL}/${selectedReport.screenshot}`}
+              src={selectedReport.screenshot.startsWith('http') ? selectedReport.screenshot : `${process.env.REACT_APP_API_URL}/${selectedReport.screenshot}`}
               alt="Screenshot"
               className="w-full h-auto rounded-lg border"
             />
@@ -40,8 +40,8 @@ const ReportDetailsModal = () => {
         <div className="border-t border-gray-200">
           <dl>
             <DetailRow label="Student" value={selectedReport.student} />
-            <DetailRow label="Date" value={new Date(selectedReport.date).toLocaleString()} />
-            <DetailRow label="Description" value={<p className="whitespace-pre-wrap">{selectedReport.content}</p>} />
+            <DetailRow label="Date" value={selectedReport.createdAt ? new Date(selectedReport.createdAt).toLocaleString() : ''} />
+            <DetailRow label="Description" value={<p className="whitespace-pre-wrap">{selectedReport.issue}</p>} />
             <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:items-center">
               <dt className="text-sm font-medium text-gray-500">Status</dt>
               <dd className="mt-1 sm:mt-0 sm:col-span-2">

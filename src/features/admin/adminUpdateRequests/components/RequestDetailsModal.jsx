@@ -26,6 +26,8 @@ const RequestDetailsModal = () => {
   const { _id, id_number, firstname, lastname, program, update_data } =
     selectedRequest;
 
+  // Remove 'username' field and show real current values
+  const filteredKeys = Object.keys(update_data).filter((key) => key !== "username");
   return (
     <Modal
       isOpen={!!selectedRequest}
@@ -34,9 +36,8 @@ const RequestDetailsModal = () => {
     >
       <div className="mt-4">
         <p className="text-sm text-gray-600 mb-4">Review the requested changes for ID: <span className="font-semibold">{id_number}</span></p>
-        
         <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border">
-          {Object.keys(update_data).map((key) => (
+          {filteredKeys.map((key) => (
             <DetailRow
               key={key}
               label={key.charAt(0).toUpperCase() + key.slice(1)}
@@ -45,7 +46,6 @@ const RequestDetailsModal = () => {
             />
           ))}
         </div>
-
         <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
           <button
             onClick={closeModal}

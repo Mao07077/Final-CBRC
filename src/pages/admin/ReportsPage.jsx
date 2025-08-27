@@ -14,6 +14,8 @@ const ReportsPage = () => {
     error,
   } = useReportStore();
   const [filters, setFilters] = useState({ query: "", status: "All" });
+  // Import dashboard store to get reportsThisWeek
+  const { stats } = require("../../store/admin/adminDashboardStore").default();
 
   useEffect(() => {
     fetchReports();
@@ -33,7 +35,7 @@ const ReportsPage = () => {
       <h1 className="text-2xl md:text-3xl font-bold text-primary-dark mb-6">
         Reports & Analytics
       </h1>
-      <AnalyticsDashboard reports={reports} />
+      <AnalyticsDashboard reports={reports} reportsThisWeek={stats.reportsThisWeek} />
 
       <div className="my-6 p-4 bg-gray-50 rounded-lg border">
         <div className="flex flex-col sm:flex-row items-center gap-4">

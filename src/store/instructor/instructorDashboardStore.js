@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import axios from "../../api/axiosClient";
+import instructorDashboardService from "../../services/instructorDashboardService";
 
 const useInstructorDashboardStore = create((set) => ({
   stats: { totalStudents: 0, engagementRate: 0 },
@@ -8,22 +8,17 @@ const useInstructorDashboardStore = create((set) => ({
   isLoading: false,
   error: null,
 
-  fetchDashboardData: async () => {
+  fetchDashboardData: async (instructorId, program = null) => {
     set({ isLoading: true, error: null });
     try {
-      // Fetch all dashboard data from backend
-      const response = await axios.get('/api/instructor/dashboard');
-      if (response.data.success) {
-        set({
-          isLoading: false,
-          stats: response.data.stats || { totalStudents: 0, engagementRate: 0 },
-          modules: response.data.modules || [],
-          attendanceData: response.data.attendanceData || [],
-          error: null,
-        });
-      } else {
-        throw new Error('Failed to fetch dashboard data');
-      }
+      const data = await instructorDashboardService.getDashboardStats(instructorId, program);
+      set({
+        isLoading: false,
+        stats: data.stats || { totalStudents: 0, engagementRate: 0 },
+        modules: data.modules || [],
+        attendanceData: data.attendanceData || [],
+        error: null,
+      });
     } catch (error) {
       set({
         isLoading: false,

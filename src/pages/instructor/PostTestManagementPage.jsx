@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiPlus } from "react-icons/fi";
 import usePostTestStore from "../../store/instructor/postTestStore";
 import TestList from "../../features/instructor/instructorPostTests/components/TestList";
@@ -14,8 +14,13 @@ const PostTestManagementPage = () => {
     error,
     isModalOpen,
     closeModal,
-    newTest, // Use the new newTest function
+    newTest,
+    fetchModules,
   } = usePostTestStore();
+
+  useEffect(() => {
+    fetchModules();
+  }, [fetchModules]);
 
   const handleCreateTest = () => {
     if (selectedModule) {

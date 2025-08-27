@@ -2,17 +2,20 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FiPlusCircle } from "react-icons/fi";
 import useInstructorDashboardStore from "../../store/instructor/instructorDashboardStore";
+import useAuthStore from "../../store/authStore";
 import StatCard from "../../features/instructor/instructorDashboard/components/StatCard";
 import AttendanceChart from "../../features/instructor/instructorDashboard/components/AttendanceChart";
 import ModuleList from "../../features/instructor/instructorDashboard/components/ModuleList";
 
 const InstructorDashboardPage = () => {
-  const { stats, modules, attendanceData, isLoading, fetchDashboardData } =
-    useInstructorDashboardStore();
+  const { stats, modules, attendanceData, isLoading, fetchDashboardData } = useInstructorDashboardStore();
+  const { userData } = useAuthStore();
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    if (userData?.id_number) {
+      fetchDashboardData(userData.id_number, userData.program);
+    }
+  }, [fetchDashboardData, userData]);
 
   return (
     <div>

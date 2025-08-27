@@ -31,7 +31,7 @@ async def get_instructor_modules(request: Request):
 
 @router.get("/api/dashboard/{id_number}")
 def dashboard(id_number: str):
-    user = users_collection.find_one({"id_number": id_number})
+    user = users_collection.find_one({"id_number": str(id_number)})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     program = user.get("program", "All Programs")

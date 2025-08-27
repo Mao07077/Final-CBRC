@@ -1,3 +1,52 @@
+from fastapi import Form
+# Edit (update) module endpoint
+@router.put("/api/modules/{module_id}")
+async def update_module(
+    module_id: str,
+    title: str = Form(...),
+    topic: str = Form(...),
+    description: str = Form(...),
+    program: str = Form(...),
+    id_number: str = Form(...),
+    document: UploadFile = File(None),
+    picture: UploadFile = File(None),
+):
+    try:
+        update_data = {
+            "title": title,
+            "topic": topic,
+            "description": description,
+            "program": program,
+            "id_number": id_number,
+        }
+        # If new document uploaded, upload to Drive
+        if document:
+            temp_pdf_path = f"uploads/{document.filename}"
+            with open(temp_pdf_path, "wb") as f:
+                f.write(await document.read())
+            creds = authenticate_drive()
+            document_url = upload_pdf_to_drive(temp_pdf_path, creds)
+            os.remove(temp_pdf_path)
+            update_data["document_url"] = document_url
+        # If new picture uploaded, upload to Cloudinary
+        if picture:
+            import cloudinary.uploader, io
+            picture_bytes = await picture.read()
+            picture_result = cloudinary.uploader.upload(
+                io.BytesIO(picture_bytes),
+                folder="module_pics",
+                type="upload",
+                resource_type="auto"
+            )
+            picture_url = picture_result["secure_url"]
+            update_data["image_url"] = picture_url
+        result = modules_collection.update_one({"_id": ObjectId(module_id)}, {"$set": update_data})
+        if result.modified_count > 0:
+            return {"success": True, "message": "Module updated successfully!"}
+        raise HTTPException(status_code=404, detail="Module not found or no changes made.")
+    except Exception as e:
+        logger.error(f"Error updating module: {e}")
+        raise HTTPException(status_code=500, detail="Module update failed")
 
 from fastapi import APIRouter, HTTPException, Query, Form, File, UploadFile
 from database import modules_collection, post_test_collection
@@ -12,10 +61,59 @@ from google.oauth2 import service_account
 
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
-CREDENTIALS_FILE = '/etc/secrets/client_secret.json'  # Update path if needed for Render
+CREDENTIALS_FILE = '/etc/secrets/cbrc-470104-2598b873059a.json'  # Updated to match Render Secret File name
 DRIVE_FOLDER_ID = '1KvA0Z0PJ_1n1YN0zRhI8FKfgbt7YayGm'  # Your shared folder ID
 
+
 router = APIRouter()
+# Edit (update) module endpoint
+@router.put("/api/modules/{module_id}")
+async def update_module(
+    module_id: str,
+    title: str = Form(...),
+    topic: str = Form(...),
+    description: str = Form(...),
+    program: str = Form(...),
+    id_number: str = Form(...),
+    document: UploadFile = File(None),
+    picture: UploadFile = File(None),
+):
+    try:
+        update_data = {
+            "title": title,
+            "topic": topic,
+            "description": description,
+            "program": program,
+            "id_number": id_number,
+        }
+        # If new document uploaded, upload to Drive
+        if document:
+            temp_pdf_path = f"uploads/{document.filename}"
+            with open(temp_pdf_path, "wb") as f:
+                f.write(await document.read())
+            creds = authenticate_drive()
+            document_url = upload_pdf_to_drive(temp_pdf_path, creds)
+            os.remove(temp_pdf_path)
+            update_data["document_url"] = document_url
+        # If new picture uploaded, upload to Cloudinary
+        if picture:
+            import cloudinary.uploader, io
+            picture_bytes = await picture.read()
+            picture_result = cloudinary.uploader.upload(
+                io.BytesIO(picture_bytes),
+                folder="module_pics",
+                type="upload",
+                resource_type="auto"
+            )
+            picture_url = picture_result["secure_url"]
+            update_data["image_url"] = picture_url
+        result = modules_collection.update_one({"_id": ObjectId(module_id)}, {"$set": update_data})
+        if result.modified_count > 0:
+            return {"success": True, "message": "Module updated successfully!"}
+        raise HTTPException(status_code=404, detail="Module not found or no changes made.")
+    except Exception as e:
+        logger.error(f"Error updating module: {e}")
+        raise HTTPException(status_code=500, detail="Module update failed")
 
 def authenticate_drive():
     creds = service_account.Credentials.from_service_account_file(
