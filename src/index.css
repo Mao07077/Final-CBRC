@@ -1,0 +1,148 @@
+@import "react-big-calendar/lib/css/react-big-calendar.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+============================================
+  Base Styles
+============================================
+*/
+@layer base {
+  body {
+    @apply bg-neutral-100 text-neutral-800 antialiased;
+    font-family: "Inter", sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-neutral-900 font-bold;
+  }
+}
+
+/*
+============================================
+  Component Styles
+============================================
+*/
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-block px-4 py-2 font-semibold text-center transition-colors duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-dark focus:ring-primary;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-white hover:bg-secondary-dark focus:ring-secondary;
+  }
+
+  .btn-danger {
+    @apply bg-danger text-white hover:bg-danger-dark focus:ring-danger;
+  }
+
+  .btn-success {
+    @apply bg-green-600 text-white hover:bg-green-700 focus:ring-green-500;
+  }
+
+  .btn-outline {
+    @apply bg-transparent border border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary;
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent text-neutral-600 hover:bg-neutral-200 focus:ring-primary p-2 rounded-full;
+  }
+
+  .btn-ghost-danger {
+    @apply bg-transparent text-danger hover:bg-red-100 focus:ring-danger p-2 rounded-full;
+  }
+
+  .dashboard-action-button {
+    @apply flex flex-col items-center text-primary-dark hover:text-primary transition;
+  }
+
+  .question-builder-card {
+    @apply p-4 border rounded-lg bg-gray-50;
+  }
+
+  .btn-link {
+    @apply text-primary hover:underline font-semibold;
+  }
+
+  .conversation-item {
+    @apply p-4 cursor-pointer hover:bg-gray-200;
+  }
+
+  .conversation-item-active {
+    @apply bg-primary-light;
+  }
+
+  .chat-bubble {
+    @apply max-w-md p-3 rounded-lg;
+  }
+
+  .chat-bubble-sent {
+    @apply bg-primary text-white;
+  }
+
+  .chat-bubble-received {
+    @apply bg-white shadow;
+  }
+
+  .list-item {
+    @apply flex items-center p-3 mb-2 bg-gray-50 rounded-lg hover:bg-gray-100;
+  }
+
+  .btn:disabled {
+    @apply bg-neutral-300 text-neutral-500 cursor-not-allowed;
+  }
+
+  /* Forms */
+  .form-input, .form-textarea, .form-select {
+    @apply block w-full px-3 py-2 bg-white border border-neutral-300 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-white rounded-lg shadow-md p-6;
+  }
+
+  /* Tables */
+  .table {
+    @apply min-w-full leading-normal;
+  }
+
+  .table th {
+    @apply px-5 py-3 border-b-2 border-neutral-200 bg-neutral-100 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider;
+  }
+
+  .table td {
+    @apply px-5 py-4 border-b border-neutral-200 bg-white text-sm;
+  }
+
+  .table tbody tr:hover {
+    @apply bg-neutral-50;
+  }
+}
+
+/*
+============================================
+  Utility Styles (from original file)
+============================================
+*/
+.perspective-1000 {
+  perspective: 1000px;
+}
+.transform-style-preserve-3d {
+  transform-style: preserve-3d;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+.backface-hidden {
+  -webkit-backface-visibility: hidden;
+  -moz-backface-visibility: hidden;
+  backface-visibility: hidden;
+}

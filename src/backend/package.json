@@ -1,0 +1,13 @@
+{
+  "name": "cbrcs-backend",
+  "version": "1.0.0",
+  "description": "CBRCS Backend API",
+  "main": "main.py",
+  "scripts": {
+    "start": "python main.py"
+  },
+  "dependencies": {},
+  "engines": {
+    "python": "3.11"
+  }
+}
