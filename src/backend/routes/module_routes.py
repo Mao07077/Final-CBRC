@@ -103,12 +103,18 @@ async def update_module(
         }
         # If new document uploaded, upload to Drive
         if document:
-            temp_pdf_path = f"uploads/{document.filename}"
-            with open(temp_pdf_path, "wb") as f:
-                f.write(await document.read())
-            creds = authenticate_drive()
-            document_url = upload_pdf_to_drive(temp_pdf_path, creds)
-            os.remove(temp_pdf_path)
+            import cloudinary.uploader, io
+            pdf_bytes = await document.read()
+            filename = document.filename if document.filename.lower().endswith('.pdf') else document.filename + '.pdf'
+            public_id = filename[:-4] if filename.lower().endswith('.pdf') else filename
+            pdf_result = cloudinary.uploader.upload(
+                io.BytesIO(pdf_bytes),
+                folder="module_pdfs",
+                resource_type="raw",
+                public_id=public_id,
+                format="pdf"
+            )
+            document_url = pdf_result["secure_url"] + '?attachment=false'
             update_data["document_url"] = document_url
         # If new picture uploaded, upload to Cloudinary
         if picture:
@@ -162,10 +168,14 @@ async def create_module(
         # Upload PDF to Cloudinary as raw (public PDF)
         import cloudinary.uploader, io
         pdf_bytes = await document.read()
+        filename = document.filename if document.filename.lower().endswith('.pdf') else document.filename + '.pdf'
+        public_id = filename[:-4] if filename.lower().endswith('.pdf') else filename
         pdf_result = cloudinary.uploader.upload(
             io.BytesIO(pdf_bytes),
             folder="module_pdfs",
-            resource_type="raw"
+            resource_type="raw",
+            public_id=public_id,
+            format="pdf"
         )
         document_url = pdf_result["secure_url"] + '?attachment=false'
 
