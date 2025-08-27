@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import useReportStore from "../../store/admin/reportStore";
+import useAdminDashboardStore from "../../store/admin/adminDashboardStore";
 import AnalyticsDashboard from "../../features/admin/adminReports/components/AnalyticsDashboard";
 import ReportsTable from "../../features/admin/adminReports/components/ReportsTable";
 import ReportDetailsModal from "../../features/admin/adminReports/components/ReportDetailsModal";
@@ -14,8 +15,8 @@ const ReportsPage = () => {
     error,
   } = useReportStore();
   const [filters, setFilters] = useState({ query: "", status: "All" });
-  // Import dashboard store to get reportsThisWeek
-  const { stats } = require("../../store/admin/adminDashboardStore").default();
+  // Use dashboard store to get reportsThisWeek
+  const { stats } = useAdminDashboardStore();
 
   useEffect(() => {
     fetchReports();
