@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import PerformanceDownloadModal from "../../features/admin/adminStudentPerformance/components/PerformanceDownloadModal2";
+import PerformanceDownloadModal from "../../features/admin/adminStudentPerformance/components/PerformanceDownloadModal";
 import BulkPerformanceDownloadModal from "../../features/admin/adminStudentPerformance/components/BulkPerformanceDownloadModal";
 
 const StudentPerformanceList = ({ students }) => {
