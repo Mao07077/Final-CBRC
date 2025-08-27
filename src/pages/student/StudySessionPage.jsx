@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import StudySessionRoom from "../../features/student/learnTogether/components/StudySessionRoom";
 import useAuthStore from "../../store/authStore";
-import apiClient from "../../api/axios";
+import apiClient from "../../api/axiosClient";
 
 const StudySessionPage = () => {
   const { groupId } = useParams();
