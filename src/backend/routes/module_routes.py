@@ -32,14 +32,16 @@ async def update_module(
             "program": program,
             "id_number": id_number,
         }
-        # If new document uploaded, upload to Drive
+        # If new document uploaded, upload to Cloudinary as raw (public PDF)
         if document:
-            temp_pdf_path = f"uploads/{document.filename}"
-            with open(temp_pdf_path, "wb") as f:
-                f.write(await document.read())
-            creds = authenticate_drive()
-            document_url = upload_pdf_to_drive(temp_pdf_path, creds)
-            os.remove(temp_pdf_path)
+            import cloudinary.uploader, io
+            pdf_bytes = await document.read()
+            pdf_result = cloudinary.uploader.upload(
+                io.BytesIO(pdf_bytes),
+                folder="module_pdfs",
+                resource_type="raw"
+            )
+            document_url = pdf_result["secure_url"]
             update_data["document_url"] = document_url
         # If new picture uploaded, upload to Cloudinary
         if picture:
@@ -157,17 +159,15 @@ async def create_module(
     picture: UploadFile = File(...),
 ):
     try:
-        # Save PDF temporarily
-        temp_pdf_path = f"uploads/{document.filename}"
-        with open(temp_pdf_path, "wb") as f:
-            f.write(await document.read())
-
-        # Authenticate and upload to Google Drive
-        creds = authenticate_drive()
-        document_url = upload_pdf_to_drive(temp_pdf_path, creds)
-
-        # Remove temp file
-        os.remove(temp_pdf_path)
+        # Upload PDF to Cloudinary as raw (public PDF)
+        import cloudinary.uploader, io
+        pdf_bytes = await document.read()
+        pdf_result = cloudinary.uploader.upload(
+            io.BytesIO(pdf_bytes),
+            folder="module_pdfs",
+            resource_type="raw"
+        )
+        document_url = pdf_result["secure_url"]
 
         # Upload picture to Cloudinary (keep existing logic)
         import cloudinary.uploader, io
