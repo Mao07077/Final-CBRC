@@ -1,4 +1,15 @@
-from fastapi import Form
+from fastapi import APIRouter, HTTPException, Query, Form, File, UploadFile
+from database import modules_collection, post_test_collection
+from bson import ObjectId
+from config import logger
+import os
+from typing import Optional
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from google.oauth2 import service_account
+
+router = APIRouter()
+
 # Edit (update) module endpoint
 @router.put("/api/modules/{module_id}")
 async def update_module(
