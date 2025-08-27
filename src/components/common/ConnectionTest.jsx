@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from '../../api/axios';
+import apiClient from '../../api/axiosClient';
 
 const ConnectionTest = () => {
   const [status, setStatus] = useState('Checking connection...');

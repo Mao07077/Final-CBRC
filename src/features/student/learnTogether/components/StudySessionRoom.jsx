@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import useLearnTogetherStore from "../../../../store/student/learnTogetherStore";
 import SessionEndNotification from "../../../../components/common/SessionEndNotification";
-import apiClient from "../../../../api/axios";
+import apiClient from "../../../../api/axiosClient";
 
 // Speaking Indicator Component
 const SpeakingIndicator = ({ isActive, audioLevel = 0 }) => {
