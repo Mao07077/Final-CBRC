@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import usePostTestStore from "../../../../store/instructor/postTestStore";
-import Toast from "../../../components/common/Toast";
+import Toast from "../../../../components/common/Toast";
 import QuestionBuilder from "./QuestionBuilder";
 
 const TestBuilderForm = ({ moduleId }) => {
