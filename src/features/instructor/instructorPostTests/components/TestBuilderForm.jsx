@@ -4,9 +4,14 @@ import Toast from "../../../../components/common/Toast";
 import QuestionBuilder from "./QuestionBuilder";
 
 const TestBuilderForm = ({ moduleId }) => {
-  const { saveTest, editingTest, closeModal, isLoading, success, error, set } = usePostTestStore();
+  const { saveTest, editingTest, closeModal, isLoading, success, error } = usePostTestStore();
   // Clear success after showing
-  const handleToastClose = () => set({ success: null });
+  const handleToastClose = () => {
+    // Zustand exposes setState as a static property
+    if (typeof usePostTestStore.setState === "function") {
+      usePostTestStore.setState({ success: null });
+    }
+  };
   const [title, setTitle] = useState("");
   const [questions, setQuestions] = useState([]);
 

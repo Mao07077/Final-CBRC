@@ -94,7 +94,7 @@ const usePostTestStore = create((set, get) => ({
       if (data.success) {
         // Refetch post-tests for the module
         await get().fetchTestsForModule(module_id);
-        set({ success: "Post-test saved successfully!", isLoading: false });
+        set({ success: "Post-test saved successfully!", isLoading: false, isModalOpen: false, editingTest: null });
       } else {
         set({ error: data.message || "Failed to save post-test", isLoading: false });
       }
