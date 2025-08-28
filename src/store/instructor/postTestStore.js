@@ -25,13 +25,15 @@ const usePostTestStore = create((set, get) => ({
   fetchTestsForModule: async (moduleId) => {
     set({ isLoading: true });
     try {
-      const response = await fetch(`/api/posttest/module/${moduleId}`);
+      let baseUrl = import.meta.env.VITE_API_URL || "https://final-cbrc.onrender.com";
+      if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+      const response = await fetch(`${baseUrl}/api/post-test/${moduleId}`);
       if (!response.ok) throw new Error('Failed to fetch post-tests');
       const data = await response.json();
       set((state) => ({
         tests: {
           ...state.tests,
-          [moduleId]: data,
+          [moduleId]: [data],
         },
         isLoading: false,
       }));
