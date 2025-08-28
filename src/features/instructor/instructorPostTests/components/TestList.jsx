@@ -1,9 +1,14 @@
 import { FiEdit, FiTrash2 } from "react-icons/fi";
 import usePreTestStore from "../../../../store/instructor/preTestStore";
+import { useState } from "react";
+import EditPreTestModal from "./EditPreTestModal";
 
 const TestList = ({ tests, moduleId }) => {
   const { fetchPreTest, preTests, isLoading, error, success, updatePreTest } = usePreTestStore();
-  // For editing, you can add modal logic as needed
+  const [isEditOpen, setEditOpen] = useState(false);
+  const handleEdit = () => setEditOpen(true);
+  const handleClose = () => setEditOpen(false);
+  const handleSave = (updateData) => updatePreTest(moduleId, updateData);
 
   if (!preTests[moduleId] || !preTests[moduleId].questions || !preTests[moduleId].questions.length) return <p>No pre-tests found for this module.</p>;
 
@@ -17,7 +22,7 @@ const TestList = ({ tests, moduleId }) => {
             </span>
             <div className="flex items-center space-x-2 self-end sm:self-center">
               <button
-                onClick={() => {/* open edit modal logic here */}}
+                onClick={handleEdit}
                 className="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors duration-200"
                 aria-label={`Edit ${preTests[moduleId].title}`}
               >
@@ -28,7 +33,12 @@ const TestList = ({ tests, moduleId }) => {
           <div className="mt-2 text-sm text-gray-600">
             {preTests[moduleId].questions.length} questions
           </div>
-          {/* You can add more details or actions here */}
+          <EditPreTestModal
+            isOpen={isEditOpen}
+            onClose={handleClose}
+            preTest={preTests[moduleId]}
+            onSave={handleSave}
+          />
         </li>
       </ul>
     </div>
