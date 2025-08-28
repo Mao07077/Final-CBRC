@@ -77,42 +77,30 @@ const usePostTestStore = create((set, get) => ({
     set({ isModalOpen: false, editingTest: null });
   },
 
-  saveTest: (testData) => {
+  saveTest: async (testData) => {
     const { module_id, title, questions } = testData;
     let baseUrl = import.meta.env.VITE_API_URL || "https://final-cbrc.onrender.com";
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-    fetch(`${baseUrl}/createposttest/${module_id}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ title, questions }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          set((state) => {
-            const moduleTests = state.tests[module_id] ? [...state.tests[module_id]] : [];
-            const existingTestIndex = moduleTests.findIndex((t) => t._id === testData._id);
-            if (existingTestIndex > -1) {
-              moduleTests[existingTestIndex] = testData;
-            } else {
-              moduleTests.push(testData);
-            }
-            return {
-              tests: {
-                ...state.tests,
-                [module_id]: moduleTests,
-              },
-            };
-          });
-        } else {
-          set({ error: data.message || "Failed to save post-test" });
-        }
-      })
-      .catch((error) => {
-        set({ error: error.message || "Failed to save post-test" });
+    set({ isLoading: true, error: null, success: null });
+    try {
+      const res = await fetch(`${baseUrl}/createposttest/${module_id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title, questions }),
       });
+      const data = await res.json();
+      if (data.success) {
+        // Refetch post-tests for the module
+        await get().fetchTestsForModule(module_id);
+        set({ success: "Post-test saved successfully!", isLoading: false });
+      } else {
+        set({ error: data.message || "Failed to save post-test", isLoading: false });
+      }
+    } catch (error) {
+      set({ error: error.message || "Failed to save post-test", isLoading: false });
+    }
   },
 
   deleteTest: (testId, moduleId) => {
