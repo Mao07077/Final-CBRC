@@ -1,10 +1,10 @@
 import { FiEdit, FiTrash2 } from "react-icons/fi";
-import usePostTestStore from "../../../../store/instructor/postTestStore";
+import usePreTestStore from "../../../../store/instructor/preTestStore";
 
 const TestList = ({ tests, moduleId }) => {
-  const { openModal, deleteTest } = usePostTestStore();
+  const { openModal, deleteTest } = usePreTestStore();
 
-  if (!tests.length) return <p>No post-tests found for this module.</p>;
+  if (!tests.length) return <p>No pre-tests found for this module.</p>;
 
   return (
     <div className="bg-white shadow-md rounded-lg overflow-hidden">
