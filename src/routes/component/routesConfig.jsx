@@ -52,6 +52,7 @@ import SendReportPage from "../../pages/student/SendReportPage";
 import InstructorDashboardPage from "../../pages/instructor/InstructorDashboardPage";
 import ModuleManagementPage from "../../pages/instructor/ModuleManagementPage";
 import PostTestManagementPage from "../../pages/instructor/PostTestManagementPage";
+import PreTestManagementPage from "../../features/instructor/instructorPostTests/PreTestManagementPage";
 import StudentListPage from "../../pages/instructor/StudentListPage";
 import InstructorChatPage from "../../pages/instructor/InstructorChatPage";
 
@@ -211,7 +212,7 @@ export const routesConfig = [
     children: [
       { path: "dashboard", element: <InstructorDashboardPage /> },
       { path: "modules", element: <ModuleManagementPage /> },
-  { path: "pre-tests", element: <PostTestManagementPage /> },
+  { path: "pre-tests", element: <PreTestManagementPage /> },
       { path: "students", element: <StudentListPage /> },
       { path: "messages", element: <InstructorChatPage /> },
     ],
