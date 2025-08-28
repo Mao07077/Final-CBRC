@@ -116,8 +116,8 @@ const instructorNavLinks = [
   { path: "/instructor/dashboard", label: "Dashboard", icon: <FiHome /> },
   { path: "/instructor/modules", label: "Module Management", icon: <FiBook /> },
   {
-    path: "/instructor/post-tests",
-    label: "Post-Tests",
+    path: "/instructor/pre-tests",
+    label: "Pre-Tests",
     icon: <FiClipboard />,
   },
   { path: "/instructor/students", label: "Student List", icon: <FiUsers /> },
@@ -211,7 +211,7 @@ export const routesConfig = [
     children: [
       { path: "dashboard", element: <InstructorDashboardPage /> },
       { path: "modules", element: <ModuleManagementPage /> },
-      { path: "post-tests", element: <PostTestManagementPage /> },
+  { path: "pre-tests", element: <PostTestManagementPage /> },
       { path: "students", element: <StudentListPage /> },
       { path: "messages", element: <InstructorChatPage /> },
     ],
