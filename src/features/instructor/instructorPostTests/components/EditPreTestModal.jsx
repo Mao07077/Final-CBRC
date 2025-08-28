@@ -18,6 +18,17 @@ const EditPreTestModal = ({ isOpen, onClose, preTest, onSave }) => {
 
   if (!isOpen) return null;
 
+  const handleAddQuestion = () => {
+    setQuestions([
+      ...questions,
+      {
+        question: "",
+        options: ["", "", "", ""],
+        correctAnswer: ""
+      }
+    ]);
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit Pre-Test">
       <div className="space-y-4">
@@ -60,6 +71,13 @@ const EditPreTestModal = ({ isOpen, onClose, preTest, onSave }) => {
             />
           </div>
         ))}
+        <button
+          type="button"
+          onClick={handleAddQuestion}
+          className="btn btn-secondary mt-2"
+        >
+          + Add Question
+        </button>
         <button
           onClick={handleSave}
           className="btn btn-primary mt-4"
