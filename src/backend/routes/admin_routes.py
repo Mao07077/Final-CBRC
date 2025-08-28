@@ -74,6 +74,15 @@ async def get_admin_posts():
     for post in posts:
         post["_id"] = str(post["_id"])
     return posts
+
+
+from fastapi import APIRouter, HTTPException, Depends
+from typing import List, Dict, Any
+from bson import ObjectId
+from database import get_user_collection, get_reports_collection
+
+router = APIRouter()
+
 @router.get("/api/admin/dashboard")
 async def get_admin_dashboard():
     user_collection = get_user_collection()
@@ -93,33 +102,14 @@ async def get_admin_dashboard():
         }
     })
     return {
-        "totalUsers": total_users,
-        "totalStudents": total_students,
-        "totalInstructors": total_instructors,
-        "totalAdmins": total_admins,
-        "reportsThisWeek": reports_this_week
-    }
-
-
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Dict, Any
-from bson import ObjectId
-from database import get_user_collection, get_reports_collection
-
-router = APIRouter()
-
-@router.get("/api/admin/dashboard")
-async def get_admin_dashboard():
-    user_collection = get_user_collection()
-    total_users = user_collection.count_documents({})
-    total_students = user_collection.count_documents({"role": {"$regex": "^student$", "$options": "i"}})
-    total_instructors = user_collection.count_documents({"role": {"$regex": "^instructor$", "$options": "i"}})
-    total_admins = user_collection.count_documents({"role": {"$regex": "^admin$", "$options": "i"}})
-    return {
-        "totalUsers": total_users,
-        "totalStudents": total_students,
-        "totalInstructors": total_instructors,
-        "totalAdmins": total_admins,
+        "success": True,
+        "stats": {
+            "totalUsers": total_users,
+            "totalStudents": total_students,
+            "totalInstructors": total_instructors,
+            "totalAdmins": total_admins,
+            "reportsThisWeek": reports_this_week
+        }
     }
 
 @router.get("/api/admin/accounts")
