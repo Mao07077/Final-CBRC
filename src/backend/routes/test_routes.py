@@ -1,18 +1,5 @@
 from fastapi import Body
-@router.put("/api/pre-test/{module_id}")
-def update_pre_test(module_id: str, data: dict = Body(...)):
-    pre_test = pre_test_collection.find_one({"module_id": module_id})
-    if not pre_test:
-        raise HTTPException(status_code=404, detail="Pre-test not found")
-    update_data = {}
-    if "title" in data:
-        update_data["title"] = data["title"]
-    if "questions" in data:
-        update_data["questions"] = data["questions"]
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No valid fields to update")
-    pre_test_collection.update_one({"module_id": module_id}, {"$set": update_data})
-    return {"success": True, "message": "Pre-test updated successfully!"}
+
 from fastapi import APIRouter, HTTPException
 from models import PostTestRequest, PostTestSubmission, PreTestResponse, PostTestResponse, ScoreData, QuestionWithAnswers
 from database import modules_collection, pre_test_collection, post_test_collection, scores_collection
@@ -243,3 +230,17 @@ def get_module_status(module_id: str, user_id: str):
         "pre_test_completed": bool(pre_test_score),
         "post_test_completed": bool(post_test_score)
     }
+@router.put("/api/pre-test/{module_id}")
+def update_pre_test(module_id: str, data: dict = Body(...)):
+    pre_test = pre_test_collection.find_one({"module_id": module_id})
+    if not pre_test:
+        raise HTTPException(status_code=404, detail="Pre-test not found")
+    update_data = {}
+    if "title" in data:
+        update_data["title"] = data["title"]
+    if "questions" in data:
+        update_data["questions"] = data["questions"]
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    pre_test_collection.update_one({"module_id": module_id}, {"$set": update_data})
+    return {"success": True, "message": "Pre-test updated successfully!"}
