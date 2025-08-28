@@ -10,7 +10,7 @@ const ActionButtons = () => {
       </button>
       <button className="dashboard-action-button">
         <FiPlusCircle className="w-10 h-10 mb-2" />
-        <span className="font-semibold">Create Post-Test</span>
+        <span className="font-semibold">Create Pre-Test</span>
       </button>
     </div>
   );

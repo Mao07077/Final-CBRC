@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import usePreTestStore from "../../../../store/instructor/preTestStore";
+import usePostTestStore from "../../../../store/instructor/postTestStore";
 import Toast from "../../../../components/common/Toast";
 import QuestionBuilder from "./QuestionBuilder";
 
 const TestBuilderForm = ({ moduleId }) => {
-  const { updatePreTest, preTests, closeModal, isLoading, success, error } = usePreTestStore();
+  const { saveTest, editingTest, closeModal, isLoading, success, error } = usePostTestStore();
   // Clear success after showing
   const handleToastClose = () => {
     // Zustand exposes setState as a static property
@@ -55,7 +55,7 @@ const TestBuilderForm = ({ moduleId }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    updatePreTest(moduleId, { title, questions });
+    saveTest({ title, questions, module_id: moduleId });
   };
 
   return (
@@ -63,7 +63,7 @@ const TestBuilderForm = ({ moduleId }) => {
       <Toast message={success} onClose={handleToastClose} />
       <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
   <h2 className="text-2xl font-bold mb-6">
-  {"Edit Pre-Test"}
+        {editingTest ? "Edit Post-Test" : "Create New Post-Test"}
       </h2>
       <form onSubmit={handleSubmit}>
         <input
