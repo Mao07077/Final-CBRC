@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import useStudentStore from "../../../../store/instructor/studentStore";
+import apiClient from "../../../../api/axiosClient";
 
 const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
@@ -22,9 +23,9 @@ const StudentDashboardModal = () => {
     if (isModalOpen && selectedStudent) {
       setLoading(true);
       setError(null);
-      fetch(`/api/dashboard/${selectedStudent.studentNo}`)
-        .then(res => res.json())
-        .then(data => {
+      apiClient.get(`/api/dashboard/${selectedStudent.studentNo}`)
+        .then(res => {
+          const data = res.data;
           setStudentStats({
             modulesCompleted: data.completedModules,
             totalModules: data.totalModules,
