@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import useModuleStore from "../../../../store/instructor/moduleStore";
-import PreTestManager from "./PreTestManager";
+import useModuleStore from "../../../store/instructor/moduleStore";
+import PreTestManager from "./components/PreTestManager";
 
 const PreTestManagementPage = () => {
   const { modules, fetchModules, isLoading: modulesLoading } = useModuleStore();
