@@ -29,11 +29,8 @@ const useRequestStore = create((set, get) => ({
     try {
       const response = await axios.post(`/api/admin/account-requests/${requestId}/accept`);
       if (response.data.success) {
-        set((state) => ({
-          requests: state.requests.filter((r) => r._id !== requestId),
-          isLoading: false,
-          selectedRequest: null,
-        }));
+        await get().fetchRequests();
+        set({ isLoading: false, selectedRequest: null });
       } else {
         set({ isLoading: false });
         alert('Failed to accept request');
@@ -51,11 +48,8 @@ const useRequestStore = create((set, get) => ({
     try {
       const response = await axios.post(`/api/admin/account-requests/${requestId}/decline`);
       if (response.data.success) {
-        set((state) => ({
-          requests: state.requests.filter((r) => r._id !== requestId),
-          isLoading: false,
-          selectedRequest: null,
-        }));
+        await get().fetchRequests();
+        set({ isLoading: false, selectedRequest: null });
       } else {
         set({ isLoading: false });
         alert('Failed to decline request');
