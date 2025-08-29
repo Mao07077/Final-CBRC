@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import ProfileUpdateRequestModal from "../../components/ProfileUpdateRequestModal";
 import { useNavigate } from "react-router-dom";
 import {
   User,
@@ -30,7 +31,7 @@ const StudentProfilePage = () => {
   const [top3Habits, setTop3Habits] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  // ...existing code...
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const habitDescriptions = {
     "Study with Friends": "Collaborate and learn together with peers",
@@ -170,6 +171,14 @@ const StudentProfilePage = () => {
 
         {/* Profile Info Section */}
         <div className="bg-white rounded-lg shadow-md p-8 mb-8">
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow hover:bg-indigo-700 transition"
+            >
+              Request Profile Update
+            </button>
+          </div>
           <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
             {/* Profile Image */}
             <div className="flex flex-col items-center">
@@ -360,7 +369,9 @@ const StudentProfilePage = () => {
             {/* Stats already shown above, remove duplicate */}
           </div>
         </div>
-      </div>
+  </div>
+  {/* Profile Update Request Modal */}
+  <ProfileUpdateRequestModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
