@@ -67,6 +67,7 @@ from database import get_user_collection, get_reports_collection, posts_collecti
 
 class StatusUpdate(BaseModel):
     status: str
+
 # Admin: Get all posts
 @router.get("/api/admin/posts")
 async def get_admin_posts():
@@ -74,6 +75,46 @@ async def get_admin_posts():
     for post in posts:
         post["_id"] = str(post["_id"])
     return posts
+
+# Admin: Create a new post
+@router.post("/api/admin/posts")
+async def create_admin_post(title: str = Body(...), content: str = Body(...), image: str = Body(None)):
+    post_data = {
+        "title": title,
+        "content": content,
+        "createdAt": None,
+        "image": image,
+    }
+    from datetime import datetime
+    post_data["createdAt"] = datetime.utcnow()
+    result = posts_collection.insert_one(post_data)
+    post_data["_id"] = str(result.inserted_id)
+    return post_data
+
+# Admin: Update a post
+@router.put("/api/admin/posts/{post_id}")
+async def update_admin_post(post_id: str, title: str = Body(None), content: str = Body(None), image: str = Body(None)):
+    update_data = {}
+    if title is not None:
+        update_data["title"] = title
+    if content is not None:
+        update_data["content"] = content
+    if image is not None:
+        update_data["image"] = image
+    result = posts_collection.update_one({"_id": ObjectId(post_id)}, {"$set": update_data})
+    if result.modified_count > 0:
+        return {"success": True}
+    else:
+        return {"success": False, "error": "Post not found"}
+
+# Admin: Delete a post
+@router.delete("/api/admin/posts/{post_id}")
+async def delete_admin_post(post_id: str):
+    result = posts_collection.delete_one({"_id": ObjectId(post_id)})
+    if result.deleted_count > 0:
+        return {"success": True}
+    else:
+        return {"success": False, "error": "Post not found"}
 
 
 from fastapi import APIRouter, HTTPException, Depends
