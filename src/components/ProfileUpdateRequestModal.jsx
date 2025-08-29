@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import ProfileUpdateRequestForm from "../../components/ProfileUpdateRequestForm";
+import ProfileUpdateRequestForm from "../components/ProfileUpdateRequestForm";
 
 const ProfileUpdateRequestModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
