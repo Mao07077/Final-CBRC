@@ -27,7 +27,7 @@ const ProfileUpdateRequestForm = () => {
         return;
       }
       try {
-        const res = await apiClient.get(`/profile/${userData.id_number}`);
+  const res = await apiClient.get(`/api/profile/${userData.id_number}`);
         if (res.data) {
           setFields({
             firstname: res.data.firstname || "",
