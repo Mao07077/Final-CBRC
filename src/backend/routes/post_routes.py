@@ -5,6 +5,7 @@ from config import logger
 import os
 import shutil
 from typing import Optional
+from fastapi import UploadFile, File
 from bson import ObjectId
 
 router = APIRouter()
@@ -22,18 +23,25 @@ async def get_admin_posts():
 from typing import Optional
 
 
+
 @router.post("/api/admin/posts")
 async def create_admin_post(
     title: Optional[str] = Form("") ,
     content: Optional[str] = Form("") ,
-    image: Optional[str] = Form("")
+    image: Optional[UploadFile] = File(None)
 ):
-    print(f"DEBUG POST /api/admin/posts: title={title!r}, content={content!r}, image={image!r}")
+    print(f"DEBUG POST /api/admin/posts: title={title!r}, content={content!r}, image={image}")
+    image_url = ""
+    if image:
+        import cloudinary.uploader, io
+        image_bytes = await image.read()
+        result = cloudinary.uploader.upload(io.BytesIO(image_bytes), folder="post_images")
+        image_url = result["secure_url"]
     post_data = {
         "title": title or "",
         "content": content or "",
         "createdAt": None,
-        "image": image or "",
+        "image": image_url,
     }
     from datetime import datetime
     post_data["createdAt"] = datetime.utcnow()
