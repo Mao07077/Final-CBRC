@@ -146,24 +146,16 @@ async def get_reports():
         reports = list(reports_collection.find({}))
         formatted_reports = []
         for report in reports:
-            # Try to get student name from user collection if studentId is present
-            student_name = ""
-            if report.get("studentId"):
-                student = user_collection.find_one({"id_number": report["studentId"]})
-                if student:
-                    student_name = f"{student.get('firstname', '')} {student.get('lastname', '')}".strip()
-            # Use student field as fallback
-            if not student_name:
-                student_name = report.get("student", "")
+            # Map MongoDB fields to frontend fields
             formatted_reports.append({
                 "_id": str(report["_id"]),
-                "student": student_name,
-                "studentId": report.get("studentId", ""),
-                "issue": report.get("issue", ""),
-                "status": report.get("status", "Pending"),
-                "createdAt": report.get("createdAt"),
-                "messages": report.get("messages", []),
-                "screenshot": report.get("screenshot", None)
+                "student": report.get("id_number", ""),
+                "studentId": report.get("id_number", ""),
+                "issue": report.get("title", ""),
+                "status": "Pending",  # Default, since not in DB
+                "createdAt": report.get("created_at", None),
+                "messages": [report.get("content", "")] if report.get("content") else [],
+                "screenshot": report.get("screenshot_url", None)
             })
         return {"success": True, "reports": formatted_reports}
     except Exception as e:
