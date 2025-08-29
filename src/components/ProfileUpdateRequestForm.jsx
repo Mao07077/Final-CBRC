@@ -27,7 +27,7 @@ const ProfileUpdateRequestForm = () => {
         return;
       }
       try {
-        const res = await axios.get(`/profile/${userData.id_number}`);
+        const res = await apiClient.get(`/profile/${userData.id_number}`);
         if (res.data) {
           setFields({
             firstname: res.data.firstname || "",
@@ -37,7 +37,6 @@ const ProfileUpdateRequestForm = () => {
             birthdate: res.data.birthdate || "",
             gender: res.data.gender || "",
             email: res.data.email || "",
-            // reason removed
           });
         }
       } catch (err) {
