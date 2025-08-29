@@ -15,9 +15,14 @@ async def get_admin_posts():
         post["_id"] = str(post["_id"])
     return posts
 
-# Admin: Create a new post
+
+# Admin: Create a new post (accept FormData)
 @router.post("/api/admin/posts")
-async def create_admin_post(title: str = Body(...), content: str = Body(...), image: str = Body(None)):
+async def create_admin_post(
+    title: str = Form(...),
+    content: str = Form(...),
+    image: str = Form(None)
+):
     post_data = {
         "title": title,
         "content": content,
@@ -30,9 +35,14 @@ async def create_admin_post(title: str = Body(...), content: str = Body(...), im
     post_data["_id"] = str(result.inserted_id)
     return post_data
 
-# Admin: Update a post
+# Admin: Update a post (accept FormData)
 @router.put("/api/admin/posts/{post_id}")
-async def update_admin_post(post_id: str, title: str = Body(None), content: str = Body(None), image: str = Body(None)):
+async def update_admin_post(
+    post_id: str,
+    title: str = Form(None),
+    content: str = Form(None),
+    image: str = Form(None)
+):
     update_data = {}
     if title is not None:
         update_data["title"] = title
