@@ -12,7 +12,6 @@ const ProfileUpdateRequestForm = () => {
     birthdate: "",
     gender: "",
     email: "",
-    reason: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState("");
@@ -38,7 +37,7 @@ const ProfileUpdateRequestForm = () => {
             birthdate: res.data.birthdate || "",
             gender: res.data.gender || "",
             email: res.data.email || "",
-            reason: "",
+            // reason removed
           });
         }
       } catch (err) {
@@ -118,7 +117,6 @@ const ProfileUpdateRequestForm = () => {
             <option value="Other">Other</option>
           </select>
           <input name="email" type="email" value={fields.email} onChange={handleChange} placeholder="Email (optional)" className="w-full px-3 py-2 border rounded" />
-          <textarea name="reason" value={fields.reason} onChange={handleChange} placeholder="Reason for update (optional)" className="w-full px-3 py-2 border rounded" />
           <button type="submit" className="w-full py-2 bg-indigo-600 text-white font-semibold rounded hover:bg-indigo-700 transition" disabled={isLoading}>
             {isLoading ? "Submitting..." : "Submit Request"}
           </button>
