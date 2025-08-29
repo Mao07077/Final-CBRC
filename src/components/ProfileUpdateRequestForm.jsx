@@ -59,8 +59,13 @@ const ProfileUpdateRequestForm = () => {
     setSuccess("");
     setError("");
     try {
+      if (!userData || !userData.id_number) {
+        setError("User ID not found.");
+        setIsLoading(false);
+        return;
+      }
       // Send request to backend
-      const res = await axios.post("/account-requests", fields);
+      const res = await axios.post(`/user/settings/request/${userData.id_number}`, fields);
       if (res.data.success) {
         setSuccess("Request submitted successfully!");
         setFields({
