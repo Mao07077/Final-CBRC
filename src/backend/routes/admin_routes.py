@@ -24,14 +24,16 @@ async def get_account_update_requests():
     result = []
     for req in requests:
         user = user_collection.find_one({"id_number": req["id_number"]})
+        # Support both update_data and requested_changes
+        changes = req.get("update_data") or req.get("requested_changes") or {}
         req_data = {
             "_id": str(req["_id"]),
             "id_number": req["id_number"],
-            "update_data": req["update_data"],
+            "update_data": changes,
         }
         # Add current values for each requested field
         if user:
-            for field in req["update_data"].keys():
+            for field in changes.keys():
                 req_data[field] = user.get(field, "N/A")
             # Always include firstname and lastname for modal display
             req_data["firstname"] = user.get("firstname", "N/A")
@@ -72,7 +74,8 @@ async def accept_account_update_request(request_id: str):
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
     user_collection = get_user_collection()
-    user_collection.update_one({"id_number": req["id_number"]}, {"$set": req["update_data"]})
+    changes = req.get("update_data") or req.get("requested_changes") or {}
+    user_collection.update_one({"id_number": req["id_number"]}, {"$set": changes})
     # Remove request
     try:
         account_update_requests_collection.delete_one({"_id": ObjectId(request_id)})
