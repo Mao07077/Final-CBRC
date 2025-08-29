@@ -16,18 +16,19 @@ async def get_admin_posts():
     return posts
 
 
-# Admin: Create a new post (accept FormData)
+
+# Admin: Create a new post (accept FormData, all fields optional)
 @router.post("/api/admin/posts")
 async def create_admin_post(
-    title: str = Form(...),
-    content: str = Form(...),
-    image: str = Form(None)
+    title: str = Form(""),
+    content: str = Form(""),
+    image: str = Form("")
 ):
     post_data = {
-        "title": title,
-        "content": content,
+        "title": title if title is not None else "",
+        "content": content if content is not None else "",
         "createdAt": None,
-        "image": image,
+        "image": image if image is not None else "",
     }
     from datetime import datetime
     post_data["createdAt"] = datetime.utcnow()
@@ -35,7 +36,8 @@ async def create_admin_post(
     post_data["_id"] = str(result.inserted_id)
     return post_data
 
-# Admin: Update a post (accept FormData)
+
+# Admin: Update a post (accept FormData, all fields optional)
 @router.put("/api/admin/posts/{post_id}")
 async def update_admin_post(
     post_id: str,
@@ -50,6 +52,8 @@ async def update_admin_post(
         update_data["content"] = content
     if image is not None:
         update_data["image"] = image
+    if not update_data:
+        return {"success": False, "error": "No fields to update"}
     result = posts_collection.update_one({"_id": ObjectId(post_id)}, {"$set": update_data})
     if result.modified_count > 0:
         return {"success": True}
