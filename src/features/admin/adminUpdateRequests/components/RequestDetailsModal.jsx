@@ -33,8 +33,9 @@ const RequestDetailsModal = () => {
       isOpen={!!selectedRequest}
       onClose={closeModal}
       title={`Update Request: ${firstname} ${lastname}`}
+      style={{ maxWidth: '500px', width: '100%', maxHeight: '80vh', overflow: 'auto' }}
     >
-      <div className="mt-4">
+      <div className="mt-4" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
         <p className="text-sm text-gray-600 mb-4">Review the requested changes for ID: <span className="font-semibold">{id_number}</span></p>
         <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border">
           {filteredKeys.map((key) => (

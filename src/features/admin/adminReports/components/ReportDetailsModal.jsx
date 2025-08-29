@@ -25,9 +25,9 @@ const ReportDetailsModal = () => {
       isOpen={!!selectedReport}
       onClose={closeModal}
       title={`Report: ${selectedReport.issue}`}
-      style={{ maxWidth: '300px', width: '100%' }}
+      style={{ maxWidth: '500px', width: '100%', maxHeight: '80vh', overflow: 'auto' }}
     >
-      <div className="mt-4 space-y-6">
+      <div className="mt-4 space-y-6" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
         {selectedReport.screenshot && (
           <div className="mb-4 flex justify-center">
             <img
