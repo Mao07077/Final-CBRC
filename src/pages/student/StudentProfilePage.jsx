@@ -174,11 +174,9 @@ const StudentProfilePage = () => {
           <div className="flex justify-end mb-4">
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-full shadow-lg hover:from-indigo-600 hover:to-purple-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              title="Request changes to your profile information"
+              className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow hover:bg-indigo-700 transition"
             >
-              <Edit3 className="h-5 w-5" />
-              <span>Request Profile Update</span>
+              Request Profile Update
             </button>
           </div>
           <div className="flex flex-col md:flex-row items-center md:items-start gap-8">

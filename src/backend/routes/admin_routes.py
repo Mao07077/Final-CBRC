@@ -13,11 +13,11 @@ class AccountUpdateRequest(BaseModel):
 
 router = APIRouter()
 
+
 # Fetch account update requests with current user data
 @router.get("/api/admin/account-requests")
 async def get_account_update_requests():
     user_collection = get_user_collection()
-    # Assume requests are stored in a collection called 'account_update_requests'
     from database import account_update_requests_collection
     requests = list(account_update_requests_collection.find({}))
     result = []
@@ -28,7 +28,6 @@ async def get_account_update_requests():
             "id_number": req["id_number"],
             "update_data": req["update_data"],
         }
-        # Add current user fields
         if user:
             for field in req["update_data"].keys():
                 req_data[field] = user.get(field, "N/A")
@@ -36,6 +35,22 @@ async def get_account_update_requests():
             req_data["lastname"] = user.get("lastname", "")
         result.append(req_data)
     return {"success": True, "requests": result}
+
+# Student: Submit account update request
+@router.post("/api/admin/account-requests")
+async def submit_account_update_request(id_number: str = Body(...), update_data: dict = Body(...)):
+    from database import account_update_requests_collection
+    # Check for existing request for this user
+    existing = account_update_requests_collection.find_one({"id_number": id_number})
+    if existing:
+        raise HTTPException(status_code=400, detail="Request already exists for this user.")
+    req = {
+        "id_number": id_number,
+        "update_data": update_data
+    }
+    result = account_update_requests_collection.insert_one(req)
+    req["_id"] = str(result.inserted_id)
+    return {"success": True, "request": req}
 
 # Accept account update request
 @router.post("/api/admin/account-requests/{request_id}/accept")
