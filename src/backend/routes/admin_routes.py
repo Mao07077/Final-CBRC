@@ -59,6 +59,10 @@ async def submit_account_update_request(id_number: str = Body(...), update_data:
 # Accept account update request
 @router.post("/api/admin/account-requests/{request_id}/accept")
 async def accept_account_update_request(request_id: str):
+    print(f"[ACCEPT] Incoming request_id: {request_id}")
+    from database import account_update_requests_collection, get_user_collection
+    all_ids = [str(r['_id']) for r in account_update_requests_collection.find({})]
+    print(f"[ACCEPT] All request IDs in DB: {all_ids}")
     from database import account_update_requests_collection, get_user_collection
     # Try ObjectId, fallback to string
     try:
@@ -79,6 +83,10 @@ async def accept_account_update_request(request_id: str):
 # Decline account update request
 @router.post("/api/admin/account-requests/{request_id}/decline")
 async def decline_account_update_request(request_id: str):
+    print(f"[DECLINE] Incoming request_id: {request_id}")
+    from database import account_update_requests_collection
+    all_ids = [str(r['_id']) for r in account_update_requests_collection.find({})]
+    print(f"[DECLINE] All request IDs in DB: {all_ids}")
     from database import account_update_requests_collection
     # Try ObjectId, fallback to string
     try:
