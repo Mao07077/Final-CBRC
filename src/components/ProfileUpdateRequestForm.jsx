@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "../api/adminApi";
+import useAuthStore from "../store/authStore";
 
 
 const ProfileUpdateRequestForm = () => {
@@ -18,21 +19,25 @@ const ProfileUpdateRequestForm = () => {
   const [error, setError] = useState("");
   const [fetching, setFetching] = useState(true);
 
+  const { userData } = useAuthStore();
   useEffect(() => {
     // Fetch student profile data to prefill the form
     const fetchProfile = async () => {
+      if (!userData || !userData.id_number) {
+        setFetching(false);
+        return;
+      }
       try {
-        // You may need to adjust the endpoint to match your backend
-        const res = await axios.get("/student/profile");
-        if (res.data && res.data.profile) {
+        const res = await axios.get(`/profile/${userData.id_number}`);
+        if (res.data) {
           setFields({
-            firstname: res.data.profile.firstname || "",
-            middlename: res.data.profile.middlename || "",
-            lastname: res.data.profile.lastname || "",
-            suffix: res.data.profile.suffix || "",
-            birthdate: res.data.profile.birthdate || "",
-            gender: res.data.profile.gender || "",
-            email: res.data.profile.email || "",
+            firstname: res.data.firstname || "",
+            middlename: res.data.middlename || "",
+            lastname: res.data.lastname || "",
+            suffix: res.data.suffix || "",
+            birthdate: res.data.birthdate || "",
+            gender: res.data.gender || "",
+            email: res.data.email || "",
             reason: "",
           });
         }
@@ -42,7 +47,7 @@ const ProfileUpdateRequestForm = () => {
       setFetching(false);
     };
     fetchProfile();
-  }, []);
+  }, [userData]);
 
   const handleChange = (e) => {
     setFields({ ...fields, [e.target.name]: e.target.value });
