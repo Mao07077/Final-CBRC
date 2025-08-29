@@ -14,6 +14,7 @@ class AccountUpdateRequest(BaseModel):
 router = APIRouter()
 
 
+
 # Fetch account update requests with current user data
 @router.get("/api/admin/account-requests")
 async def get_account_update_requests():
@@ -28,11 +29,14 @@ async def get_account_update_requests():
             "id_number": req["id_number"],
             "update_data": req["update_data"],
         }
+        # Add current values for each requested field
         if user:
             for field in req["update_data"].keys():
                 req_data[field] = user.get(field, "N/A")
-            req_data["firstname"] = user.get("firstname", "")
-            req_data["lastname"] = user.get("lastname", "")
+            # Always include firstname and lastname for modal display
+            req_data["firstname"] = user.get("firstname", "N/A")
+            req_data["lastname"] = user.get("lastname", "N/A")
+            req_data["program"] = user.get("program", "N/A")
         result.append(req_data)
     return {"success": True, "requests": result}
 
@@ -56,21 +60,31 @@ async def submit_account_update_request(id_number: str = Body(...), update_data:
 @router.post("/api/admin/account-requests/{request_id}/accept")
 async def accept_account_update_request(request_id: str):
     from database import account_update_requests_collection, get_user_collection
-    req = account_update_requests_collection.find_one({"_id": ObjectId(request_id)})
+    # Try ObjectId, fallback to string
+    try:
+        req = account_update_requests_collection.find_one({"_id": ObjectId(request_id)})
+    except Exception:
+        req = account_update_requests_collection.find_one({"_id": request_id})
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
     user_collection = get_user_collection()
-    # Update user fields
     user_collection.update_one({"id_number": req["id_number"]}, {"$set": req["update_data"]})
     # Remove request
-    account_update_requests_collection.delete_one({"_id": ObjectId(request_id)})
+    try:
+        account_update_requests_collection.delete_one({"_id": ObjectId(request_id)})
+    except Exception:
+        account_update_requests_collection.delete_one({"_id": request_id})
     return {"success": True}
 
 # Decline account update request
 @router.post("/api/admin/account-requests/{request_id}/decline")
 async def decline_account_update_request(request_id: str):
     from database import account_update_requests_collection
-    result = account_update_requests_collection.delete_one({"_id": ObjectId(request_id)})
+    # Try ObjectId, fallback to string
+    try:
+        result = account_update_requests_collection.delete_one({"_id": ObjectId(request_id)})
+    except Exception:
+        result = account_update_requests_collection.delete_one({"_id": request_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Request not found")
     return {"success": True}
