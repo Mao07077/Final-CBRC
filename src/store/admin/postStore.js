@@ -26,8 +26,8 @@ const usePostStore = create((set, get) => ({
       let res;
       const { editingPost } = get();
       const formData = new FormData();
-      formData.append("title", postData.title);
-      formData.append("content", postData.content);
+      formData.append("title", postData.title || "");
+      formData.append("content", postData.content || "");
       if (postData.image) {
         formData.append("image", postData.image);
       }
