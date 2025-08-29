@@ -29,8 +29,6 @@ const ReportsTable = ({ reports }) => {
               <th scope="col" className="px-6 py-3">Issue</th>
               <th scope="col" className="px-6 py-3">Date</th>
               <th scope="col" className="px-6 py-3">Status</th>
-              <th scope="col" className="px-6 py-3">Messages</th>
-              <th scope="col" className="px-6 py-3">Screenshot</th>
               <th scope="col" className="px-6 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -45,20 +43,6 @@ const ReportsTable = ({ reports }) => {
                   <span className={`px-2 py-1 text-xs font-semibold leading-tight rounded-full ${getStatusClass(report.status)}`}>
                     {report.status}
                   </span>
-                </td>
-                <td className="px-6 py-4">
-                  {report.messages && report.messages.length > 0 ? (
-                    <ul className="list-disc pl-4">
-                      {report.messages.map((msg, idx) => (
-                        <li key={idx}>{msg}</li>
-                      ))}
-                    </ul>
-                  ) : '-'}
-                </td>
-                <td className="px-6 py-4">
-                  {report.screenshot ? (
-                    <img src={report.screenshot.startsWith('http') ? report.screenshot : `${process.env.REACT_APP_API_URL}/${report.screenshot}`} alt="Screenshot" className="w-16 h-16 object-cover rounded" />
-                  ) : '-'}
                 </td>
                 <td className="px-6 py-4 flex items-center justify-end gap-2">
                   <button onClick={() => viewReport(report)} className="font-medium text-indigo-600 hover:text-indigo-800">
@@ -83,21 +67,6 @@ const ReportsTable = ({ reports }) => {
                 <p className="font-bold text-gray-900">{report.student}</p>
                 <p className="text-sm text-gray-600">ID: {report.studentId || '-'}</p>
                 <p className="text-sm text-gray-600">{report.issue}</p>
-                {report.messages && report.messages.length > 0 && (
-                  <div className="mt-2">
-                    <span className="font-bold">Messages:</span>
-                    <ul className="list-disc pl-4">
-                      {report.messages.map((msg, idx) => (
-                        <li key={idx}>{msg}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {report.screenshot && (
-                  <div className="mt-2">
-                    <img src={report.screenshot.startsWith('http') ? report.screenshot : `${process.env.REACT_APP_API_URL}/${report.screenshot}`} alt="Screenshot" className="w-24 h-24 object-cover rounded" />
-                  </div>
-                )}
               </div>
               <span className={`px-2 py-1 text-xs font-semibold leading-tight rounded-full ${getStatusClass(report.status)}`}>
                 {report.status}

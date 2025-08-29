@@ -28,11 +28,12 @@ const ReportDetailsModal = () => {
     >
       <div className="mt-4 space-y-6">
         {selectedReport.screenshot && (
-          <div className="mb-4">
+          <div className="mb-4 flex justify-center">
             <img
               src={selectedReport.screenshot.startsWith('http') ? selectedReport.screenshot : `${process.env.REACT_APP_API_URL}/${selectedReport.screenshot}`}
               alt="Screenshot"
-              className="w-full h-auto rounded-lg border"
+              style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
+              className="rounded-lg border"
             />
           </div>
         )}
