@@ -18,17 +18,20 @@ async def get_admin_posts():
 
 
 # Admin: Create a new post (accept FormData, all fields optional)
+
+from typing import Optional
+
 @router.post("/api/admin/posts")
 async def create_admin_post(
-    title: str = Form(""),
-    content: str = Form(""),
-    image: str = Form("")
+    title: Optional[str] = Form("") ,
+    content: Optional[str] = Form("") ,
+    image: Optional[str] = Form("")
 ):
     post_data = {
-        "title": title if title is not None else "",
-        "content": content if content is not None else "",
+        "title": title or "",
+        "content": content or "",
         "createdAt": None,
-        "image": image if image is not None else "",
+        "image": image or "",
     }
     from datetime import datetime
     post_data["createdAt"] = datetime.utcnow()

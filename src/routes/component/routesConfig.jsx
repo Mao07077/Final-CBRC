@@ -228,7 +228,7 @@ export const routesConfig = [
     children: [
       { path: "dashboard", element: <AdminDashboardPage /> },
       { path: "accounts", element: <AccountsManagementPage /> },
-      { path: "posts", element: <PostFrom /> },
+      { path: "posts", element: <PostManagementPage /> },
       { path: "reports", element: <ReportsPage /> },
       { path: "update-requests", element: <AccountsUpdateRequestsPage /> },
       { path: "student-performance", element: <StudentPerformancePage /> },
