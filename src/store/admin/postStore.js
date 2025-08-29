@@ -1,90 +1,61 @@
-import { create } from "zustand";
 
+import { create } from "zustand";
+import api from "../../api/adminApi";
 
 const usePostStore = create((set, get) => ({
-    posts: [
-    {
-      _id: "post1",
-      title: "Welcome to the new semester!",
-      content: "We are excited to start the new semester. Please check the announcements for important dates.",
-      createdAt: new Date("2023-08-01T10:00:00Z"),
-      image: "/images/welcome.jpg",
-    },
-    {
-      _id: "post2",
-      title: "Midterm Exam Schedule",
-      content: "The midterm exams will be held from October 15th to October 20th. The detailed schedule is now available on the student portal.",
-      createdAt: new Date("2023-09-25T14:30:00Z"),
-      image: null,
-    },
-    {
-      _id: "post3",
-      title: "Holiday Announcement: Thanksgiving Break",
-      content: "The university will be closed for Thanksgiving break from November 22nd to November 26th. Classes will resume on November 27th.",
-      createdAt: new Date("2023-11-15T09:00:00Z"),
-      image: "/images/thanksgiving.jpg",
-    },
-  ],
+  posts: [],
   isLoading: false,
   error: null,
   isModalOpen: false,
   editingPost: null,
 
   // --- Actions ---
-  fetchPosts: () => {
-    // Mock implementation, data is pre-loaded
-    set({ isLoading: false });
+  fetchPosts: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await api.get("/posts");
+      set({ posts: res.data, isLoading: false });
+    } catch (err) {
+      set({ error: "Failed to fetch posts.", isLoading: false });
+    }
   },
 
-  savePost: (postData) => {
-    set({ isLoading: true });
-    setTimeout(() => {
-      const { posts, editingPost } = get();
-      let updatedPosts;
-
-      let imageUrl = editingPost ? editingPost.image : null; // Keep old image by default
-      if (postData.image && postData.image instanceof File) {
-        // Create a URL for the new file
-        imageUrl = URL.createObjectURL(postData.image);
+  savePost: async (postData) => {
+    set({ isLoading: true, error: null });
+    try {
+      let res;
+      const { editingPost } = get();
+      const formData = new FormData();
+      formData.append("title", postData.title);
+      formData.append("content", postData.content);
+      if (postData.image) {
+        formData.append("image", postData.image);
       }
-
       if (editingPost) {
         // Update
-        updatedPosts = posts.map((p) =>
-          p._id === editingPost._id
-            ? { ...p, title: postData.title, content: postData.content, image: imageUrl }
-            : p
-        );
+        res = await api.put(`/posts/${editingPost._id}`, formData);
       } else {
         // Create
-        const newPost = {
-          _id: `post${Date.now()}`,
-          title: postData.title,
-          content: postData.content,
-          createdAt: new Date(),
-          image: imageUrl,
-        };
-        updatedPosts = [...posts, newPost];
+        res = await api.post("/posts", formData);
       }
-
-      set({
-        posts: updatedPosts,
-        isLoading: false,
-        isModalOpen: false,
-        editingPost: null,
-      });
-    }, 500);
+      // Refresh posts
+      await get().fetchPosts();
+      set({ isLoading: false, isModalOpen: false, editingPost: null });
+    } catch (err) {
+      set({ error: "Failed to save post.", isLoading: false });
+    }
   },
 
-  deletePost: (postId) => {
+  deletePost: async (postId) => {
     if (!window.confirm("Are you sure you want to delete this post?")) return;
-    set({ isLoading: true });
-    setTimeout(() => {
-      set((state) => ({
-        posts: state.posts.filter((p) => p._id !== postId),
-        isLoading: false,
-      }));
-    }, 500);
+    set({ isLoading: true, error: null });
+    try {
+      await api.delete(`/posts/${postId}`);
+      await get().fetchPosts();
+      set({ isLoading: false });
+    } catch (err) {
+      set({ error: "Failed to delete post.", isLoading: false });
+    }
   },
 
   // --- Modal Control ---
