@@ -21,12 +21,14 @@ async def get_admin_posts():
 
 from typing import Optional
 
+
 @router.post("/api/admin/posts")
 async def create_admin_post(
     title: Optional[str] = Form("") ,
     content: Optional[str] = Form("") ,
     image: Optional[str] = Form("")
 ):
+    print(f"DEBUG POST /api/admin/posts: title={title!r}, content={content!r}, image={image!r}")
     post_data = {
         "title": title or "",
         "content": content or "",
