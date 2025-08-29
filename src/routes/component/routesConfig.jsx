@@ -60,6 +60,7 @@ import InstructorChatPage from "../../pages/instructor/InstructorChatPage";
 import AdminDashboardPage from "../../pages/admin/AdminDashboardPage";
 import AccountsManagementPage from "../../pages/admin/AccountsManagementPage";
 import PostManagementPage from "../../pages/admin/PostManagementPage";
+import PostFrom from "../../features/admin/adminPosts/components/PostForm";
 import ReportsPage from "../../pages/admin/ReportsPage";
 import AccountsUpdateRequestsPage from "../../pages/admin/AccountUpdateRequestsPage";
 import StudentPerformancePage from "../../pages/admin/StudentPerformancePage";
@@ -227,7 +228,7 @@ export const routesConfig = [
     children: [
       { path: "dashboard", element: <AdminDashboardPage /> },
       { path: "accounts", element: <AccountsManagementPage /> },
-      { path: "posts", element: <PostManagementPage /> },
+      { path: "posts", element: <PostFrom /> },
       { path: "reports", element: <ReportsPage /> },
       { path: "update-requests", element: <AccountsUpdateRequestsPage /> },
       { path: "student-performance", element: <StudentPerformancePage /> },
