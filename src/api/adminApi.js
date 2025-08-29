@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://final-cbrc.onrender.com/api/admin",
+  baseURL: "https://final-cbrc.onrender.com/api",
   // You can add headers or interceptors here if needed
 });
 
