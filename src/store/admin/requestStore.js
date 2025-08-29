@@ -37,7 +37,12 @@ const useRequestStore = create((set, get) => ({
       }
     } catch (error) {
       set({ isLoading: false });
-      alert('Failed to accept request');
+      if (error?.response?.status === 404) {
+        alert('Request not found. It may have already been processed.');
+        await get().fetchRequests();
+      } else {
+        alert('Failed to accept request');
+      }
     }
   },
 
@@ -56,7 +61,12 @@ const useRequestStore = create((set, get) => ({
       }
     } catch (error) {
       set({ isLoading: false });
-      alert('Failed to decline request');
+      if (error?.response?.status === 404) {
+        alert('Request not found. It may have already been processed.');
+        await get().fetchRequests();
+      } else {
+        alert('Failed to decline request');
+      }
     }
   },
 
