@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "../../api/adminApi";
+import axios from "../api/adminApi";
 
 const ProfileUpdateRequestForm = () => {
   const [fields, setFields] = useState({
