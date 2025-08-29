@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../../../api/axiosClient";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const AttendanceStats = () => {
   const [summary, setSummary] = useState(null);
@@ -23,20 +24,25 @@ const AttendanceStats = () => {
   if (error) return <div>{error}</div>;
   if (!summary) return null;
 
+  const data = [
+    { name: 'Total Students', value: summary.totalStudents },
+    { name: 'Attended', value: summary.attended },
+    { name: 'Avg Attendance', value: summary.averageAttendance }
+  ];
+
   return (
     <div className="card bg-white p-4 mb-4">
       <h3 className="text-lg font-semibold mb-2">Attendance Summary</h3>
-      <div className="flex gap-8">
-        <div>
-          <span className="font-bold">Total Students:</span> {summary.totalStudents}
-        </div>
-        <div>
-          <span className="font-bold">Attended:</span> {summary.attended}
-        </div>
-        <div>
-          <span className="font-bold">Average Attendance:</span> {summary.averageAttendance.toFixed(2)}
-        </div>
-      </div>
+      <ResponsiveContainer width="100%" height={250}>
+        <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" />
+          <YAxis allowDecimals={false} />
+          <Tooltip />
+          <Legend />
+          <Bar dataKey="value" fill="#6366f1" barSize={40} />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 };

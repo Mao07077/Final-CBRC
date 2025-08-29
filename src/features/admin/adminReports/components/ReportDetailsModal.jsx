@@ -40,8 +40,23 @@ const ReportDetailsModal = () => {
         <div className="border-t border-gray-200">
           <dl>
             <DetailRow label="Student" value={selectedReport.student} />
+              {selectedReport.studentId && (
+                <DetailRow label="Student ID" value={selectedReport.studentId} />
+              )}
             <DetailRow label="Date" value={selectedReport.createdAt ? new Date(selectedReport.createdAt).toLocaleString() : ''} />
             <DetailRow label="Description" value={<p className="whitespace-pre-wrap">{selectedReport.issue}</p>} />
+              {selectedReport.messages && selectedReport.messages.length > 0 && (
+                <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
+                  <dt className="text-sm font-medium text-gray-500">Messages</dt>
+                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    <ul className="list-disc pl-4">
+                      {selectedReport.messages.map((msg, idx) => (
+                        <li key={idx}>{msg}</li>
+                      ))}
+                    </ul>
+                  </dd>
+                </div>
+              )}
             <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:items-center">
               <dt className="text-sm font-medium text-gray-500">Status</dt>
               <dd className="mt-1 sm:mt-0 sm:col-span-2">
