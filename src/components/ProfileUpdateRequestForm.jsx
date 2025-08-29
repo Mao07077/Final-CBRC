@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "../api/adminApi";
+import apiClient from "../api/axiosClient";
 import useAuthStore from "../store/authStore";
 
 
@@ -65,17 +65,9 @@ const ProfileUpdateRequestForm = () => {
         return;
       }
       const update_data = { ...fields };
-      const res = await axios.post(
-        "/admin/account-requests",
-        {
-          id_number: userData.id_number,
-          update_data
-        },
-        {
-          headers: {
-            "Content-Type": "application/json"
-          }
-        }
+      const res = await apiClient.post(
+        `/user/settings/request/${userData.id_number}`,
+        update_data
       );
       if (res.data.success) {
         setSuccess("Request submitted successfully!");
