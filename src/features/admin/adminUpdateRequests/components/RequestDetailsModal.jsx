@@ -18,34 +18,37 @@ const DetailRow = ({ label, oldValue, newValue }) => (
 );
 
 const RequestDetailsModal = () => {
-  const { selectedRequest, closeModal, acceptRequest, declineRequest } =
-    useRequestStore();
+  const { selectedRequest, closeModal, acceptRequest, declineRequest } = useRequestStore();
 
   if (!selectedRequest) return null;
 
-  const { _id, id_number, firstname, lastname, program, update_data } =
-    selectedRequest;
-
+  const { _id, id_number, firstname, lastname, program } = selectedRequest;
+  // Support both 'update_data' and 'requested_changes' fields
+  const updatePayload = selectedRequest.update_data || selectedRequest.requested_changes || {};
   // Remove 'username' field and show real current values
-  const filteredKeys = Object.keys(update_data).filter((key) => key !== "username");
+  const filteredKeys = Object.keys(updatePayload).filter((key) => key !== "username");
   return (
     <Modal
       isOpen={!!selectedRequest}
       onClose={closeModal}
-      title={`Update Request: ${firstname} ${lastname}`}
+      title={`Update Request: ${firstname || ""} ${lastname || ""}`}
       style={{ maxWidth: '500px', width: '100%', maxHeight: '80vh', overflow: 'auto' }}
     >
       <div className="mt-4" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
         <p className="text-sm text-gray-600 mb-4">Review the requested changes for ID: <span className="font-semibold">{id_number}</span></p>
         <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border">
-          {filteredKeys.map((key) => (
-            <DetailRow
-              key={key}
-              label={key.charAt(0).toUpperCase() + key.slice(1)}
-              oldValue={selectedRequest[key]}
-              newValue={update_data[key]}
-            />
-          ))}
+          {filteredKeys.length === 0 ? (
+            <p className="text-gray-500">No changes requested.</p>
+          ) : (
+            filteredKeys.map((key) => (
+              <DetailRow
+                key={key}
+                label={key.charAt(0).toUpperCase() + key.slice(1)}
+                oldValue={selectedRequest[key]}
+                newValue={updatePayload[key]}
+              />
+            ))
+          )}
         </div>
         <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
           <button
