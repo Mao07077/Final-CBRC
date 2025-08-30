@@ -46,25 +46,38 @@ const useStudentPerformanceStore = create((set, get) => ({
   error: null,
 
   // --- Actions ---
-  fetchStudents: () => {
-    const { students } = get();
-    set({ filteredStudents: students, isLoadingList: false });
+  fetchStudents: async () => {
+    set({ isLoadingList: true });
+    try {
+      const response = await apiClient.get("/api/admin/accounts?role=student");
+      // Only students
+      const students = response.data.accounts.filter(acc => acc.role === "student");
+      set({ students, filteredStudents: students, isLoadingList: false });
+    } catch (error) {
+      set({ students: [], filteredStudents: [], isLoadingList: false, error: "Failed to fetch students." });
+    }
   },
 
-  filterStudents: (query) => {
+  filterStudents: (query, programSort = null) => {
     const { students } = get();
-    const lowerCaseQuery = query.toLowerCase();
-    const results = students.filter(
+    let results = students.filter(
       (s) =>
         (s.name || `${s.firstname} ${s.lastname}`)
           .toLowerCase()
-          .includes(lowerCaseQuery) || s.id_number?.includes(lowerCaseQuery)
+          .includes(query.toLowerCase()) || s.id_number?.includes(query)
     );
+    if (programSort) {
+      results = results.sort((a, b) => (a.program || "").localeCompare(b.program || ""));
+    }
     set({
       filteredStudents: results,
       selectedStudent: null,
       studentDetails: null,
-    }); // Reset selection on new search
+    });
+  },
+  selectAllStudents: () => {
+    set({ selectedStudent: null, studentDetails: null });
+    // This can be used for bulk actions in the UI
   },
 
   selectStudent: async (student) => {

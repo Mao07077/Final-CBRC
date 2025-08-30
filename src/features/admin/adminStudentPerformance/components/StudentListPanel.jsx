@@ -1,4 +1,5 @@
 import useStudentPerformanceStore from "../../../../store/admin/studentPerformanceStore";
+import { useState } from "react";
 
 const StudentListPanel = () => {
   const {
@@ -7,7 +8,10 @@ const StudentListPanel = () => {
     filterStudents,
     isLoadingList,
     selectedStudent,
+    selectAllStudents,
   } = useStudentPerformanceStore();
+  const [search, setSearch] = useState("");
+  const [sortProgram, setSortProgram] = useState(false);
 
   return (
     <div className="border-r border-gray-200 h-full flex flex-col bg-white shadow-sm">
@@ -16,9 +20,30 @@ const StudentListPanel = () => {
         <input
           type="text"
           placeholder="Search by name or ID..."
-          onChange={(e) => filterStudents(e.target.value)}
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            filterStudents(e.target.value, sortProgram);
+          }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition"
         />
+        <div className="flex items-center mt-2 gap-2">
+          <button
+            className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-sm"
+            onClick={() => {
+              setSortProgram(!sortProgram);
+              filterStudents(search, !sortProgram);
+            }}
+          >
+            Sort by Program
+          </button>
+          <button
+            className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm"
+            onClick={selectAllStudents}
+          >
+            Select All
+          </button>
+        </div>
       </div>
       <div className="overflow-y-auto flex-1">
         {isLoadingList ? (
@@ -40,6 +65,7 @@ const StudentListPanel = () => {
                       {student.name || `${student.firstname} ${student.lastname}`}
                     </p>
                     <p className="text-sm text-gray-600">{student.id_number}</p>
+                    <p className="text-xs text-gray-500">{student.program || ""}</p>
                   </div>
                 </button>
               </li>

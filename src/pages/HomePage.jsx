@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useLocation, Link as RouterLink } from "react-router-dom";
 import { Element, scroller } from 'react-scroll';
+import apiClient from "../api/axiosClient";
 import { FiBookOpen, FiEdit, FiUsers, FiTrendingUp, FiAward, FiMessageCircle } from 'react-icons/fi';
 import HeroBg from '../assets/images/hero_landing_page_bg.jpg';
 import useLandingStore from "../store/landingStore";
@@ -26,12 +27,28 @@ const HomePage = () => {
     }
   }, [location]);
 
+        const [adminPosts, setAdminPosts] = useState([]);
+        const [postsLoading, setPostsLoading] = useState(true);
   if (isLoading || !landingPageData) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-xl font-semibold">Loading...</div>
       </div>
     );
+        useEffect(() => {
+          async function fetchPosts() {
+            try {
+              const res = await apiClient.get("/api/admin/posts");
+              setAdminPosts(res.data);
+            } catch (err) {
+              setAdminPosts([]);
+            } finally {
+              setPostsLoading(false);
+            }
+          }
+          fetchPosts();
+        }, []);
+
   }
 
   const { intro, about, news, featuredCourses, posts } = landingPageData;
@@ -86,6 +103,28 @@ const HomePage = () => {
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Why Choose CBRCS?</h2>
             <p className="mt-4 text-lg text-gray-600">Everything you need to ace your exams, all in one place.</p>
           </div>
+            {/* Admin News/Posts Section */}
+            <section className="container mx-auto px-6 py-12">
+              <h2 className="text-2xl font-bold mb-6">Latest News & Announcements</h2>
+              {postsLoading ? (
+                <div className="text-gray-500">Loading posts...</div>
+              ) : adminPosts.length === 0 ? (
+                <div className="text-gray-500">No posts available.</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {adminPosts.map((post) => (
+                    <div key={post._id} className="bg-white rounded-lg shadow-md p-4 border">
+                      {post.image && (
+                        <img src={post.image} alt={post.title} className="w-full h-40 object-cover rounded mb-3" />
+                      )}
+                      <h3 className="text-lg font-semibold mb-2">{post.title}</h3>
+                      <p className="text-gray-700 mb-2">{post.content}</p>
+                      <div className="text-xs text-gray-500">{post.createdAt ? new Date(post.createdAt).toLocaleString() : "No date"}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {features.map((feature, index) => (
               <div key={index} className="text-center p-8 bg-gray-50 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
