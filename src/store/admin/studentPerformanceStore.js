@@ -81,7 +81,7 @@ const useStudentPerformanceStore = create((set, get) => ({
   },
 
   selectStudent: async (student) => {
-    if (get().selectedStudent?._id === student._id) return;
+    if (get().selectedStudent?.id_number === student.id_number) return;
 
     set({
       selectedStudent: student,
@@ -90,7 +90,7 @@ const useStudentPerformanceStore = create((set, get) => ({
     });
 
     try {
-      const response = await axios.get(`/api/admin/student-performance/${student._id}`);
+      const response = await axios.get(`/api/admin/student-performance/${student.id_number}`);
       if (response.data.success) {
         set({
           studentDetails: response.data.details,
