@@ -446,27 +446,3 @@ async def get_student_performance(student_id: str):
         return {"success": True, "details": details}
     except Exception as e:
         return {"success": False, "error": str(e)}
-@router.get("/api/admin/account-requests")
-async def get_account_update_requests():
-    """Get all account update requests for admin"""
-    try:
-        from database import request_collection
-        requests = list(request_collection.find({}))
-        formatted_requests = []
-        for req in requests:
-            formatted_requests.append({
-                "_id": str(req.get("_id")),
-                "id_number": req.get("id_number", ""),
-                "firstname": req.get("firstname", ""),
-                "lastname": req.get("lastname", ""),
-                "email": req.get("email", ""),
-                "contact_number": req.get("contact_number", ""),
-                "role": req.get("role", ""),
-                "request_type": req.get("request_type", ""),
-                "current_data": req.get("current_data", {}),
-                "update_data": req.get("update_data", {}),
-                "createdAt": req.get("createdAt", None),
-            })
-        return {"success": True, "requests": formatted_requests}
-    except Exception as e:
-        return {"success": False, "error": str(e), "requests": []}
