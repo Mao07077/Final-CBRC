@@ -71,7 +71,21 @@ const useRequestStore = create((set, get) => ({
   },
 
   // --- Modal Control ---
-  viewRequest: (request) => set({ selectedRequest: request }),
+  viewRequest: async (request) => {
+    set({ isLoading: true });
+    try {
+      const response = await axios.get(`/api/admin/account-requests/${request._id}`);
+      if (response.data.success && response.data.request) {
+        set({ selectedRequest: response.data.request, isLoading: false });
+      } else {
+        set({ isLoading: false });
+        alert('Failed to fetch request details.');
+      }
+    } catch (error) {
+      set({ isLoading: false });
+      alert('Failed to fetch request details.');
+    }
+  },
   closeModal: () => set({ selectedRequest: null }),
 }));
 
