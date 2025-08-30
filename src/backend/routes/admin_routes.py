@@ -66,19 +66,17 @@ async def accept_account_update_request(request_id: str):
     all_ids = [str(r['_id']) for r in account_update_requests_collection.find({})]
     print(f"[ACCEPT] All request IDs in DB: {all_ids}")
     from database import account_update_requests_collection, get_user_collection
-    # Try ObjectId, fallback to string
-    req = account_update_requests_collection.find_one({"_id": ObjectId(request_id)})
-    if not req:
-        req = account_update_requests_collection.find_one({"_id": request_id})
+    # Always find by string _id
+    req = account_update_requests_collection.find_one({"_id": request_id})
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
     user_collection = get_user_collection()
     changes = req.get("update_data") or req.get("requested_changes") or {}
     user_collection.update_one({"id_number": req["id_number"]}, {"$set": changes})
     # Remove request
-    deleted = account_update_requests_collection.delete_one({"_id": ObjectId(request_id)})
+    deleted = account_update_requests_collection.delete_one({"_id": request_id})
     if deleted.deleted_count == 0:
-        deleted = account_update_requests_collection.delete_one({"_id": request_id})
+        raise HTTPException(status_code=404, detail="Request not found (delete)")
     return {"success": True}
 
 # Decline account update request
@@ -89,10 +87,8 @@ async def decline_account_update_request(request_id: str):
     all_ids = [str(r['_id']) for r in account_update_requests_collection.find({})]
     print(f"[DECLINE] All request IDs in DB: {all_ids}")
     from database import account_update_requests_collection
-    # Try ObjectId, fallback to string
-    result = account_update_requests_collection.delete_one({"_id": ObjectId(request_id)})
-    if result.deleted_count == 0:
-        result = account_update_requests_collection.delete_one({"_id": request_id})
+    # Always delete by string _id
+    result = account_update_requests_collection.delete_one({"_id": request_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Request not found")
     return {"success": True}
