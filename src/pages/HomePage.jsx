@@ -36,17 +36,17 @@ const HomePage = () => {
       </div>
     );
         useEffect(() => {
-          async function fetchPosts() {
-            try {
-              const res = await apiClient.get("/api/admin/posts");
-              setAdminPosts(res.data);
-            } catch (err) {
-              setAdminPosts([]);
-            } finally {
-              setPostsLoading(false);
+            async function fetchPosts() {
+              try {
+                const res = await apiClient.get("/api/admin/posts");
+                setAdminPosts(res.data);
+              } catch (err) {
+                setAdminPosts([]);
+              } finally {
+                setPostsLoading(false);
+              }
             }
-          }
-          fetchPosts();
+            fetchPosts();
         }, []);
 
   }
