@@ -13,7 +13,7 @@ const usePostStore = create((set, get) => ({
   fetchPosts: async () => {
     set({ isLoading: true, error: null });
     try {
-      const res = await api.get("/posts");
+  const res = await api.get("/admin/posts");
       set({ posts: res.data, isLoading: false });
     } catch (err) {
       set({ error: "Failed to fetch posts.", isLoading: false });
@@ -33,10 +33,10 @@ const usePostStore = create((set, get) => ({
       }
       if (editingPost) {
         // Update
-        res = await api.put(`/posts/${editingPost._id}`, formData);
+  res = await api.put(`/admin/posts/${editingPost._id}`, formData);
       } else {
         // Create
-        res = await api.post("/posts", formData);
+  res = await api.post("/admin/posts", formData);
       }
       // Refresh posts
       await get().fetchPosts();
@@ -50,7 +50,7 @@ const usePostStore = create((set, get) => ({
     if (!window.confirm("Are you sure you want to delete this post?")) return;
     set({ isLoading: true, error: null });
     try {
-      await api.delete(`/posts/${postId}`);
+  await api.delete(`/admin/posts/${postId}`);
       await get().fetchPosts();
       set({ isLoading: false });
     } catch (err) {
