@@ -119,7 +119,7 @@ const HomePage = () => {
                         <img src={post.image} alt={post.title} className="w-full h-40 object-cover rounded mb-3" />
                       )}
                       <h3 className="text-lg font-semibold mb-2">{post.title}</h3>
-                      <p className="text-gray-700 mb-2">{post.content}</p>
+                      <p className="text-gray-700 mb-2" dangerouslySetInnerHTML={{ __html: post.content }} />
                       <div className="text-xs text-gray-500">{post.createdAt ? new Date(post.createdAt).toLocaleString() : "No date"}</div>
                     </div>
                   ))}
