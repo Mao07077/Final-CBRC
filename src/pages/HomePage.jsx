@@ -27,28 +27,29 @@ const HomePage = () => {
     }
   }, [location]);
 
-        const [adminPosts, setAdminPosts] = useState([]);
-        const [postsLoading, setPostsLoading] = useState(true);
+  const [adminPosts, setAdminPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchPosts() {
+      try {
+        const res = await apiClient.get("/api/admin/posts");
+        setAdminPosts(res.data);
+      } catch (err) {
+        setAdminPosts([]);
+      } finally {
+        setPostsLoading(false);
+      }
+    }
+    fetchPosts();
+  }, []);
+
   if (isLoading || !landingPageData) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-xl font-semibold">Loading...</div>
       </div>
     );
-        useEffect(() => {
-            async function fetchPosts() {
-              try {
-                const res = await apiClient.get("/api/admin/posts");
-                setAdminPosts(res.data);
-              } catch (err) {
-                setAdminPosts([]);
-              } finally {
-                setPostsLoading(false);
-              }
-            }
-            fetchPosts();
-        }, []);
-
   }
 
   const { intro, about, news, featuredCourses, posts } = landingPageData;
