@@ -1,3 +1,5 @@
+# Fetch a specific account update request by ID
+from fastapi import Path
 from fastapi import APIRouter, Body, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Any
@@ -14,7 +16,30 @@ class AccountUpdateRequest(BaseModel):
 router = APIRouter()
 
 
-
+@router.get("/api/admin/account-requests/{request_id}")
+async def get_account_update_request(request_id: str = Path(...)):
+    from database import account_update_requests_collection, get_user_collection
+    try:
+        req = account_update_requests_collection.find_one({"_id": ObjectId(request_id)})
+    except Exception:
+        req = account_update_requests_collection.find_one({"_id": request_id})
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    user_collection = get_user_collection()
+    user = user_collection.find_one({"id_number": req["id_number"]})
+    changes = req.get("update_data") or req.get("requested_changes") or {}
+    req_data = {
+        "_id": str(req["_id"]),
+        "id_number": req["id_number"],
+        "update_data": changes,
+    }
+    if user:
+        for field in changes.keys():
+            req_data[field] = user.get(field, "N/A")
+        req_data["firstname"] = user.get("firstname", "N/A")
+        req_data["lastname"] = user.get("lastname", "N/A")
+        req_data["program"] = user.get("program", "N/A")
+    return {"success": True, "request": req_data}
 # Fetch account update requests with current user data
 @router.get("/api/admin/account-requests")
 async def get_account_update_requests():
