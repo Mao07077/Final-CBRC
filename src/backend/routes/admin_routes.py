@@ -18,11 +18,15 @@ router = APIRouter()
 
 @router.get("/api/admin/account-requests/{request_id}")
 async def get_account_update_request(request_id: str = Path(...)):
-    from database import account_update_requests_collection, get_user_collection
+    from database import get_user_collection
+    from pymongo import MongoClient
+    client = MongoClient()
+    db = client["cbrc"]
+    requests_collection = db["requests"]
     try:
-        req = account_update_requests_collection.find_one({"_id": ObjectId(request_id)})
+        req = requests_collection.find_one({"_id": ObjectId(request_id)})
     except Exception:
-        req = account_update_requests_collection.find_one({"_id": request_id})
+        req = requests_collection.find_one({"_id": request_id})
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
     user_collection = get_user_collection()
@@ -46,8 +50,11 @@ async def get_account_update_request(request_id: str = Path(...)):
 @router.get("/api/admin/account-requests")
 async def get_account_update_requests():
     user_collection = get_user_collection()
-    from database import account_update_requests_collection
-    requests = list(account_update_requests_collection.find({}))
+    from pymongo import MongoClient
+    client = MongoClient()
+    db = client["cbrc"]
+    requests_collection = db["requests"]
+    requests = list(requests_collection.find({}))
     result = []
     for req in requests:
         user = user_collection.find_one({"id_number": req["id_number"]})
@@ -72,16 +79,19 @@ async def get_account_update_requests():
 # Student: Submit account update request
 @router.post("/api/admin/account-requests")
 async def submit_account_update_request(id_number: str = Body(...), update_data: dict = Body(...)):
-    from database import account_update_requests_collection
+    from pymongo import MongoClient
+    client = MongoClient()
+    db = client["cbrc"]
+    requests_collection = db["requests"]
     # Check for existing request for this user
-    existing = account_update_requests_collection.find_one({"id_number": id_number})
+    existing = requests_collection.find_one({"id_number": id_number})
     if existing:
         raise HTTPException(status_code=400, detail="Request already exists for this user.")
     req = {
         "id_number": id_number,
         "update_data": update_data
     }
-    result = account_update_requests_collection.insert_one(req)
+    result = requests_collection.insert_one(req)
     req["_id"] = str(result.inserted_id)
     return {"success": True, "request": req}
 
@@ -89,15 +99,18 @@ async def submit_account_update_request(id_number: str = Body(...), update_data:
 @router.post("/api/admin/account-requests/{request_id}/accept")
 async def accept_account_update_request(request_id: str):
     print(f"[ACCEPT] Incoming request_id: {request_id}")
-    from database import account_update_requests_collection, get_user_collection
-    all_ids = [str(r['_id']) for r in account_update_requests_collection.find({})]
+    from pymongo import MongoClient
+    client = MongoClient()
+    db = client["cbrc"]
+    requests_collection = db["requests"]
+    from database import get_user_collection
+    all_ids = [str(r['_id']) for r in requests_collection.find({})]
     print(f"[ACCEPT] All request IDs in DB: {all_ids}")
-    from database import account_update_requests_collection, get_user_collection
     # Try ObjectId, fallback to string
     try:
-        req = account_update_requests_collection.find_one({"_id": ObjectId(request_id)})
+        req = requests_collection.find_one({"_id": ObjectId(request_id)})
     except Exception:
-        req = account_update_requests_collection.find_one({"_id": request_id})
+        req = requests_collection.find_one({"_id": request_id})
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
     user_collection = get_user_collection()
@@ -105,24 +118,26 @@ async def accept_account_update_request(request_id: str):
     user_collection.update_one({"id_number": req["id_number"]}, {"$set": changes})
     # Remove request
     try:
-        account_update_requests_collection.delete_one({"_id": ObjectId(request_id)})
+        requests_collection.delete_one({"_id": ObjectId(request_id)})
     except Exception:
-        account_update_requests_collection.delete_one({"_id": request_id})
+        requests_collection.delete_one({"_id": request_id})
     return {"success": True}
 
 # Decline account update request
 @router.post("/api/admin/account-requests/{request_id}/decline")
 async def decline_account_update_request(request_id: str):
     print(f"[DECLINE] Incoming request_id: {request_id}")
-    from database import account_update_requests_collection
-    all_ids = [str(r['_id']) for r in account_update_requests_collection.find({})]
+    from pymongo import MongoClient
+    client = MongoClient()
+    db = client["cbrc"]
+    requests_collection = db["requests"]
+    all_ids = [str(r['_id']) for r in requests_collection.find({})]
     print(f"[DECLINE] All request IDs in DB: {all_ids}")
-    from database import account_update_requests_collection
     # Try ObjectId, fallback to string
     try:
-        result = account_update_requests_collection.delete_one({"_id": ObjectId(request_id)})
+        result = requests_collection.delete_one({"_id": ObjectId(request_id)})
     except Exception:
-        result = account_update_requests_collection.delete_one({"_id": request_id})
+        result = requests_collection.delete_one({"_id": request_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Request not found")
     return {"success": True}
