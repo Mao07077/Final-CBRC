@@ -33,9 +33,11 @@ async def get_account_update_request(request_id: str = Path(...)):
         "id_number": req["id_number"],
         "update_data": changes,
     }
+    # Add current values for each requested field
     if user:
         for field in changes.keys():
             req_data[field] = user.get(field, "N/A")
+        # Always include firstname, lastname, program for modal display
         req_data["firstname"] = user.get("firstname", "N/A")
         req_data["lastname"] = user.get("lastname", "N/A")
         req_data["program"] = user.get("program", "N/A")
@@ -446,3 +448,27 @@ async def get_student_performance(student_id: str):
         return {"success": True, "details": details}
     except Exception as e:
         return {"success": False, "error": str(e)}
+@router.get("/api/admin/account-requests")
+async def get_account_update_requests():
+    """Get all account update requests for admin"""
+    try:
+        from database import request_collection
+        requests = list(request_collection.find({}))
+        formatted_requests = []
+        for req in requests:
+            formatted_requests.append({
+                "_id": str(req.get("_id")),
+                "id_number": req.get("id_number", ""),
+                "firstname": req.get("firstname", ""),
+                "lastname": req.get("lastname", ""),
+                "email": req.get("email", ""),
+                "contact_number": req.get("contact_number", ""),
+                "role": req.get("role", ""),
+                "request_type": req.get("request_type", ""),
+                "current_data": req.get("current_data", {}),
+                "update_data": req.get("update_data", {}),
+                "createdAt": req.get("createdAt", None),
+            })
+        return {"success": True, "requests": formatted_requests}
+    except Exception as e:
+        return {"success": False, "error": str(e), "requests": []}
