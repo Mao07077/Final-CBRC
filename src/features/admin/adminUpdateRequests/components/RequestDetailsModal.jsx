@@ -7,11 +7,11 @@ const DetailRow = ({ label, oldValue, newValue }) => (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
       <div className="text-sm">
         <span className="text-gray-500">Current: </span>
-        <span className="text-gray-700">{oldValue !== undefined && oldValue !== null ? oldValue : ""}</span>
+        <span className="text-gray-700">{oldValue !== undefined && oldValue !== null && oldValue !== "" ? oldValue : "N/A"}</span>
       </div>
       <div className="text-sm">
         <span className="text-green-600 font-semibold">New: </span>
-        <span className="text-green-700 font-bold">{newValue !== undefined && newValue !== null ? newValue : ""}</span>
+        <span className="text-green-700 font-bold">{newValue !== undefined && newValue !== null && newValue !== "" ? newValue : "N/A"}</span>
       </div>
     </div>
   </div>
