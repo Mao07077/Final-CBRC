@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Modal from "../components/common/Modal";
 import { useLocation, Link as RouterLink } from "react-router-dom";
 import { Element, scroller } from 'react-scroll';
 import apiClient from "../api/axiosClient";
@@ -29,12 +30,15 @@ const HomePage = () => {
 
   const [adminPosts, setAdminPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
+  const [selectedPost, setSelectedPost] = useState(null);
 
   useEffect(() => {
     async function fetchPosts() {
       try {
         const res = await apiClient.get("/api/admin/posts");
-        setAdminPosts(res.data);
+        // Sort posts by createdAt descending (latest first)
+        const sorted = res.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setAdminPosts(sorted);
       } catch (err) {
         setAdminPosts([]);
       } finally {
@@ -113,16 +117,32 @@ const HomePage = () => {
                 <div className="text-gray-500">No posts available.</div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {adminPosts.map((post) => (
-                    <div key={post._id} className="bg-white rounded-lg shadow-md p-4 border">
-                      {post.image && (
-                        <img src={post.image} alt={post.title} className="w-full h-40 object-cover rounded mb-3" />
-                      )}
-                      <h3 className="text-lg font-semibold mb-2">{post.title}</h3>
-                      <p className="text-gray-700 mb-2" dangerouslySetInnerHTML={{ __html: post.content }} />
-                      <div className="text-xs text-gray-500">{post.createdAt ? new Date(post.createdAt).toLocaleString() : "No date"}</div>
-                    </div>
-                  ))}
+                  {adminPosts.map((post) => {
+                    // Get preview: first 120 chars, strip HTML tags
+                    const preview = post.content.replace(/<[^>]+>/g, "").slice(0, 120) + (post.content.replace(/<[^>]+>/g, "").length > 120 ? "..." : "");
+                    return (
+                      <div key={post._id} className="bg-white rounded-lg shadow-md p-4 border cursor-pointer" onClick={() => setSelectedPost(post)}>
+                        {post.image && (
+                          <img src={post.image} alt={post.title} className="w-full h-40 object-cover rounded mb-3" />
+                        )}
+                        <h3 className="text-lg font-semibold mb-2">{post.title}</h3>
+                        <p className="text-gray-700 mb-2">{preview}</p>
+                        <div className="text-xs text-gray-500">{post.createdAt ? new Date(post.createdAt).toLocaleString() : "No date"}</div>
+                      </div>
+                    );
+                  })}
+      {/* Post Modal for full content */}
+      <Modal isOpen={!!selectedPost} onClose={() => setSelectedPost(null)} title={selectedPost?.title || ""}>
+        {selectedPost && (
+          <div>
+            {selectedPost.image && (
+              <img src={selectedPost.image} alt={selectedPost.title} className="w-full h-40 object-cover rounded mb-3" />
+            )}
+            <div className="mb-2 text-xs text-gray-500">{selectedPost.createdAt ? new Date(selectedPost.createdAt).toLocaleString() : "No date"}</div>
+            <div className="text-gray-700" dangerouslySetInnerHTML={{ __html: selectedPost.content }} />
+          </div>
+        )}
+      </Modal>
                 </div>
               )}
             </section>
@@ -173,23 +193,6 @@ const HomePage = () => {
         </div>
       </Element>
 
-      {/* News Section */}
-      <Element name="news" className="py-20 sm:py-24 bg-gray-50">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">{news.header}</h2>
-            <p className="mt-4 text-lg text-gray-600">{news.title}</p>
-          </div>
-          <div className="text-center text-gray-500">
-            <p className="italic">{news.content}</p>
-          </div>
-          {news.newsImage && (
-            <div className="flex justify-center mt-6">
-              <img src={news.newsImage} alt="News" className="max-w-md rounded-lg shadow" />
-            </div>
-          )}
-        </div>
-      </Element>
     </div>
   );
 }
