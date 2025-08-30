@@ -190,34 +190,6 @@ const HomePage = () => {
           )}
         </div>
       </Element>
-
-      {/* Posts Section */}
-      {posts && posts.length > 0 && (
-        <Element name="posts" className="py-20 sm:py-24 bg-white">
-          <div className="container mx-auto px-6">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Latest Announcements</h2>
-              <p className="mt-4 text-lg text-gray-600">Stay updated with the latest posts from the admin team.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-              {posts.map((post, idx) => (
-                <div key={post._id || idx} className="bg-gray-50 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 overflow-hidden">
-                  {post.image && (
-                    <img src={post.image} alt={post.title} className="w-full h-48 object-cover" />
-                  )}
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold mb-2 text-gray-900">{post.title}</h3>
-                    <p className="text-gray-600 mb-2">{post.content}</p>
-                    <span className="inline-block bg-accent-light text-accent-dark text-xs font-semibold px-2 py-1 rounded-full">
-                      {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : ""}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Element>
-      )}
     </div>
   );
 }
