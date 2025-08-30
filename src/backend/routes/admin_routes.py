@@ -1,3 +1,6 @@
+
+# Student: Get study activity report
+
 from fastapi import APIRouter, Body, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Any
@@ -438,3 +441,21 @@ async def get_account_update_requests():
         return {"success": True, "requests": formatted_requests}
     except Exception as e:
         return {"success": False, "error": str(e), "requests": []}
+    
+@router.get("/api/student/{id_number}/study-activity-report")
+async def get_study_activity_report(id_number: str):
+    from database import notes_collection, flashcards_collection, study_sessions_collection
+    notes_count = notes_collection.count_documents({"id_number": id_number})
+    notes = list(notes_collection.find({"id_number": id_number}, {"_id": 0, "title": 1, "created_at": 1}))
+    flashcards_count = flashcards_collection.count_documents({"id_number": id_number})
+    flashcards = list(flashcards_collection.find({"id_number": id_number}, {"_id": 0, "question": 1, "created_at": 1}))
+    sessions_count = study_sessions_collection.count_documents({"id_number": id_number})
+    sessions = list(study_sessions_collection.find({"id_number": id_number}, {"_id": 0, "topic": 1, "created_at": 1}))
+    return {
+        "notes_count": notes_count,
+        "notes": notes,
+        "flashcards_count": flashcards_count,
+        "flashcards": flashcards,
+        "sessions_count": sessions_count,
+        "study_sessions": sessions
+    }
