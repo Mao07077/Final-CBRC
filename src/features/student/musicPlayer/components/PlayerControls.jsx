@@ -164,8 +164,23 @@ const PlayerControls = () => {
   const isYouTubeUrl = currentTrack.url && (currentTrack.url.includes('youtube.com') || currentTrack.url.includes('youtu.be'));
   let videoId = null;
   if ((currentTrack.source === 'youtube' || isYouTubeUrl) && currentTrack.url) {
-    const match = currentTrack.url.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
-    if (match) videoId = match[1];
+    // Extract videoId robustly from various YouTube URL formats
+    try {
+      const urlObj = new URL(currentTrack.url);
+      if (urlObj.hostname.includes('youtu.be')) {
+        videoId = urlObj.pathname.replace('/', '').split('?')[0];
+      } else if (urlObj.searchParams.has('v')) {
+        videoId = urlObj.searchParams.get('v');
+      } else {
+        // fallback to regex
+        const match = currentTrack.url.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
+        if (match) videoId = match[1];
+      }
+    } catch {
+      // fallback to regex if URL parsing fails
+      const match = currentTrack.url.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
+      if (match) videoId = match[1];
+    }
     if (!videoId && currentTrack.audio_url) {
       const m2 = currentTrack.audio_url.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
       if (m2) videoId = m2[1];
