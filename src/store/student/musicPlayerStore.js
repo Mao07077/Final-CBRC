@@ -299,6 +299,25 @@ const useMusicPlayerStore = create((set, get) => ({
 
   // (Removed duplicate block: already handled above)
 
+    // Get the appropriate playlist
+    let playlist;
+    if (playlistType === "embedded") {
+      playlist = playlists[playlistId];
+    } else {
+      playlist = userPlaylists.find(p => p._id === playlistId);
+    }
+
+    if (!playlist || !playlist.tracks || playlist.tracks.length === 0) {
+      console.error("Playlist or tracks not found");
+      return;
+    }
+
+    const newTrack = playlist.tracks[trackIndex];
+    if (!newTrack) {
+      console.error("Track not found at index:", trackIndex, "in playlist:", playlist);
+      return;
+    }
+
     // Auto-convert source to 'youtube' if URL is a YouTube link
     if (newTrack.url && (newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be'))) {
       newTrack.source = 'youtube';
@@ -359,11 +378,11 @@ const useMusicPlayerStore = create((set, get) => ({
     
   // For YouTube tracks, use the direct link for playback (handled by AudioOnlyYouTubePlayer)
     
-    console.log("✓ URL validation passed, creating Audio element...");
-    console.log("Final audio URL:", audioUrl);
-    
-    // Create new audio instance
-    const newAudio = new Audio(audioUrl);
+  // For non-YouTube tracks, create Audio instance
+  const audioUrl = newTrack.url || newTrack.audio_url;
+  console.log("✓ URL validation passed, creating Audio element...");
+  console.log("Final audio URL:", audioUrl);
+  const newAudio = new Audio(audioUrl);
     
     // Set up audio event listeners
     newAudio.addEventListener('ended', () => {
