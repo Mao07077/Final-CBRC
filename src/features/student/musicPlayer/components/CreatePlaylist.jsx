@@ -123,15 +123,18 @@ const CreatePlaylist = ({ isOpen, onClose, onSuccess }) => {
     onClose();
   };
 
-  // When adding a track to playlist, send only url, title, artist
+  // When adding a track to playlist, send only url, title, artist, and log payload
   const handleAddTrackToPlaylist = async (playlistId, track) => {
     const payload = {
       url: track.url,
       title: track.title,
       artist: track.artist
     };
-    // Use your store or API call here
-    await useMusicPlayerStore.getState().addTrackToPlaylist(playlistId, payload);
+    console.log('Add track payload:', payload);
+    const result = await useMusicPlayerStore.getState().addTrackToPlaylist(playlistId, payload);
+    if (!result) {
+      alert('Failed to add track. Please check the URL and try again.');
+    }
   };
 
   if (!isOpen) return null;
