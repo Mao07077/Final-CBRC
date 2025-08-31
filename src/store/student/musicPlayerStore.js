@@ -286,6 +286,25 @@ const useMusicPlayerStore = create((set, get) => ({
   },
 
   selectTrack: async (playlistId, trackIndex, playlistType = "embedded") => {
+    // Auto-convert source to 'youtube' if URL is a YouTube link
+    if (newTrack.url && (newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be'))) {
+      newTrack.source = 'youtube';
+    }
+
+    // For YouTube tracks, skip Audio creation (handled by AudioOnlyYouTubePlayer)
+    if (newTrack.source === 'youtube') {
+      set({
+        activePlaylistId: playlistId,
+        activePlaylistType: playlistType,
+        currentTrackIndex: trackIndex,
+        isPlaying: true,
+        audio: null,
+        audioPromise: null,
+        error: null,
+        showPlayer: true
+      });
+      return;
+    }
     console.log("🎯 selectTrack called with:", { playlistId, trackIndex, playlistType });
     
     // Throttle track changes to prevent rapid switching
