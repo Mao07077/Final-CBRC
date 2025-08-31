@@ -96,7 +96,8 @@ const UserPlaylists = () => {
     const trackData = {
       url: newTrack.url.trim(),
       title: newTrack.title.trim(),
-      artist: newTrack.artist.trim()
+      artist: newTrack.artist.trim(),
+      source: /youtube\.com|youtu\.be/.test(newTrack.url.trim()) ? 'youtube' : 'custom'
     };
 
     const success = await addTrackToPlaylist(playlistId, trackData);
@@ -172,8 +173,10 @@ const UserPlaylists = () => {
       {userPlaylists.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <Music className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <h4 className="text-lg font-medium text-gray-600 mb-2">No Custom Playlists Yet</h4>
-          <p className="text-gray-500 mb-4">Create your first playlist to get started!</p>
+          <h4 className="text-lg font-medium text-gray-800">No Playlists Found</h4>
+          <p className="text-sm text-gray-500 mt-1">
+            Create a new playlist to get started.
+          </p>
         </div>
       ) : (
         userPlaylists.map((playlist) => (
