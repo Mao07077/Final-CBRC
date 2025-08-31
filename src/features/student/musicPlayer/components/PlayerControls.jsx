@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AudioOnlyYouTubePlayer from './AudioOnlyYouTubePlayer';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Music, X } from 'lucide-react';
 import useMusicPlayerStore from '../../../../store/student/musicPlayerStore';
 
@@ -159,10 +160,21 @@ const PlayerControls = () => {
     return null;
   }
 
+    // Render YouTube audio-only player if source is YouTube and url is present
+    const isYouTubeTrack = currentTrack.source === 'youtube' && currentTrack.url;
+
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <div className="bg-white border-t border-gray-200 p-4 shadow-lg ml-0 lg:ml-64">
+        {isYouTubeTrack && (
+          <AudioOnlyYouTubePlayer
+            url={currentTrack.url}
+            playing={isPlaying}
+            volume={isMuted ? 0 : volume}
+            onEnded={handleNextTrack}
+          />
+        )}
       <div className="max-w-6xl mx-auto">
         {/* Close Button */}
         <div className="flex justify-end mb-2">
