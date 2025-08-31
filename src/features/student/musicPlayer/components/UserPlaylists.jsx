@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import AudioOnlyYouTubePlayer from './AudioOnlyYouTubePlayer';
 import { Play, Pause, Plus, Trash2, Music, Globe, Lock, Link, X } from 'lucide-react';
 import useMusicPlayerStore from '../../../../store/student/musicPlayerStore';
 
@@ -132,19 +131,6 @@ const UserPlaylists = () => {
 
   return (
     <div className="space-y-6">
-          {/* Audio-only YouTube player for current track */}
-          {userPlaylists.length > 0 && activePlaylistType === 'user' && (() => {
-            const playlist = userPlaylists.find(p => p._id === activePlaylistId);
-            const track = playlist?.tracks?.[currentTrackIndex];
-            return playlist && track && track.source === 'youtube' ? (
-              <AudioOnlyYouTubePlayer
-                url={track.url}
-                playing={isPlaying}
-                volume={1}
-                onEnded={() => {}}
-              />
-            ) : null;
-          })()}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Music className="w-5 h-5 text-blue-600" />

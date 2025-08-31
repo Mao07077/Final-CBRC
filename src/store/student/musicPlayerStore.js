@@ -286,6 +286,8 @@ const useMusicPlayerStore = create((set, get) => ({
   },
 
   selectTrack: async (playlistId, trackIndex, playlistType = "embedded") => {
+    console.log("🎯 selectTrack called with:", { playlistId, trackIndex, playlistType });
+    
     // Throttle track changes to prevent rapid switching
     const now = Date.now();
     const timeSinceLastChange = now - get().lastTrackChangeTime;
@@ -296,54 +298,7 @@ const useMusicPlayerStore = create((set, get) => ({
     set({ lastTrackChangeTime: now });
 
     const { audio, audioPromise, playlists, userPlaylists } = get();
-
-  // (Removed duplicate block: already handled above)
-
-  // (Removed duplicate playlist and newTrack declaration)
-
-    // Remove duplicate playlist declaration below
-
-    // Get the appropriate playlist
-    let playlist;
-    if (playlistType === "embedded") {
-      playlist = playlists[playlistId];
-    } else {
-      playlist = userPlaylists.find(p => p._id === playlistId);
-    }
-
-    if (!playlist || !playlist.tracks || playlist.tracks.length === 0) {
-      console.error("Playlist or tracks not found");
-      return;
-    }
-
-    const newTrack = playlist.tracks[trackIndex];
-    if (!newTrack) {
-      console.error("Track not found at index:", trackIndex, "in playlist:", playlist);
-      return;
-    }
-
-    // Auto-convert source to 'youtube' if URL is a YouTube link
-    if (newTrack.url && (newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be'))) {
-      newTrack.source = 'youtube';
-    }
-
-    // For YouTube tracks, skip Audio creation (handled by AudioOnlyYouTubePlayer)
-    if (newTrack.source === 'youtube') {
-      set({
-        activePlaylistId: playlistId,
-        activePlaylistType: playlistType,
-        currentTrackIndex: trackIndex,
-        isPlaying: true,
-        audio: null,
-        audioPromise: null,
-        error: null,
-        showPlayer: true
-      });
-      return;
-    }
-
-    console.log("🎯 selectTrack called with:", { playlistId, trackIndex, playlistType });
-
+    
     // Cancel any pending audio promise and pause current audio
     if (audioPromise) {
       await audioPromise.catch(() => {}); // Ignore errors from cancelled promise
@@ -351,7 +306,26 @@ const useMusicPlayerStore = create((set, get) => ({
     if (audio) {
       audio.pause();
     }
-
+    
+    // Get the appropriate playlist
+    let playlist;
+    if (playlistType === "embedded") {
+      playlist = playlists[playlistId];
+    } else {
+      playlist = userPlaylists.find(p => p._id === playlistId);
+    }
+    
+    if (!playlist || !playlist.tracks || playlist.tracks.length === 0) {
+      console.error("Playlist or tracks not found");
+      return;
+    }
+    
+    const newTrack = playlist.tracks[trackIndex];
+    if (!newTrack) {
+      console.error("Track not found at index:", trackIndex, "in playlist:", playlist);
+      return;
+    }
+    
     console.log("=== Attempting to play track ===");
     console.log("Track data:", JSON.stringify(newTrack, null, 2));
     console.log("Track URL:", newTrack.url);
@@ -360,13 +334,93 @@ const useMusicPlayerStore = create((set, get) => ({
     console.log("Has URL?", !!newTrack.url);
     console.log("Has audio_url?", !!newTrack.audio_url);
     console.log("Is YouTube?", newTrack.source === "youtube" || (newTrack.url && (newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be'))));
-
-    // For YouTube tracks, use the direct link for playback (handled by AudioOnlyYouTubePlayer)
-
-    // For non-YouTube tracks, create Audio instance
-    const audioUrl = newTrack.url || newTrack.audio_url;
+    
+    // Check if it's a YouTube URL and extract audio stream
+    const isYouTubeTrack = newTrack.source === "youtube" || (newTrack.url && (newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be')));
+    const alreadyProcessed = isYouTubeTrack && newTrack.audio_url && !newTrack.url;
+    
+    // Use audio_url if url is not available (for already processed YouTube tracks)
+    let audioUrl = newTrack.url || newTrack.audio_url;
+    
+    console.log("=== Track Analysis ===");
+    console.log("isYouTubeTrack:", isYouTubeTrack);
+    console.log("alreadyProcessed:", alreadyProcessed);
+    console.log("Final audioUrl:", audioUrl);
+    
+    if (isYouTubeTrack && !alreadyProcessed) {
+      if (!newTrack.url) {
+        console.error("❌ YouTube URL is missing or undefined");
+        set({ 
+          error: "Invalid YouTube URL - URL is missing", 
+          isPlaying: false, 
+          audioPromise: null 
+        });
+        return;
+      }
+      
+      console.log("🎵 YouTube URL detected, extracting audio stream for:", newTrack.url);
+      set({ error: "Loading YouTube audio...", isPlaying: false });
+      
+      try {
+        const response = await apiClient.get('/api/music/youtube-audio', {
+          params: { url: newTrack.url }
+        });
+        
+        if (response.data.success && response.data.audio_url) {
+          audioUrl = response.data.audio_url;
+          console.log("✓ YouTube audio stream extracted:", audioUrl);
+          set({ error: null });
+        } else {
+          throw new Error("Failed to extract YouTube audio stream");
+        }
+      } catch (error) {
+        console.error("YouTube audio extraction failed:", error);
+        console.error("Request details:", {
+          url: newTrack.url,
+          params: { url: newTrack.url },
+          track: newTrack
+        });
+        set({ 
+          error: "Failed to load YouTube audio. The video might be restricted or unavailable.", 
+          isPlaying: false, 
+          audioPromise: null 
+        });
+        return;
+      }
+    } else if (alreadyProcessed) {
+      console.log("✅ Using already processed YouTube audio_url:", newTrack.audio_url);
+      set({ error: null });
+    } else {
+      // Validate regular URL format or use audio_url for processed tracks
+      if (!audioUrl || (!audioUrl.startsWith('http') && !audioUrl.startsWith('blob:'))) {
+        console.error("Invalid track URL:", newTrack.url);
+        set({ 
+          error: "Invalid track URL. Please use a valid HTTP/HTTPS URL to an audio file.", 
+          isPlaying: false, 
+          audioPromise: null 
+        });
+        return;
+      }
+      
+      // Check if URL looks like an audio file
+      const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
+      const hasAudioExtension = audioExtensions.some(ext => newTrack.url.toLowerCase().includes(ext));
+      
+      if (!hasAudioExtension) {
+        console.warn("URL doesn't appear to be a direct audio file:", newTrack.url);
+        set({ 
+          error: "This URL doesn't appear to be a direct audio file. Please use URLs ending in .mp3, .wav, .ogg, or other audio formats.", 
+          isPlaying: false, 
+          audioPromise: null 
+        });
+        return;
+      }
+    }
+    
     console.log("✓ URL validation passed, creating Audio element...");
     console.log("Final audio URL:", audioUrl);
+    
+    // Create new audio instance
     const newAudio = new Audio(audioUrl);
     
     // Set up audio event listeners
