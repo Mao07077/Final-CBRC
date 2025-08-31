@@ -96,6 +96,46 @@ const PlayerControls = () => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const handlePrevTrack = async () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    try {
+      await prevTrack();
+    } catch (error) {
+      console.error("Previous track error:", error);
+    } finally {
+      setIsNavigating(false);
+    }
+  };
+
+  const handleNextTrack = async () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    try {
+      await nextTrack();
+    } catch (error) {
+      console.error("Next track error:", error);
+    } finally {
+      setIsNavigating(false);
+    }
+  };
+
+  const handlePlayPauseToggle = async () => {
+    if (isToggling) return;
+    setIsToggling(true);
+    try {
+      if (isPlaying) {
+        await pause();
+      } else {
+        await play();
+      }
+    } catch (error) {
+      console.error("Play/pause error:", error);
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
   if (!currentTrack || !showPlayer) {
     return null;
   }
