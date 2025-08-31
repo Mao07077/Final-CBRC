@@ -2,6 +2,19 @@
 import React, { useRef, useEffect, useState } from 'react';
 
 const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
+  useEffect(() => {
+    console.log('[AudioOnlyYouTubePlayer] videoId:', videoId);
+    // Auto-play when videoId changes (track selected)
+    if (window._audioYTPlayer && videoId) {
+      setTimeout(() => {
+        try {
+          window._audioYTPlayer.playVideo();
+        } catch (e) {
+          console.error('Auto-play error:', e);
+        }
+      }, 500); // slight delay to ensure player is ready
+    }
+  }, [videoId]);
   const playerRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [apiReady, setApiReady] = useState(false);
@@ -34,9 +47,13 @@ const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
       },
       events: {
         onStateChange: (event) => {
+          console.log('[AudioOnlyYouTubePlayer] YouTube Player State:', event.data);
           if (event.data === window.YT.PlayerState.PLAYING) setIsPlaying(true);
           if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) setIsPlaying(false);
         },
+        onError: (event) => {
+          console.error('[AudioOnlyYouTubePlayer] YouTube Player Error:', event);
+        }
       },
     });
     // Save player instance for controls
