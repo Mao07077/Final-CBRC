@@ -160,8 +160,9 @@ const PlayerControls = () => {
     return null;
   }
 
-  // If YouTube track, use AudioOnlyYouTubePlayer
-  if (currentTrack.source === 'youtube' && currentTrack.url) {
+  // If YouTube track (source is 'youtube' OR url is a YouTube link), use AudioOnlyYouTubePlayer
+  const isYouTubeUrl = currentTrack.url && (currentTrack.url.includes('youtube.com') || currentTrack.url.includes('youtu.be'));
+  if ((currentTrack.source === 'youtube' || isYouTubeUrl) && currentTrack.url) {
     // Extract videoId from URL
     let videoId = null;
     const match = currentTrack.url.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
