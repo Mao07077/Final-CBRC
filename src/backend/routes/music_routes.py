@@ -1,3 +1,10 @@
+import cloudinary
+import cloudinary.uploader
+cloudinary.config(
+    cloud_name = 'dvdsn3v1l',
+    api_key = '268751277619354',
+    api_secret = 'd9aIRSb6pS083AiBpWRd-EAF62Y'
+)
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, HttpUrl
 from typing import List, Optional, Dict, Any
@@ -68,53 +75,36 @@ def extract_youtube_info(url: str) -> Dict[str, Any]:
             'no_warnings': True,
             'extract_flat': False,
             'ignoreerrors': False,
-            'cookies': 'youtube_cookies.txt',  # Path to your cookies file in backend directory
+            'cookiefile': 'src/backend/cookies.txt',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl': 'src/backend/downloads/%(id)s.%(ext)s',
         }
         
         print(f"Attempting to extract info for URL: {url}")
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            
+            info = ydl.extract_info(url, download=True)
             if not info:
                 print("No info extracted from yt-dlp")
                 return None
-            
             print(f"Video title: {info.get('title', 'Unknown')}")
-            print(f"Available formats: {len(info.get('formats', []))}")
-            
-            # Find the best audio format
-            audio_url = None
-            if 'formats' in info and info['formats']:
-                # Look for audio-only formats first
-                audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
-                print(f"Audio-only formats found: {len(audio_formats)}")
-                
-                if audio_formats:
-                    # Get the best quality audio-only format (handle None values)
-                    audio_formats.sort(key=lambda x: x.get('abr') or 0, reverse=True)
-                    audio_url = audio_formats[0]['url']
-                    print(f"Selected audio-only format with bitrate: {audio_formats[0].get('abr', 'unknown')}")
-                else:
-                    # Fallback to best format with audio
-                    audio_formats = [f for f in info['formats'] if f.get('acodec') != 'none']
-                    print(f"Audio formats (with video) found: {len(audio_formats)}")
-                    if audio_formats:
-                        audio_formats.sort(key=lambda x: x.get('abr') or 0, reverse=True)
-                        audio_url = audio_formats[0]['url']
-                        print(f"Selected audio format with bitrate: {audio_formats[0].get('abr', 'unknown')}")
-            
-            # Fallback to the main URL if no specific audio format found
-            if not audio_url:
-                audio_url = info.get('url')
-                print("Using main URL as fallback")
-            
-            if not audio_url:
-                print("No audio URL could be extracted")
+            mp3_path = f"src/backend/downloads/{video_id}.mp3"
+            import os
+            if not os.path.exists(mp3_path):
+                print(f"MP3 file not found: {mp3_path}")
                 return None
-            
-            print(f"Final audio URL length: {len(audio_url) if audio_url else 0}")
-            
+            # Upload to Cloudinary
+            cloudinary_response = cloudinary.uploader.upload(
+                mp3_path,
+                resource_type="video",
+                public_id=f"youtube-audio/{video_id}",
+                format="mp3"
+            )
+            audio_url = cloudinary_response['secure_url']
             result = {
                 'id': video_id,
                 'title': info.get('title', 'Unknown Title'),
@@ -124,8 +114,7 @@ def extract_youtube_info(url: str) -> Dict[str, Any]:
                 'audio_url': audio_url,
                 'original_url': url
             }
-            
-            print(f"Successfully extracted info for: {result['title']}")
+            print(f"Successfully uploaded MP3 to Cloudinary: {result['title']}")
             return result
             
     except Exception as e:
