@@ -15,7 +15,11 @@ const StudentDataPrintingPage = () => {
         const res = await apiClient.get(`/api/student/${id_number}/study-activity-report`);
         setActivity(res.data);
       } catch (err) {
-        setError("Failed to fetch study activity report.");
+        if (err.response && err.response.data) {
+          setError(err.response.data.error || JSON.stringify(err.response.data));
+        } else {
+          setError("Failed to fetch study activity report.");
+        }
       } finally {
         setLoading(false);
       }
