@@ -35,8 +35,8 @@ const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
   useEffect(() => {
     if (!apiReady || !playerRef.current) return;
     const player = new window.YT.Player(playerRef.current, {
-      height: '1',
-      width: '1',
+    height: window.innerHeight ? String(window.innerHeight) : '600',
+    width: window.innerWidth ? String(window.innerWidth) : '1000',
       videoId,
       playerVars: {
         autoplay: 0,
@@ -79,8 +79,8 @@ const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
         <div className="text-sm text-gray-500 truncate">{artist}</div>
         <span className="inline-block text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded mt-1">YouTube</span>
       </div>
-      {/* Visible YouTube Player for debugging */}
-      <div style={{ width: 400, height: 225 }}>
+  {/* Visible YouTube Player - fills the screen */}
+  <div style={{ width: '100vw', height: '80vh', maxWidth: '100%', maxHeight: '100%', position: 'relative', zIndex: 1000 }}>
         <div ref={el => {
           playerRef.current = el;
           if (el && el.parentElement) {
