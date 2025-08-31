@@ -51,13 +51,14 @@ const CreatePlaylist = ({ isOpen, onClose, onSuccess }) => {
       return;
     }
 
+    const isYouTube = newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be');
     const track = {
-      id: `custom_${Date.now()}`,
+      id: `${isYouTube ? 'youtube' : 'custom'}_${Date.now()}`,
       title: newTrack.title.trim(),
       artist: newTrack.artist.trim(),
       url: newTrack.url.trim(),
       duration: "0:00",
-      source: newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be') ? 'youtube' : 'custom'
+      source: isYouTube ? 'youtube' : 'custom'
     };
 
     setFormData(prev => ({
