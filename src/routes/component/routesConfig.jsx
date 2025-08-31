@@ -43,6 +43,7 @@ import FlashcardLandingPage from "../../pages/student/FlashcardLandingPage";
 import LearnTogetherPage from "../../pages/student/LearnTogetherPage";
 import StudySessionPage from "../../pages/student/StudySessionPage";
 import StudentChatPage from "../../pages/student/studentChatPage";
+import Video from "../../features/student/musicPlayer/components/AudioOnlyYouTubePlayer";
 import StudyMusicPlayerPage from "../../pages/student/StudyMusicPlayerPage";
 import StudentProfilePage from "../../pages/student/StudentProfilePage";
 import StudentDataPrintingPage from "../../pages/student/StudentDataPrintingPage";
@@ -197,7 +198,7 @@ export const routesConfig = [
       { path: "learn-together", element: <LearnTogetherPage /> },
       { path: "study-session/:groupId", element: <StudySessionPage /> },
       { path: "messages", element: <StudentChatPage /> },
-      { path: "music-player", element: <StudyMusicPlayerPage /> },
+      { path: "music-player", element: <Video /> },
       { path: "send-report", element: <SendReportPage /> },
       { path: "data-reports", element: <StudentDataPrintingPage /> },
       { path: "profile", element: <StudentProfilePage /> },
