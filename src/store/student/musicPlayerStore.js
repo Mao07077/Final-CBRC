@@ -303,6 +303,25 @@ const useMusicPlayerStore = create((set, get) => ({
 
     // Remove duplicate playlist declaration below
 
+    // Get the appropriate playlist
+    let playlist;
+    if (playlistType === "embedded") {
+      playlist = playlists[playlistId];
+    } else {
+      playlist = userPlaylists.find(p => p._id === playlistId);
+    }
+
+    if (!playlist || !playlist.tracks || playlist.tracks.length === 0) {
+      console.error("Playlist or tracks not found");
+      return;
+    }
+
+    const newTrack = playlist.tracks[trackIndex];
+    if (!newTrack) {
+      console.error("Track not found at index:", trackIndex, "in playlist:", playlist);
+      return;
+    }
+
     // Auto-convert source to 'youtube' if URL is a YouTube link
     if (newTrack.url && (newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be'))) {
       newTrack.source = 'youtube';
@@ -324,7 +343,7 @@ const useMusicPlayerStore = create((set, get) => ({
     }
 
     console.log("🎯 selectTrack called with:", { playlistId, trackIndex, playlistType });
-    
+
     // Cancel any pending audio promise and pause current audio
     if (audioPromise) {
       await audioPromise.catch(() => {}); // Ignore errors from cancelled promise
@@ -332,26 +351,7 @@ const useMusicPlayerStore = create((set, get) => ({
     if (audio) {
       audio.pause();
     }
-    
-    // Get the appropriate playlist
-    let playlist;
-    if (playlistType === "embedded") {
-      playlist = playlists[playlistId];
-    } else {
-      playlist = userPlaylists.find(p => p._id === playlistId);
-    }
-    
-    if (!playlist || !playlist.tracks || playlist.tracks.length === 0) {
-      console.error("Playlist or tracks not found");
-      return;
-    }
-    
-    const newTrack = playlist.tracks[trackIndex];
-    if (!newTrack) {
-      console.error("Track not found at index:", trackIndex, "in playlist:", playlist);
-      return;
-    }
-    
+
     console.log("=== Attempting to play track ===");
     console.log("Track data:", JSON.stringify(newTrack, null, 2));
     console.log("Track URL:", newTrack.url);
@@ -360,14 +360,14 @@ const useMusicPlayerStore = create((set, get) => ({
     console.log("Has URL?", !!newTrack.url);
     console.log("Has audio_url?", !!newTrack.audio_url);
     console.log("Is YouTube?", newTrack.source === "youtube" || (newTrack.url && (newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be'))));
-    
-  // For YouTube tracks, use the direct link for playback (handled by AudioOnlyYouTubePlayer)
-    
-  // For non-YouTube tracks, create Audio instance
-  const audioUrl = newTrack.url || newTrack.audio_url;
-  console.log("✓ URL validation passed, creating Audio element...");
-  console.log("Final audio URL:", audioUrl);
-  const newAudio = new Audio(audioUrl);
+
+    // For YouTube tracks, use the direct link for playback (handled by AudioOnlyYouTubePlayer)
+
+    // For non-YouTube tracks, create Audio instance
+    const audioUrl = newTrack.url || newTrack.audio_url;
+    console.log("✓ URL validation passed, creating Audio element...");
+    console.log("Final audio URL:", audioUrl);
+    const newAudio = new Audio(audioUrl);
     
     // Set up audio event listeners
     newAudio.addEventListener('ended', () => {
