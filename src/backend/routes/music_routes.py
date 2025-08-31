@@ -81,12 +81,27 @@ def extract_youtube_info(url: str) -> Dict[str, Any]:
                 'preferredquality': '192',
             }],
             'outtmpl': 'src/backend/downloads/%(id)s.%(ext)s',
+                'cookiefile': 'src/backend/cookies.txt',  # Path to cookies.txt for restricted videos
         }
-        
+
         print(f"Attempting to extract info for URL: {url}")
-        
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            try:
+                info = ydl.extract_info(url, download=True)
+            except yt_dlp.utils.DownloadError as e:
+                error_msg = str(e)
+                # Check for confirmation/login requirement
+                if "Sign in to confirm you're not a bot" in error_msg or "Use --cookies-from-browser or --cookies" in error_msg:
+                    print("YouTube extraction blocked: confirmation or login required.")
+                    return {
+                        "error": "YouTube is blocking this video for automated access. This video may require login, age confirmation, or is region-restricted. Try another public music link or update yt-dlp/cookies if needed."
+                    }
+                print(f"yt-dlp DownloadError: {error_msg}")
+                return None
+            except Exception as e:
+                print(f"yt-dlp extraction error: {e}")
+                return None
             if not info:
                 print("No info extracted from yt-dlp")
                 return None
@@ -115,7 +130,6 @@ def extract_youtube_info(url: str) -> Dict[str, Any]:
             }
             print(f"Successfully uploaded MP3 to Cloudinary: {result['title']}")
             return result
-            
     except Exception as e:
         print(f"Error extracting YouTube info: {e}")
         import traceback
@@ -267,6 +281,10 @@ def get_youtube_audio_url(url: str):
         if not video_info:
             print("Failed to extract video info")
             raise HTTPException(status_code=400, detail="Failed to extract video information. Video might be private, deleted, or region-restricted.")
+        # If extraction returned an error dict, show user-friendly error
+        if isinstance(video_info, dict) and video_info.get("error"):
+            print(f"YouTube extraction error: {video_info['error']}")
+            raise HTTPException(status_code=400, detail=video_info["error"])
         print(f"Successfully extracted video info: {video_info.get('title', 'Unknown')}")
         return {
             "success": True,
