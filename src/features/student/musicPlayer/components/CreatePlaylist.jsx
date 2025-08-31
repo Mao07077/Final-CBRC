@@ -131,6 +131,11 @@ const CreatePlaylist = ({ isOpen, onClose, onSuccess }) => {
       artist: track.artist
     };
     console.log('Add track payload:', payload);
+    // Check for empty or invalid URL
+    if (!payload.url || typeof payload.url !== 'string' || !/^https?:\/\//.test(payload.url)) {
+      alert('Track URL must be a valid http(s) URL.');
+      return;
+    }
     const result = await useMusicPlayerStore.getState().addTrackToPlaylist(playlistId, payload);
     if (!result) {
       alert('Failed to add track. Please check the URL and try again.');
