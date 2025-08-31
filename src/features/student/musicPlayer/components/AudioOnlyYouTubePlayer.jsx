@@ -81,7 +81,15 @@ const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
       </div>
       {/* Visible YouTube Player for debugging */}
       <div style={{ width: 400, height: 225 }}>
-        <div ref={playerRef} />
+        <div ref={el => {
+          playerRef.current = el;
+          if (el && el.parentElement) {
+            const parent = el.parentElement;
+            const style = window.getComputedStyle(parent);
+            console.log('[AudioOnlyYouTubePlayer] Parent container:', parent);
+            console.log('[AudioOnlyYouTubePlayer] Parent computed style:', style);
+          }
+        }} />
       </div>
       {/* Custom Play/Pause Controls */}
       <div className="flex items-center space-x-2">
