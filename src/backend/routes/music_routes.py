@@ -75,7 +75,6 @@ def extract_youtube_info(url: str) -> Dict[str, Any]:
             'no_warnings': True,
             'extract_flat': False,
             'ignoreerrors': False,
-            'cookiefile': 'src/backend/cookies.txt',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
@@ -235,50 +234,40 @@ def get_youtube_audio_url(url: str):
     """Extract audio stream URL from YouTube video"""
     try:
         print(f"Received YouTube URL: {url}")
-        
-        # Clean and normalize the URL
-        # Remove playlist parameters and other query params except video ID
         import urllib.parse
-        
-        # Parse the URL to clean it
         parsed_url = urllib.parse.urlparse(url)
         
         # Extract video ID from different YouTube URL formats
         video_id = None
-        
+        # Handle youtu.be URLs (may have extra query params)
         if 'youtu.be' in parsed_url.netloc:
-            # Format: https://youtu.be/VIDEO_ID
+            # /VIDEO_ID or /VIDEO_ID?params
             video_id = parsed_url.path.lstrip('/')
+            # Remove any extra params after video ID
+            video_id = video_id.split('?')[0].split('&')[0]
         elif 'youtube.com' in parsed_url.netloc:
-            # Format: https://youtube.com/watch?v=VIDEO_ID
+            # Try to get v param from query string
             query_params = urllib.parse.parse_qs(parsed_url.query)
             video_id = query_params.get('v', [None])[0]
-        
-        if not video_id:
-            print(f"Could not extract video ID from URL: {url}")
-            raise HTTPException(status_code=400, detail="Invalid YouTube URL format")
-        
-        # Clean the video ID (remove any additional parameters)
-        video_id = video_id.split('&')[0].split('?')[0]
+            if video_id:
+                video_id = video_id.split('&')[0].split('?')[0]
+            # If not found, try to extract from path (e.g., /embed/VIDEO_ID)
+            if not video_id:
+                embed_match = re.search(r'/embed/([^/?&]+)', parsed_url.path)
+                if embed_match:
+                    video_id = embed_match.group(1)
+        # Validate video ID
+        if not video_id or len(video_id) != 11:
+            print(f"Could not extract valid video ID from URL: {url} -> {video_id}")
+            raise HTTPException(status_code=400, detail="Invalid YouTube URL format or video ID")
         print(f"Extracted video ID: {video_id}")
-        
-        # Create a clean YouTube URL
         clean_url = f"https://www.youtube.com/watch?v={video_id}"
         print(f"Clean YouTube URL: {clean_url}")
-        
-        # Validate the video ID format (YouTube video IDs are 11 characters)
-        if len(video_id) != 11:
-            print(f"Invalid video ID length: {len(video_id)}")
-            raise HTTPException(status_code=400, detail="Invalid YouTube video ID")
-        
-        # Extract video info and audio stream
         video_info = extract_youtube_info(clean_url)
         if not video_info:
             print("Failed to extract video info")
             raise HTTPException(status_code=400, detail="Failed to extract video information. Video might be private, deleted, or region-restricted.")
-        
         print(f"Successfully extracted video info: {video_info.get('title', 'Unknown')}")
-        
         return {
             "success": True,
             "video_info": video_info,
@@ -288,6 +277,13 @@ def get_youtube_audio_url(url: str):
             "duration": video_info.get('duration'),
             "thumbnail": video_info.get('thumbnail')
         }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"YouTube audio extraction error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to extract audio from YouTube video: {str(e)}")
         
     except HTTPException:
         raise
