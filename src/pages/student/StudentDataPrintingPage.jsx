@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { PDFDownloadLink, Document, Page, Text, StyleSheet } from "@react-pdf/renderer";
+import { PDFDownloadLink } from "@react-pdf/renderer";
 import StudentReportPDF from "../../features/admin/adminStudentPerformance/components/StudentReportPDF";
 import { FiFileText, FiDownload, FiPrinter } from "react-icons/fi";
 import apiClient from "../../api/axiosClient";
 
 const StudentDataPrintingPage = () => {
   // PDF styles
-  const styles = StyleSheet.create({
+  const styles = {
     page: { padding: 24 },
     section: { marginBottom: 16 },
     title: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
     subtitle: { fontSize: 14, marginBottom: 4 },
     text: { fontSize: 12, marginBottom: 2 },
-  });
+  };
 
   // PDF Documents
   const AcademicReportPDF = (
