@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import StudentReportPDF from "../../features/admin/adminStudentPerformance/components/StudentReportPDF";
 import { PDFDownloadLink, Document, Page, Text, StyleSheet } from "@react-pdf/renderer";
+import StudentReportPDF from "../../features/admin/adminStudentPerformance/components/StudentReportPDF";
 import { FiFileText, FiDownload, FiPrinter } from "react-icons/fi";
 import apiClient from "../../api/axiosClient";
 
