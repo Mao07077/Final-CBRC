@@ -348,45 +348,9 @@ const useMusicPlayerStore = create((set, get) => ({
     console.log("Final audioUrl:", audioUrl);
     
     if (isYouTubeTrack && !alreadyProcessed) {
-      if (!newTrack.url) {
-        console.error("❌ YouTube URL is missing or undefined");
-        set({ 
-          error: "Invalid YouTube URL - URL is missing", 
-          isPlaying: false, 
-          audioPromise: null 
-        });
-        return;
-      }
-      
-      console.log("🎵 YouTube URL detected, extracting audio stream for:", newTrack.url);
-      set({ error: "Loading YouTube audio...", isPlaying: false });
-      
-      try {
-        const response = await apiClient.get('/api/music/youtube-audio', {
-          params: { url: newTrack.url }
-        });
-        
-        if (response.data.success && response.data.audio_url) {
-          audioUrl = response.data.audio_url;
-          console.log("✓ YouTube audio stream extracted:", audioUrl);
-          set({ error: null });
-        } else {
-          throw new Error("Failed to extract YouTube audio stream");
-        }
-      } catch (error) {
-        console.error("YouTube audio extraction failed:", error);
-        console.error("Request details:", {
-          url: newTrack.url,
-          params: { url: newTrack.url },
-          track: newTrack
-        });
-        set({ 
-          error: "Failed to load YouTube audio. The video might be restricted or unavailable.", 
-          isPlaying: false, 
-          audioPromise: null 
-        });
-        return;
-      }
+      // Skip backend extraction, let frontend handle YouTube embed playback
+      set({ error: null, isPlaying: false, audioPromise: null });
+      return;
     } else if (alreadyProcessed) {
       console.log("✅ Using already processed YouTube audio_url:", newTrack.audio_url);
       set({ error: null });
