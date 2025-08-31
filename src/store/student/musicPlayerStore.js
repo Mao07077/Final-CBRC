@@ -286,6 +286,19 @@ const useMusicPlayerStore = create((set, get) => ({
   },
 
   selectTrack: async (playlistId, trackIndex, playlistType = "embedded") => {
+    // Throttle track changes to prevent rapid switching
+    const now = Date.now();
+    const timeSinceLastChange = now - get().lastTrackChangeTime;
+    if (timeSinceLastChange < 500) { // 500ms throttle
+      console.log("⏱️ Throttled - too soon since last change:", timeSinceLastChange + "ms");
+      return;
+    }
+    set({ lastTrackChangeTime: now });
+
+    const { audio, audioPromise, playlists, userPlaylists } = get();
+
+  // (Removed duplicate block: already handled above)
+
     // Auto-convert source to 'youtube' if URL is a YouTube link
     if (newTrack.url && (newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be'))) {
       newTrack.source = 'youtube';
@@ -305,18 +318,8 @@ const useMusicPlayerStore = create((set, get) => ({
       });
       return;
     }
-    console.log("🎯 selectTrack called with:", { playlistId, trackIndex, playlistType });
-    
-    // Throttle track changes to prevent rapid switching
-    const now = Date.now();
-    const timeSinceLastChange = now - get().lastTrackChangeTime;
-    if (timeSinceLastChange < 500) { // 500ms throttle
-      console.log("⏱️ Throttled - too soon since last change:", timeSinceLastChange + "ms");
-      return;
-    }
-    set({ lastTrackChangeTime: now });
 
-    const { audio, audioPromise, playlists, userPlaylists } = get();
+    console.log("🎯 selectTrack called with:", { playlistId, trackIndex, playlistType });
     
     // Cancel any pending audio promise and pause current audio
     if (audioPromise) {
