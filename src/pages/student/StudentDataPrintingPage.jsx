@@ -1,8 +1,45 @@
 import React, { useEffect, useState } from "react";
+import { PDFDownloadLink, Document, Page, Text, StyleSheet } from "@react-pdf/renderer";
 import { FiFileText, FiDownload, FiPrinter } from "react-icons/fi";
 import apiClient from "../../api/axiosClient";
 
 const StudentDataPrintingPage = () => {
+  // PDF styles
+  const styles = StyleSheet.create({
+    page: { padding: 24 },
+    section: { marginBottom: 16 },
+    title: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
+    subtitle: { fontSize: 14, marginBottom: 4 },
+    text: { fontSize: 12, marginBottom: 2 },
+  });
+
+  // PDF Documents
+  const AcademicReportPDF = (
+    <Document>
+      <Page style={styles.page}>
+        <Text style={styles.title}>Academic Performance Report</Text>
+        <Text style={styles.text}>Overall performance across all modules</Text>
+      </Page>
+    </Document>
+  );
+  const TestResultsPDF = (
+    <Document>
+      <Page style={styles.page}>
+        <Text style={styles.title}>Test Results Summary</Text>
+        <Text style={styles.text}>Pre-test and post-test results</Text>
+      </Page>
+    </Document>
+  );
+  const StudyActivityPDF = (
+    <Document>
+      <Page style={styles.page}>
+        <Text style={styles.title}>Study Activity Report</Text>
+        <Text style={styles.text}>Notes: {activity?.notes_count ?? 0}</Text>
+        <Text style={styles.text}>Flashcards: {activity?.flashcards_count ?? 0}</Text>
+        <Text style={styles.text}>Study Sessions: {activity?.sessions_count ?? 0}</Text>
+      </Page>
+    </Document>
+  );
   // Replace with actual user id_number from auth context/store
   const id_number = localStorage.getItem("id_number") || "123456";
   const [activity, setActivity] = useState(null);
@@ -53,10 +90,30 @@ const StudentDataPrintingPage = () => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-gray-900">Available Reports</h2>
             <div className="flex space-x-3">
-              <button onClick={handleDownloadAll} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                <FiDownload className="mr-2" />
-                Download All
-              </button>
+              <PDFDownloadLink document={AcademicReportPDF} fileName="Academic_Performance_Report.pdf">
+                {({ loading }) => (
+                  <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <FiDownload className="mr-2" />
+                    {loading ? "Preparing..." : "Download Academic"}
+                  </button>
+                )}
+              </PDFDownloadLink>
+              <PDFDownloadLink document={TestResultsPDF} fileName="Test_Results_Summary.pdf">
+                {({ loading }) => (
+                  <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <FiDownload className="mr-2" />
+                    {loading ? "Preparing..." : "Download Test Results"}
+                  </button>
+                )}
+              </PDFDownloadLink>
+              <PDFDownloadLink document={StudyActivityPDF} fileName="Study_Activity_Report.pdf">
+                {({ loading }) => (
+                  <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <FiDownload className="mr-2" />
+                    {loading ? "Preparing..." : "Download Activity"}
+                  </button>
+                )}
+              </PDFDownloadLink>
               <button onClick={handlePrint} className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
                 <FiPrinter className="mr-2" />
                 Print
