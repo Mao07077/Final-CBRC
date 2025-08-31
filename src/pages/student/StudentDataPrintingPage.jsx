@@ -3,16 +3,17 @@ import { PDFDownloadLink, Document, Page, Text, StyleSheet } from "@react-pdf/re
 import StudentReportPDF from "../../features/admin/adminStudentPerformance/components/StudentReportPDF";
 import { FiFileText, FiDownload, FiPrinter } from "react-icons/fi";
 import apiClient from "../../api/axiosClient";
+import jsPDF from "jspdf";
 
 const StudentDataPrintingPage = () => {
   // PDF styles
-  const styles = {
+  const styles = StyleSheet.create({
     page: { padding: 24 },
     section: { marginBottom: 16 },
     title: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
     subtitle: { fontSize: 14, marginBottom: 4 },
     text: { fontSize: 12, marginBottom: 2 },
-  };
+  });
 
   // PDF Documents
   const AcademicReportPDF = (
@@ -80,6 +81,24 @@ const StudentDataPrintingPage = () => {
     window.print(); // Could be improved to only print a section
   };
 
+  // Download full report as PDF
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Student Report", 20, 20);
+    doc.setFontSize(12);
+    doc.text(`ID Number: ${id_number}`, 20, 35);
+    doc.text("Academic Performance Report", 20, 50);
+    doc.text("Overall performance across all modules", 20, 60);
+    doc.text("Test Results Summary", 20, 75);
+    doc.text("Pre-test and post-test results", 20, 85);
+    doc.text("Study Activity Report", 20, 100);
+    doc.text(`Notes: ${activity?.notes_count ?? 0}`, 20, 110);
+    doc.text(`Flashcards: ${activity?.flashcards_count ?? 0}`, 20, 120);
+    doc.text(`Study Sessions: ${activity?.sessions_count ?? 0}`, 20, 130);
+    doc.save(`Student_${id_number}_report.pdf`);
+  };
+
   return (
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
@@ -116,18 +135,10 @@ const StudentDataPrintingPage = () => {
                 )}
               </PDFDownloadLink>
               <div className="flex space-x-3">
-                <PDFDownloadLink
-                  document={<StudentReportPDF student={{ id_number, activity }} />}
-                  fileName={`Student_${id_number}_report.pdf`}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  {({ loading }) => (
-                    <span className="flex items-center">
-                      <FiDownload className="mr-2" />
-                      {loading ? "Preparing..." : "Download My Report"}
-                    </span>
-                  )}
-                </PDFDownloadLink>
+                <button onClick={handleDownloadPDF} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  <FiDownload className="mr-2" />
+                  Download My Report
+                </button>
                 <button onClick={handlePrint} className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
                   <FiPrinter className="mr-2" />
                   Print
