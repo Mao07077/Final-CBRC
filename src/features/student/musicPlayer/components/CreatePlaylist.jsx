@@ -123,6 +123,17 @@ const CreatePlaylist = ({ isOpen, onClose, onSuccess }) => {
     onClose();
   };
 
+  // When adding a track to playlist, send only url, title, artist
+  const handleAddTrackToPlaylist = async (playlistId, track) => {
+    const payload = {
+      url: track.url,
+      title: track.title,
+      artist: track.artist
+    };
+    // Use your store or API call here
+    await useMusicPlayerStore.getState().addTrackToPlaylist(playlistId, payload);
+  };
+
   if (!isOpen) return null;
 
   return (
