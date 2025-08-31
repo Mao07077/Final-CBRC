@@ -79,8 +79,8 @@ const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
         <div className="text-sm text-gray-500 truncate">{artist}</div>
         <span className="inline-block text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded mt-1">YouTube</span>
       </div>
-      {/* Hidden YouTube Player */}
-      <div style={{ width: 1, height: 1, opacity: 0.01, position: 'absolute' }}>
+      {/* Visible YouTube Player for debugging */}
+      <div style={{ width: 400, height: 225 }}>
         <div ref={playerRef} />
       </div>
       {/* Custom Play/Pause Controls */}
