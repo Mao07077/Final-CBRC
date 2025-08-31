@@ -27,6 +27,21 @@ const StudentDataPrintingPage = () => {
     fetchActivity();
   }, [id_number]);
 
+  // Print handler
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Download handler (for demo: downloads current view as PDF using browser print)
+  const handleDownloadAll = () => {
+    window.print(); // User can select 'Save as PDF'
+  };
+
+  // Download individual report (for demo: downloads current view as PDF)
+  const handleDownloadReport = (reportType) => {
+    window.print(); // Could be improved to only print a section
+  };
+
   return (
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
@@ -38,11 +53,11 @@ const StudentDataPrintingPage = () => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-gray-900">Available Reports</h2>
             <div className="flex space-x-3">
-              <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <button onClick={handleDownloadAll} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                 <FiDownload className="mr-2" />
                 Download All
               </button>
-              <button className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+              <button onClick={handlePrint} className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
                 <FiPrinter className="mr-2" />
                 Print
               </button>
@@ -58,7 +73,7 @@ const StudentDataPrintingPage = () => {
                   <p className="text-sm text-gray-600">Overall performance across all modules</p>
                 </div>
               </div>
-              <button className="text-blue-600 hover:text-blue-800 font-medium">Download</button>
+              <button onClick={() => handleDownloadReport('academic')} className="text-blue-600 hover:text-blue-800 font-medium">Download</button>
             </div>
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center">
@@ -68,7 +83,7 @@ const StudentDataPrintingPage = () => {
                   <p className="text-sm text-gray-600">Pre-test and post-test results</p>
                 </div>
               </div>
-              <button className="text-blue-600 hover:text-blue-800 font-medium">Download</button>
+              <button onClick={() => handleDownloadReport('test')} className="text-blue-600 hover:text-blue-800 font-medium">Download</button>
             </div>
             {/* Study Activity Report - dynamic from backend */}
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -92,7 +107,7 @@ const StudentDataPrintingPage = () => {
                   )}
                 </div>
               </div>
-              <button className="text-blue-600 hover:text-blue-800 font-medium">Download</button>
+              <button onClick={() => handleDownloadReport('activity')} className="text-blue-600 hover:text-blue-800 font-medium">Download</button>
             </div>
           </div>
           {/* No Reports Message */}
