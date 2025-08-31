@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import AudioOnlyYouTubePlayer from './AudioOnlyYouTubePlayer';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Music, X } from 'lucide-react';
 import useMusicPlayerStore from '../../../../store/student/musicPlayerStore';
+import AudioOnlyYouTubePlayer from './AudioOnlyYouTubePlayer';
 
 const PlayerControls = () => {
   const [volume, setVolume] = useState(1);
@@ -160,21 +160,34 @@ const PlayerControls = () => {
     return null;
   }
 
-    // Render YouTube audio-only player if source is YouTube and url is present
-    const isYouTubeTrack = currentTrack.source === 'youtube' && currentTrack.url;
+  // If YouTube track, use AudioOnlyYouTubePlayer
+  if (currentTrack.source === 'youtube' && currentTrack.url) {
+    // Extract videoId from URL
+    let videoId = null;
+    const match = currentTrack.url.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
+    if (match) videoId = match[1];
+    // Fallback: try to get from audio_url if present
+    if (!videoId && currentTrack.audio_url) {
+      const m2 = currentTrack.audio_url.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
+      if (m2) videoId = m2[1];
+    }
+    if (videoId) {
+      return (
+        <div className="bg-white border-t border-gray-200 p-4 shadow-lg ml-0 lg:ml-64">
+          <AudioOnlyYouTubePlayer
+            videoId={videoId}
+            title={currentTrack.title}
+            artist={currentTrack.artist}
+          />
+        </div>
+      );
+    }
+  }
 
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <div className="bg-white border-t border-gray-200 p-4 shadow-lg ml-0 lg:ml-64">
-        {isYouTubeTrack && (
-          <AudioOnlyYouTubePlayer
-            url={currentTrack.url}
-            playing={isPlaying}
-            volume={isMuted ? 0 : volume}
-            onEnded={handleNextTrack}
-          />
-        )}
       <div className="max-w-6xl mx-auto">
         {/* Close Button */}
         <div className="flex justify-end mb-2">
