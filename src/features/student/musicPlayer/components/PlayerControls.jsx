@@ -123,46 +123,8 @@ const PlayerControls = () => {
       if (m2) videoId = m2[1];
     }
   }
-
-  const handlePrevTrack = async () => {
-    if (isNavigating) return;
-    setIsNavigating(true);
-    try {
-      await prevTrack();
-    } catch (error) {
-      console.error("Previous track error:", error);
-    } finally {
-      setIsNavigating(false);
-    }
-  };
-
-  const handleNextTrack = async () => {
-    if (isNavigating) return;
-    setIsNavigating(true);
-    try {
-      await nextTrack();
-    } catch (error) {
-      console.error("Next track error:", error);
-    } finally {
-      setIsNavigating(false);
-    }
-  };
-
-  const handlePlayPauseToggle = async () => {
-    if (isToggling) return;
-    setIsToggling(true);
-    try {
-      if (isPlaying) {
-        await pause();
-      } else {
-        await play();
-      }
-    } catch (error) {
-      console.error("Play/pause error:", error);
-    } finally {
-      setIsToggling(false);
-    }
-  };
+  // Debug log for videoId
+  console.log('[PlayerControls] videoId:', videoId, 'track:', currentTrack);
 
   return (
     <div className="bg-white border-t border-gray-200 p-4 shadow-lg ml-0 lg:ml-64">
@@ -199,12 +161,21 @@ const PlayerControls = () => {
           </div>
         </div>
         {/* Only show one player at a time */}
-        {videoId ? (
-          <AudioOnlyYouTubePlayer
-            videoId={videoId}
-            title={currentTrack.title}
-            artist={currentTrack.artist}
-          />
+        {(currentTrack.source === 'youtube' || isYouTubeUrl) ? (
+          videoId ? (
+            <div style={{ width: '100%', minHeight: 250 }}>
+              <AudioOnlyYouTubePlayer
+                videoId={videoId}
+                title={currentTrack.title}
+                artist={currentTrack.artist}
+              />
+            </div>
+          ) : (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 my-4 text-center">
+              <span className="text-red-600 font-bold">Error: Invalid or missing YouTube video ID.</span>
+              <div className="text-xs text-red-400 mt-2">Check the track URL or try another song.</div>
+            </div>
+          )
         ) : (
           <audio
             src={currentTrack.url || currentTrack.audio_url}
