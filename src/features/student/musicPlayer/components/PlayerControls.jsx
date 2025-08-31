@@ -124,6 +124,46 @@ const PlayerControls = () => {
     }
   }
 
+  const handlePrevTrack = async () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    try {
+      await prevTrack();
+    } catch (error) {
+      console.error("Previous track error:", error);
+    } finally {
+      setIsNavigating(false);
+    }
+  };
+
+  const handleNextTrack = async () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    try {
+      await nextTrack();
+    } catch (error) {
+      console.error("Next track error:", error);
+    } finally {
+      setIsNavigating(false);
+    }
+  };
+
+  const handlePlayPauseToggle = async () => {
+    if (isToggling) return;
+    setIsToggling(true);
+    try {
+      if (isPlaying) {
+        await pause();
+      } else {
+        await play();
+      }
+    } catch (error) {
+      console.error("Play/pause error:", error);
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
   return (
     <div className="bg-white border-t border-gray-200 p-4 shadow-lg ml-0 lg:ml-64">
       <div className="max-w-6xl mx-auto">
