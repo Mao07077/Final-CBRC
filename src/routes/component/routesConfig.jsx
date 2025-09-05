@@ -77,7 +77,6 @@ const studentNavLinks = [
         path: "/student/music-player",
         label: "Study Music",
         icon: <FiMusic />,
-        external: true, // Custom property to indicate open in new tab
       },
       {
         path: "/student/learn-together",
