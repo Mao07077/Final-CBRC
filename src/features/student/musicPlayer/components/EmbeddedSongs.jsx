@@ -80,44 +80,38 @@ const EmbeddedSongs = () => {
           
           <div className="divide-y divide-gray-100">
             {playlist.tracks.map((track, index) => {
-              const isCurrentTrack = activePlaylistId === playlistId && 
-                                   activePlaylistType === "embedded" && 
-                                   currentTrackIndex === index;
-              const isCurrentlyPlaying = isCurrentTrack && isPlaying;
-              
+              // ...existing code...
               return (
                 <div
                   key={track.id}
                   className={`p-3 flex items-center justify-between hover:bg-gray-50 transition-colors ${
-                    isCurrentTrack ? 'bg-blue-50' : ''
+                    ''
                   }`}
                 >
                   <div className="flex items-center space-x-3 flex-1">
-                    <button
-                      onClick={() => handlePlayPause(playlistId, index)}
-                      className={`p-2 rounded-full transition-colors ${
-                        isCurrentTrack
-                          ? 'bg-blue-600 text-white hover:bg-blue-700'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
+                    <a
+                      href={track.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`p-2 rounded-full transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200`}
+                      title="Open in new tab"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
-                      {isCurrentlyPlaying ? (
-                        <Pause className="w-4 h-4" />
-                      ) : (
-                        <Play className="w-4 h-4" />
-                      )}
-                    </button>
-                    
+                      <Play className="w-4 h-4" />
+                    </a>
                     <div className="flex-1">
-                      <h5 className={`font-medium ${
-                        isCurrentTrack ? 'text-blue-700' : 'text-gray-800'
-                      }`}>
+                      <a
+                        href={track.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`font-medium ${'text-gray-800'} hover:underline`}
+                        title="Open in new tab"
+                      >
                         {track.title}
-                      </h5>
+                      </a>
                       <p className="text-sm text-gray-500">{track.artist}</p>
                     </div>
                   </div>
-                  
                   <div className="text-sm text-gray-500">
                     {track.duration}
                   </div>
