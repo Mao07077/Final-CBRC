@@ -325,108 +325,76 @@ const useMusicPlayerStore = create((set, get) => ({
       console.error("Track not found at index:", trackIndex, "in playlist:", playlist);
       return;
     }
-    
-    console.log("=== Attempting to play track ===");
-    console.log("Track data:", JSON.stringify(newTrack, null, 2));
-    console.log("Track URL:", newTrack.url);
-    console.log("Track audio_url:", newTrack.audio_url);
-    console.log("Track source:", newTrack.source);
-    console.log("Has URL?", !!newTrack.url);
-    console.log("Has audio_url?", !!newTrack.audio_url);
-    console.log("Is YouTube?", newTrack.source === "youtube" || (newTrack.url && (newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be'))));
-    
-    // Check if it's a YouTube URL and extract audio stream
+
+    // If YouTube track, just update state and let frontend handle playback
     const isYouTubeTrack = newTrack.source === "youtube" || (newTrack.url && (newTrack.url.includes('youtube.com') || newTrack.url.includes('youtu.be')));
-    const alreadyProcessed = isYouTubeTrack && newTrack.audio_url && !newTrack.url;
-    
-    // Use audio_url if url is not available (for already processed YouTube tracks)
-    let audioUrl = newTrack.url || newTrack.audio_url;
-    
-    console.log("=== Track Analysis ===");
-    console.log("isYouTubeTrack:", isYouTubeTrack);
-    console.log("alreadyProcessed:", alreadyProcessed);
-    console.log("Final audioUrl:", audioUrl);
-    
-    if (isYouTubeTrack && !alreadyProcessed) {
-      // Skip backend extraction, let frontend handle YouTube embed playback
-      set({ error: null, isPlaying: false, audioPromise: null });
+    if (isYouTubeTrack) {
+      set({
+        activePlaylistId: playlistId,
+        activePlaylistType: playlistType,
+        currentTrackIndex: trackIndex,
+        isPlaying: false,
+        audio: null,
+        audioPromise: null,
+        error: null,
+        showPlayer: true
+      });
       return;
-    } else if (alreadyProcessed) {
-      console.log("✅ Using already processed YouTube audio_url:", newTrack.audio_url);
-      set({ error: null });
-    } else {
-      // Validate regular URL format or use audio_url for processed tracks
-      if (!audioUrl || (!audioUrl.startsWith('http') && !audioUrl.startsWith('blob:'))) {
-        console.error("Invalid track URL:", newTrack.url);
-        set({ 
-          error: "Invalid track URL. Please use a valid HTTP/HTTPS URL to an audio file.", 
-          isPlaying: false, 
-          audioPromise: null 
-        });
-        return;
-      }
-      
-      // Check if URL looks like an audio file
-      const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
-      const hasAudioExtension = audioExtensions.some(ext => newTrack.url.toLowerCase().includes(ext));
-      
-      if (!hasAudioExtension) {
-        console.warn("URL doesn't appear to be a direct audio file:", newTrack.url);
-        set({ 
-          error: "This URL doesn't appear to be a direct audio file. Please use URLs ending in .mp3, .wav, .ogg, or other audio formats.", 
-          isPlaying: false, 
-          audioPromise: null 
-        });
-        return;
-      }
     }
-    
-    console.log("✓ URL validation passed, creating Audio element...");
-    console.log("Final audio URL:", audioUrl);
-    
+
+    // For non-YouTube tracks, validate and play as audio
+    let audioUrl = newTrack.url;
+    if (!audioUrl || (!audioUrl.startsWith('http') && !audioUrl.startsWith('blob:'))) {
+      console.error("Invalid track URL:", newTrack.url);
+      set({
+        error: "Invalid track URL. Please use a valid HTTP/HTTPS URL to an audio file.",
+        isPlaying: false,
+        audioPromise: null
+      });
+      return;
+    }
+
+    // Check if URL looks like an audio file
+    const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
+    const hasAudioExtension = audioExtensions.some(ext => newTrack.url.toLowerCase().includes(ext));
+    if (!hasAudioExtension) {
+      console.warn("URL doesn't appear to be a direct audio file:", newTrack.url);
+      set({
+        error: "This URL doesn't appear to be a direct audio file. Please use URLs ending in .mp3, .wav, .ogg, or other audio formats.",
+        isPlaying: false,
+        audioPromise: null
+      });
+      return;
+    }
+
     // Create new audio instance
     const newAudio = new Audio(audioUrl);
-    
-    // Set up audio event listeners
     newAudio.addEventListener('ended', () => {
       get().nextTrack();
     });
-    
     newAudio.addEventListener('error', (e) => {
-      console.error("Audio playback error:", e);
-      console.error("Failed URL:", audioUrl);
-      console.error("Audio error details:", {
-        error: e.target.error,
-        networkState: e.target.networkState,
-        readyState: e.target.readyState
-      });
-      
       let errorMessage = "Failed to play this track";
       if (e.target.error) {
         switch (e.target.error.code) {
-          case 1: // MEDIA_ERR_ABORTED
+          case 1:
             errorMessage = "Audio playback was aborted";
             break;
-          case 2: // MEDIA_ERR_NETWORK
+          case 2:
             errorMessage = "Network error while loading audio";
             break;
-          case 3: // MEDIA_ERR_DECODE
+          case 3:
             errorMessage = "Audio file is corrupted or not supported";
             break;
-          case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+          case 4:
             errorMessage = "Audio format not supported or file not found";
             break;
         }
       }
-      
       set({ error: errorMessage, isPlaying: false, audioPromise: null });
     });
-
     newAudio.addEventListener('loadstart', () => {
       set({ error: null });
     });
-    
-    // Update state first
     set({
       activePlaylistId: playlistId,
       activePlaylistType: playlistType,
@@ -437,8 +405,6 @@ const useMusicPlayerStore = create((set, get) => ({
       error: null,
       showPlayer: true
     });
-
-    // Try to play the new track
     try {
       const playPromise = newAudio.play();
       set({ audioPromise: playPromise, isPlaying: true });
@@ -446,7 +412,6 @@ const useMusicPlayerStore = create((set, get) => ({
       set({ audioPromise: null });
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error("Play error:", error);
         set({ error: "Failed to play this track", isPlaying: false });
       }
       set({ audioPromise: null });
