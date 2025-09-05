@@ -93,38 +93,31 @@ const EmbeddedSongs = () => {
                   }`}
                 >
                   <div className="flex items-center space-x-3 flex-1">
-                    <a
-                      href={track.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    <button
+                      onClick={() => handlePlayPause(playlistId, index)}
+                      className={`p-2 rounded-full transition-colors ${
                         isCurrentTrack
                           ? 'bg-blue-600 text-white hover:bg-blue-700'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
-                      title="Open in new tab"
                     >
                       {isCurrentlyPlaying ? (
                         <Pause className="w-4 h-4" />
                       ) : (
                         <Play className="w-4 h-4" />
                       )}
-                    </a>
+                    </button>
+                    
                     <div className="flex-1">
-                      <a
-                        href={track.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`font-medium block truncate ${
-                          isCurrentTrack ? 'text-blue-700' : 'text-gray-800'
-                        } hover:underline`}
-                        title={track.title}
-                      >
+                      <h5 className={`font-medium ${
+                        isCurrentTrack ? 'text-blue-700' : 'text-gray-800'
+                      }`}>
                         {track.title}
-                      </a>
+                      </h5>
                       <p className="text-sm text-gray-500">{track.artist}</p>
                     </div>
                   </div>
+                  
                   <div className="text-sm text-gray-500">
                     {track.duration}
                   </div>
