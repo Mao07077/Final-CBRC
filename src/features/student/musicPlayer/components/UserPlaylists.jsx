@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+// Replace with your actual API key
+const YOUTUBE_API_KEY = "AIzaSyAvffXaVLQLwNAyi7yMLCvbU028xC9UWiI";
 import { Play, Pause, Plus, Trash2, Music, Globe, Lock, Link, X } from 'lucide-react';
 import useMusicPlayerStore from '../../../../store/student/musicPlayerStore';
 
@@ -72,25 +74,30 @@ const UserPlaylists = () => {
     }
   } 
 
-  // Fetch YouTube video title from the page
-  const fetchYouTubeTitle = async (url) => {
+  // Fetch YouTube video title and channel using YouTube Data API
+  const fetchYouTubeInfo = async (url) => {
     try {
       setIsFetchingTitle(true);
-      const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
-      const html = await response.text();
-      // Get the <title> tag content
-      const match = html.match(/<title>(.*?)<\/title>/i);
-      if (match && match[1]) {
-        // Remove trailing ' - YouTube' if present
-        let title = match[1].replace(/ - YouTube$/, '').trim();
-        return title;
+      // Extract videoId from URL
+      const match = url.match(/[?&]v=([^&#]+)|youtu\.be\/([^&#?/]+)/);
+      const videoId = match ? (match[1] || match[2]) : null;
+      if (!videoId) return {};
+      const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${YOUTUBE_API_KEY}`;
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      if (data.items && data.items.length > 0) {
+        const snippet = data.items[0].snippet;
+        return {
+          title: snippet.title,
+          artist: snippet.channelTitle
+        };
       }
     } catch (e) {
       // ignore
     } finally {
       setIsFetchingTitle(false);
     }
-    return '';
+    return {};
   };
 
   const handleAddTrack = async (playlistId) => {
@@ -124,18 +131,22 @@ const UserPlaylists = () => {
     }
   };
 
-  // When the URL changes, if it's a YouTube link, auto-fetch the title
+  // When the URL changes, if it's a YouTube link, auto-fetch the title and artist
   useEffect(() => {
-    const tryFetchTitle = async () => {
+    const tryFetchInfo = async () => {
       const url = newTrack.url.trim();
-      if (/youtube\.com|youtu\.be/.test(url) && !newTrack.title) {
-        const title = await fetchYouTubeTitle(url);
-        if (title) {
-          setNewTrack(prev => ({ ...prev, title }));
+      if (/youtube\.com|youtu\.be/.test(url) && (!newTrack.title || !newTrack.artist)) {
+        const info = await fetchYouTubeInfo(url);
+        if (info.title || info.artist) {
+          setNewTrack(prev => ({
+            ...prev,
+            title: info.title || prev.title,
+            artist: info.artist || prev.artist
+          }));
         }
       }
     };
-    tryFetchTitle();
+    tryFetchInfo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newTrack.url]);
 
