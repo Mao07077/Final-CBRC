@@ -6,6 +6,7 @@ const UserPlaylists = () => {
   const [showAddTrack, setShowAddTrack] = useState(null);
   const [newTrack, setNewTrack] = useState({ url: '', title: '', artist: '' });
   const [errors, setErrors] = useState({});
+  const [isFetchingTitle, setIsFetchingTitle] = useState(false);
 
   const {
     userPlaylists,
@@ -69,45 +70,74 @@ const UserPlaylists = () => {
     } catch {
       return false;
     }
+  } 
+
+  // Fetch YouTube video title from the page
+  const fetchYouTubeTitle = async (url) => {
+    try {
+      setIsFetchingTitle(true);
+      const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+      const html = await response.text();
+      // Get the <title> tag content
+      const match = html.match(/<title>(.*?)<\/title>/i);
+      if (match && match[1]) {
+        // Remove trailing ' - YouTube' if present
+        let title = match[1].replace(/ - YouTube$/, '').trim();
+        return title;
+      }
+    } catch (e) {
+      // ignore
+    } finally {
+      setIsFetchingTitle(false);
+    }
+    return '';
   };
 
   const handleAddTrack = async (playlistId) => {
     const newErrors = {};
-    
     if (!newTrack.url.trim()) {
       newErrors.url = 'URL is required';
     } else if (!validateUrl(newTrack.url)) {
       newErrors.url = 'Please enter a valid URL';
     }
-    
     if (!newTrack.title.trim()) {
       newErrors.title = 'Title is required';
     }
-    
     if (!newTrack.artist.trim()) {
       newErrors.artist = 'Artist is required';
     }
-
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-
     const trackData = {
       url: newTrack.url.trim(),
       title: newTrack.title.trim(),
       artist: newTrack.artist.trim(),
       source: /youtube\.com|youtu\.be/.test(newTrack.url.trim()) ? 'youtube' : 'custom'
     };
-
     const success = await addTrackToPlaylist(playlistId, trackData);
-    
     if (success) {
       setNewTrack({ url: '', title: '', artist: '' });
       setShowAddTrack(null);
       setErrors({});
     }
   };
+
+  // When the URL changes, if it's a YouTube link, auto-fetch the title
+  useEffect(() => {
+    const tryFetchTitle = async () => {
+      const url = newTrack.url.trim();
+      if (/youtube\.com|youtu\.be/.test(url) && !newTrack.title) {
+        const title = await fetchYouTubeTitle(url);
+        if (title) {
+          setNewTrack(prev => ({ ...prev, title }));
+        }
+      }
+    };
+    tryFetchTitle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newTrack.url]);
 
   const handleRemoveTrack = async (playlistId, trackIndex, trackTitle) => {
     if (window.confirm(`Remove "${trackTitle}" from playlist?`)) {
@@ -238,7 +268,11 @@ const UserPlaylists = () => {
                           errors.url ? 'border-red-300' : 'border-gray-300'
                         }`}
                         placeholder="https://www.youtube.com/watch?v=..."
+                        autoComplete="off"
                       />
+                      {isFetchingTitle && /youtube\.com|youtu\.be/.test(newTrack.url) && (
+                        <span className="text-xs text-blue-500 ml-2">Fetching title...</span>
+                      )}
                     </div>
                     {errors.url && (
                       <p className="text-red-500 text-xs mt-1">{errors.url}</p>
