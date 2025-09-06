@@ -28,8 +28,8 @@ const CreateGroupModal = () => {
       const group = await addGroup(groupData);
       
       if (group && group.id) {
-        // Navigate directly to the live session (no need to call startSession)
-        navigate(`/student/study-session/${group.id}`);
+        // Open the live session in a new tab
+        window.open(`/student/study-session/${group.id}`, '_blank', 'noopener');
       }
       
       // Close modal and reset form
