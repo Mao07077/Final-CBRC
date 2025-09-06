@@ -24,8 +24,8 @@ const StudyGroupCard = ({ group }) => {
       if (success) {
         setShowPasswordModal(false);
         setPassword("");
-        // Navigate to the study session
-        navigate(`/student/study-session/${group.id}`);
+        // Open the study session in a new tab
+        window.open(`/student/study-session/${group.id}`, '_blank', 'noopener');
       } else {
         setPasswordError("Incorrect password");
       }
@@ -49,8 +49,8 @@ const StudyGroupCard = ({ group }) => {
   const handleJoinGroup = async () => {
     try {
       await joinGroup(group.id);
-      // Navigate to the study session
-      navigate(`/student/study-session/${group.id}`);
+      // Open the study session in a new tab
+      window.open(`/student/study-session/${group.id}`, '_blank', 'noopener');
     } catch (error) {
       console.error("Failed to join group:", error);
     }
@@ -60,8 +60,8 @@ const StudyGroupCard = ({ group }) => {
     try {
       const success = await startSession(group.id);
       if (success) {
-        // Navigate to the study session
-        navigate(`/student/study-session/${group.id}`);
+        // Open the study session in a new tab
+        window.open(`/student/study-session/${group.id}`, '_blank', 'noopener');
       }
     } catch (error) {
       console.error("Failed to start session:", error);
@@ -73,8 +73,8 @@ const StudyGroupCard = ({ group }) => {
       if (group.is_session_active) {
         await joinSession(group.id);
       }
-      // Navigate to the study session regardless
-      navigate(`/student/study-session/${group.id}`);
+      // Open the study session in a new tab regardless
+      window.open(`/student/study-session/${group.id}`, '_blank', 'noopener');
     } catch (error) {
       console.error("Failed to join session:", error);
     }
