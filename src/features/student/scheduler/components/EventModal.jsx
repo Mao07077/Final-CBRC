@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
+import { format } from "date-fns";
 import useSchedulerStore from "../../../../store/student/schedulerStore";
 
 const EventModal = () => {
   const { isModalOpen, closeModal, selectedEvent, addEvent, updateEvent } =
     useSchedulerStore();
   const [title, setTitle] = useState("");
+  const [start, setStart] = useState(selectedEvent?.start || null);
+  const [end, setEnd] = useState(selectedEvent?.end || null);
 
   useEffect(() => {
     if (selectedEvent && selectedEvent.title) {
@@ -12,13 +15,15 @@ const EventModal = () => {
     } else {
       setTitle("");
     }
+    setStart(selectedEvent?.start || null);
+    setEnd(selectedEvent?.end || null);
   }, [selectedEvent]);
 
   if (!isModalOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const eventData = { ...selectedEvent, title };
+    const eventData = { ...selectedEvent, title, start, end };
     if (selectedEvent && selectedEvent.id) {
       updateEvent(eventData);
     } else {
@@ -43,6 +48,44 @@ const EventModal = () => {
             className="w-full p-2 border rounded mb-4"
             required
           />
+          <div className="flex gap-2 mb-4">
+            <div className="flex-1">
+              <label className="block text-gray-700 text-sm mb-1">Start Time</label>
+              <input
+                type="time"
+                value={start ? format(new Date(start), "HH:mm") : ""}
+                onChange={e => {
+                  if (start) {
+                    const date = new Date(start);
+                    const [h, m] = e.target.value.split(":");
+                    date.setHours(Number(h));
+                    date.setMinutes(Number(m));
+                    setStart(date);
+                  }
+                }}
+                className="w-full p-2 border rounded"
+                required
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-gray-700 text-sm mb-1">End Time</label>
+              <input
+                type="time"
+                value={end ? format(new Date(end), "HH:mm") : ""}
+                onChange={e => {
+                  if (end) {
+                    const date = new Date(end);
+                    const [h, m] = e.target.value.split(":");
+                    date.setHours(Number(h));
+                    date.setMinutes(Number(m));
+                    setEnd(date);
+                  }
+                }}
+                className="w-full p-2 border rounded"
+                required
+              />
+            </div>
+          </div>
           <div className="flex justify-end space-x-4">
             <button
               type="button"
