@@ -85,7 +85,7 @@ const SchedulerPage = () => {
           onSelectEvent={handleSelectEvent}
           views={{ month: true, agenda: true }}
           defaultView={Views.MONTH}
-          toolbar={false}
+          toolbar={true}
         />
       </div>
       <EventModal />
