@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import useSchedulerStore from "../../../../store/student/schedulerStore";
 
 const EventModal = () => {
-  const { isModalOpen, closeModal, selectedEvent, addEvent, updateEvent } =
+  const { isModalOpen, closeModal, selectedEvent, addEvent, updateEvent, deleteEvent } =
     useSchedulerStore();
   const [title, setTitle] = useState("");
   const [start, setStart] = useState(selectedEvent?.start || null);
@@ -94,6 +94,18 @@ const EventModal = () => {
             >
               Cancel
             </button>
+            {selectedEvent && selectedEvent.id && (
+              <button
+                type="button"
+                onClick={() => {
+                  deleteEvent(selectedEvent.id);
+                  closeModal();
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Delete
+              </button>
+            )}
             <button
               type="submit"
               className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"

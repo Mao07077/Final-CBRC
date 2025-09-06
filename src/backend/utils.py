@@ -148,8 +148,23 @@ def send_reminder_email(user_id, task, current_time, current_day, users_collecti
     if not user:
         return
     user_email = user["email"]
-    subject = f"Reminder: Task '{task}' at {current_time} on {current_day}"
-    body = f"Dear {user['firstname']} {user['lastname']},\n\nThis is a reminder for your task '{task}' scheduled for {current_time} on {current_day}.\n\nBest regards,\nYour Study Schedule App"
+    subject = f"⏰ CBRC Scheduler Reminder: '{task}' Today at {current_time}"
+    body = f"""
+Hi {user['firstname']} {user['lastname']},
+
+This is a friendly reminder from your CBRC Scheduler!
+
+You have a scheduled event:
+    📅 Task: {task}
+    🕒 Time: {current_time} ({current_day})
+
+Don't forget to prepare and be on time. Good luck with your studies!
+
+If you have any questions or need to reschedule, just log in to your CBRC account.
+
+Best regards,
+CBRC Students Platform
+"""
     message = MIMEText(body)
     message['From'] = EMAIL_HOST_USER
     message['To'] = user_email
