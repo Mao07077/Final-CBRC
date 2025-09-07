@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from "react";
 import useChatStore from "../../../../store/student/chatStore";
 import useAuthStore from "../../../../store/authStore";
@@ -6,7 +7,6 @@ import MessageInput from "./MessageInput";
 import { FiArrowLeft } from 'react-icons/fi';
 
 const ChatWindow = () => {
-
   const { conversations, activeConversationId, setActiveConversation } = useChatStore();
   const { userData } = useAuthStore();
   const { messages, markAsSeen } = useChat();
