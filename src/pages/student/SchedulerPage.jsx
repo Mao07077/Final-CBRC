@@ -1,6 +1,33 @@
 import React, { useEffect, useRef, useState } from "react";
-// In-app notification state
-const [notifMsg, setNotifMsg] = useState("");
+// ...existing code...
+// ...existing code...
+import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
+import format from "date-fns/format";
+import parse from "date-fns/parse";
+import startOfWeek from "date-fns/startOfWeek";
+import getDay from "date-fns/getDay";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import enUS from "date-fns/locale/en-US";
+import useSchedulerStore from "../../store/student/schedulerStore";
+import EventModal from "../../features/student/scheduler/components/EventModal";
+
+const locales = {
+  "en-US": enUS,
+};
+
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
+
+const SchedulerPage = () => {
+  const { events, openModal, fetchEvents } = useSchedulerStore();
+  const notifiedEventsRef = useRef({});
+  const [notifMsg, setNotifMsg] = useState("");
+
   // Test notification button handler
   const handleTestNotification = () => {
     if (Notification && Notification.permission === "granted") {
@@ -28,32 +55,6 @@ const [notifMsg, setNotifMsg] = useState("");
       console.warn("[CBRC Scheduler] Notification permission is blocked in browser settings.");
     }
   };
-// ...existing code...
-import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
-import format from "date-fns/format";
-import parse from "date-fns/parse";
-import startOfWeek from "date-fns/startOfWeek";
-import getDay from "date-fns/getDay";
-import "react-big-calendar/lib/css/react-big-calendar.css";
-import enUS from "date-fns/locale/en-US";
-import useSchedulerStore from "../../store/student/schedulerStore";
-import EventModal from "../../features/student/scheduler/components/EventModal";
-
-const locales = {
-  "en-US": enUS,
-};
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-});
-
-const SchedulerPage = () => {
-  const { events, openModal, fetchEvents } = useSchedulerStore();
-  const notifiedEventsRef = useRef({});
 
   useEffect(() => {
     fetchEvents();
