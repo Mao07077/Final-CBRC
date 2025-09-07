@@ -1,12 +1,16 @@
+import datetime as dt
+# FastAPI app setup
+app = FastAPI(title="CBRCS API", description="CBRC Students Platform API", version="1.0.0")
+
+# Test endpoint to send a test schedule reminder email to a user by id_number
 @app.get("/test-email/{user_id}")
 async def test_email(user_id: str):
     """Test endpoint to send a test schedule reminder email to a user by id_number."""
     from utils import send_reminder_email
     from database import users_collection, schedule_collection
-    # Use current PH time and day for test
     import pytz
     tz = pytz.timezone('Asia/Manila')
-    now = datetime.now(tz)
+    now = dt.datetime.now(tz)
     current_time = now.strftime('%I:%M %p')
     current_day = now.strftime('%a').upper()
     send_reminder_email(user_id, "Test Task", current_time, current_day, users_collection, schedule_collection)
