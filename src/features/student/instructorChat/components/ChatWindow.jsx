@@ -1,12 +1,15 @@
 
-import React, { useRef, useEffect } from "react";
+
+import React, { useRef, useEffect, useState } from "react";
 import useChatStore from "../../../../store/student/chatStore";
 import useAuthStore from "../../../../store/authStore";
 import { useChat } from "../../../../context/ChatProvider";
 import MessageInput from "./MessageInput";
 import { FiArrowLeft } from 'react-icons/fi';
+import messageService from "../../../../services/messageService";
 
 const ChatWindow = () => {
+
   const { conversations, activeConversationId, setActiveConversation } = useChatStore();
   const { userData } = useAuthStore();
   const { messages, markAsSeen } = useChat();
@@ -15,21 +18,44 @@ const ChatWindow = () => {
     : null;
   const endOfMessagesRef = useRef(null);
 
-  // Filter global messages for this conversation
+  // State for message history
+  const [history, setHistory] = useState([]);
+  // Fetch message history when conversation changes
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setHistory([]);
+      if (userData?.id_number && selectedConversation?.user_id) {
+        try {
+          const msgs = await messageService.getMessages(userData.id_number, selectedConversation.user_id);
+          setHistory(msgs || []);
+        } catch (e) {
+          setHistory([]);
+        }
+      }
+    };
+    fetchHistory();
+  }, [activeConversationId, userData, selectedConversation]);
+
+  // Filter global messages for this conversation (real-time)
   const chatMessages = messages.filter(
     (msg) => msg.chat_id === activeConversationId
   );
 
+  // Merge history and real-time messages (avoid duplicates by _id)
+  const allMessages = [...history, ...chatMessages.filter(
+    m => !history.some(h => h._id === m._id)
+  )];
+
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
     // Mark as seen when viewing
-    if (chatMessages.length > 0) {
-      const lastMsg = chatMessages[chatMessages.length - 1];
+    if (allMessages.length > 0) {
+      const lastMsg = allMessages[allMessages.length - 1];
       if (lastMsg.sender_id !== userData?.id_number && !lastMsg.seen) {
         markAsSeen(activeConversationId, lastMsg.sender_id);
       }
     }
-  }, [chatMessages, activeConversationId, userData, markAsSeen]);
+  }, [allMessages, activeConversationId, userData, markAsSeen]);
 
   if (!selectedConversation) {
     return (
@@ -51,7 +77,7 @@ const ChatWindow = () => {
 
       {/* Messages Area */}
       <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
-        {chatMessages.map((msg, index) => {
+        {allMessages.map((msg, index) => {
           const isFromCurrentUser = msg.sender_id === userData?.id_number;
           const justifyClass = isFromCurrentUser ? "justify-end" : "justify-start";
           const bubbleClass = isFromCurrentUser
