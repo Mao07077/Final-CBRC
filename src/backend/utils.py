@@ -192,12 +192,21 @@ def check_schedule_and_notify(users_collection, schedule_collection):
         times = schedule["times"]
         schedule_data = schedule["schedule"]
         logger.info(f"[Scheduler] Checking user {user_id} times: {times} schedule: {schedule_data}")
-        for i, time in enumerate(times):
-            if time == current_time:
-                for j, day in enumerate(schedule_data[i]):
-                    if day and day != '0' and daysOfWeek[j] == current_day:
-                        logger.info(f"[Scheduler] Sending reminder for user {user_id} task '{day}' at {current_time} {current_day}")
-                        send_reminder_email(user_id, day, current_time, current_day, users_collection, schedule_collection)
+        # Loop through each event in the schedule array
+        for i, event in enumerate(schedule_data):
+            if not event or len(event) < 2:
+                continue
+            task = event[0]
+            start_iso = event[1]
+            try:
+                start_dt = datetime.fromisoformat(start_iso.replace('Z', '+00:00')).astimezone(tz)
+                event_time_str = start_dt.strftime('%I:%M %p')
+            except Exception as e:
+                logger.error(f"[Scheduler] Error parsing start time for user {user_id}: {e}")
+                continue
+            if event_time_str == current_time:
+                logger.info(f"[Scheduler] Sending reminder for user {user_id} task '{task}' at {current_time} {current_day}")
+                send_reminder_email(user_id, task, current_time, current_day, users_collection, schedule_collection)
 
 async def paraphrase_question_with_ollama(original_question: str, correct_answer: str, wrong_answers: List[str]) -> Dict[str, Any]:
     """

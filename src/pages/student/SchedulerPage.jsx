@@ -1,9 +1,12 @@
+  // In-app notification state
+  const [notifMsg, setNotifMsg] = React.useState("");
   // Test notification button handler
   const handleTestNotification = () => {
     if (Notification && Notification.permission === "granted") {
       new Notification("Test Notification", {
         body: "This is a test browser notification from CBRC Scheduler!"
       });
+      setNotifMsg("Test browser notification triggered! Check your notification center or system tray.");
       console.warn("[CBRC Scheduler] Test browser notification triggered.");
     } else if (Notification && Notification.permission !== "denied") {
       Notification.requestPermission().then(permission => {
@@ -11,12 +14,15 @@
           new Notification("Test Notification", {
             body: "This is a test browser notification from CBRC Scheduler!"
           });
+          setNotifMsg("Test browser notification triggered after permission granted! Check your notification center or system tray.");
           console.warn("[CBRC Scheduler] Test browser notification triggered after permission granted.");
         } else {
+          setNotifMsg("Notification permission denied. Please enable notifications in your browser settings.");
           console.warn("[CBRC Scheduler] Notification permission denied by user.");
         }
       });
     } else {
+      setNotifMsg("Notifications are blocked. Please enable them in your browser settings.");
       alert("Notifications are blocked. Please enable them in your browser settings.");
       console.warn("[CBRC Scheduler] Notification permission is blocked in browser settings.");
     }
@@ -108,10 +114,15 @@ const SchedulerPage = () => {
       </h1>
       <button
         onClick={handleTestNotification}
-        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        className="mb-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
       >
         Test Browser Notification
       </button>
+      {notifMsg && (
+        <div className="mb-4 p-2 bg-yellow-100 text-yellow-800 rounded border border-yellow-300">
+          {notifMsg}
+        </div>
+      )}
       <div className="bg-white p-4 rounded-lg shadow-md h-[75vh]">
         <Calendar
           localizer={localizer}
