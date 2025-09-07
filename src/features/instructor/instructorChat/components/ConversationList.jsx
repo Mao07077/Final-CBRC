@@ -19,7 +19,6 @@ const ConversationList = () => {
               activeConversationId === id ? "bg-gray-200" : ""
             }`}
           >
-            {/* Show student name if available, fallback to convo.name */}
             <p className="font-semibold text-gray-800">{convo.student_name || convo.name}</p>
             <p className="text-sm text-gray-600 truncate">
               {convo.messages.length > 0
