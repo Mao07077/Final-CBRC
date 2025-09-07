@@ -1,14 +1,21 @@
 import React, { useState } from "react";
 import useChatStore from "../../../../store/student/chatStore";
+import { useChat } from "../../../../context/ChatProvider";
+import useAuthStore from "../../../../store/authStore";
 
 const MessageInput = () => {
   const [text, setText] = useState("");
-  const { sendMessage } = useChatStore();
+  const { activeConversationId, conversations } = useChatStore();
+  const { sendMessage } = useChat();
+  const { userData } = useAuthStore();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (text.trim()) {
-      sendMessage(text);
+    if (text.trim() && activeConversationId && conversations[activeConversationId]) {
+      // Find recipient_id (the other user in the conversation)
+      const convo = conversations[activeConversationId];
+      const recipient_id = convo.user_id || convo.receiver_id || convo.participant_id;
+      sendMessage(activeConversationId, recipient_id, text);
       setText("");
     }
   };
