@@ -11,19 +11,19 @@ import useAuthStore from "./store/authStore";
 // Notification sound
 const notificationAudio = typeof Audio !== 'undefined' ? new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg') : null;
 
+
 function App() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, userRole } = useAuthStore();
   const { events, fetchEvents } = useSchedulerStore();
   const notifiedEventsRef = useRef({});
 
-  // Fetch events on mount (if authenticated)
+  // Only fetch events and run notifications for students
   useEffect(() => {
-    if (isAuthenticated) fetchEvents();
-  }, [isAuthenticated, fetchEvents]);
+    if (isAuthenticated && userRole === "student") fetchEvents();
+  }, [isAuthenticated, userRole, fetchEvents]);
 
-  // Global notification logic
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || userRole !== "student") return;
     if (Notification && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
@@ -58,7 +58,7 @@ function App() {
       });
     }, 30000);
     return () => clearInterval(interval);
-  }, [isAuthenticated, events]);
+  }, [isAuthenticated, userRole, events]);
 
   return (
     <GlobalAuth>

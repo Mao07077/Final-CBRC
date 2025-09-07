@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import useChatStore from "../../../../store/student/chatStore";
 
 const MessageInput = () => {
