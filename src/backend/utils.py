@@ -184,16 +184,19 @@ def check_schedule_and_notify(users_collection, schedule_collection):
     now = datetime.now(tz)
     current_time = now.strftime('%I:%M %p')
     current_day = now.strftime('%a').upper()
+    logger.info(f"[Scheduler] Running at PH time {current_time} {current_day}")
     schedules = schedule_collection.find()
     daysOfWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
     for schedule in schedules:
         user_id = schedule["id_number"]
         times = schedule["times"]
         schedule_data = schedule["schedule"]
+        logger.info(f"[Scheduler] Checking user {user_id} times: {times} schedule: {schedule_data}")
         for i, time in enumerate(times):
             if time == current_time:
                 for j, day in enumerate(schedule_data[i]):
                     if day and day != '0' and daysOfWeek[j] == current_day:
+                        logger.info(f"[Scheduler] Sending reminder for user {user_id} task '{day}' at {current_time} {current_day}")
                         send_reminder_email(user_id, day, current_time, current_day, users_collection, schedule_collection)
 
 async def paraphrase_question_with_ollama(original_question: str, correct_answer: str, wrong_answers: List[str]) -> Dict[str, Any]:

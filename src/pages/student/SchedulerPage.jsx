@@ -1,3 +1,26 @@
+  // Test notification button handler
+  const handleTestNotification = () => {
+    if (Notification && Notification.permission === "granted") {
+      new Notification("Test Notification", {
+        body: "This is a test browser notification from CBRC Scheduler!"
+      });
+      console.warn("[CBRC Scheduler] Test browser notification triggered.");
+    } else if (Notification && Notification.permission !== "denied") {
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          new Notification("Test Notification", {
+            body: "This is a test browser notification from CBRC Scheduler!"
+          });
+          console.warn("[CBRC Scheduler] Test browser notification triggered after permission granted.");
+        } else {
+          console.warn("[CBRC Scheduler] Notification permission denied by user.");
+        }
+      });
+    } else {
+      alert("Notifications are blocked. Please enable them in your browser settings.");
+      console.warn("[CBRC Scheduler] Notification permission is blocked in browser settings.");
+    }
+  };
 import React, { useEffect, useRef } from "react";
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
 import format from "date-fns/format";
@@ -43,16 +66,26 @@ const SchedulerPage = () => {
         const diffMins = Math.floor(diffMs / 60000);
         // 1 hour before
         if (diffMins === 60 && !notifiedEventsRef.current[`${event.id}-1hr`]) {
-          new Notification(`Upcoming Event: ${event.title}`, {
-            body: `Starts in 1 hour at ${start.toLocaleTimeString()}`,
-          });
+          if (Notification && Notification.permission === "granted") {
+            new Notification(`Upcoming Event: ${event.title}`, {
+              body: `Starts in 1 hour at ${start.toLocaleTimeString()}`,
+            });
+            console.warn(`[CBRC Scheduler] Browser notification: Upcoming Event: ${event.title} (1 hour before)`);
+          } else {
+            console.warn(`[CBRC Scheduler] Notification blocked or not granted for Upcoming Event: ${event.title}`);
+          }
           notifiedEventsRef.current[`${event.id}-1hr`] = true;
         }
         // At event time
         if (diffMins === 0 && !notifiedEventsRef.current[`${event.id}-ontime`]) {
-          new Notification(`Event Starting Now: ${event.title}`, {
-            body: `It's time for your event! (${start.toLocaleTimeString()})`,
-          });
+          if (Notification && Notification.permission === "granted") {
+            new Notification(`Event Starting Now: ${event.title}`, {
+              body: `It's time for your event! (${start.toLocaleTimeString()})`,
+            });
+            console.warn(`[CBRC Scheduler] Browser notification: Event Starting Now: ${event.title}`);
+          } else {
+            console.warn(`[CBRC Scheduler] Notification blocked or not granted for Event Starting Now: ${event.title}`);
+          }
           notifiedEventsRef.current[`${event.id}-ontime`] = true;
         }
       });
@@ -73,6 +106,12 @@ const SchedulerPage = () => {
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">
         Study Scheduler
       </h1>
+      <button
+        onClick={handleTestNotification}
+        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        Test Browser Notification
+      </button>
       <div className="bg-white p-4 rounded-lg shadow-md h-[75vh]">
         <Calendar
           localizer={localizer}
