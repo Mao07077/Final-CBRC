@@ -65,10 +65,11 @@ export const ChatProvider = ({ children }) => {
 
   // Send chat message
   const sendMessage = (chat_id, recipient_id, message) => {
-    if (!wsRef.current) return;
+    if (!wsRef.current || !userData?.id_number) return;
     wsRef.current.send(JSON.stringify({
       type: "chat_message",
       chat_id,
+      sender_id: userData.id_number,
       recipient_id,
       message
     }));
