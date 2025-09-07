@@ -19,7 +19,7 @@ const ConversationList = () => {
               activeConversationId === id ? "bg-gray-200" : ""
             }`}
           >
-            <p className="font-semibold text-gray-800">{convo.student_name || convo.name}</p>
+            <p className="font-semibold text-gray-800">{convo.name}</p>
             <p className="text-sm text-gray-600 truncate">
               {convo.messages.length > 0
                 ? convo.messages[convo.messages.length - 1].message
