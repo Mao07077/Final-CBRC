@@ -5,8 +5,7 @@ const ChatContext = createContext();
 
 export const useChat = () => useContext(ChatContext);
 
-const WS_URL = process.env.REACT_APP_CHAT_WS_URL ||
-  (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host.replace(/:\d+$/, ":8000") + "/ws/chat";
+const WS_URL = "wss://final-cbrc.onrender.com/ws/chat";
 
 const notificationAudio = typeof Audio !== 'undefined' ? new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg') : null;
 
