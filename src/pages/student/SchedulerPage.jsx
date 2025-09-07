@@ -1,5 +1,5 @@
 // Add a notification sound using a public sound link
-const notificationAudio = typeof Audio !== 'undefined' ? new Audio('https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg') : null;
+const notificationAudio = typeof Audio !== 'undefined' ? new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg') : null;
 import React, { useEffect, useRef, useState } from "react";
 // ...existing code...
 // ...existing code...
