@@ -1,3 +1,5 @@
+// Add a notification sound
+const notificationAudio = typeof Audio !== 'undefined' ? new Audio('/notify.mp3') : null;
 import React, { useEffect, useRef, useState } from "react";
 // ...existing code...
 // ...existing code...
@@ -34,6 +36,7 @@ const SchedulerPage = () => {
       new Notification("Test Notification", {
         body: "This is a test browser notification from CBRC Scheduler!"
       });
+      if (notificationAudio) notificationAudio.play();
       setNotifMsg("Test browser notification triggered! Check your notification center or system tray.");
       console.warn("[CBRC Scheduler] Test browser notification triggered.");
     } else if (Notification && Notification.permission !== "denied") {
@@ -42,6 +45,7 @@ const SchedulerPage = () => {
           new Notification("Test Notification", {
             body: "This is a test browser notification from CBRC Scheduler!"
           });
+          if (notificationAudio) notificationAudio.play();
           setNotifMsg("Test browser notification triggered after permission granted! Check your notification center or system tray.");
           console.warn("[CBRC Scheduler] Test browser notification triggered after permission granted.");
         } else {
@@ -78,6 +82,7 @@ const SchedulerPage = () => {
             new Notification(`Upcoming Event: ${event.title}`, {
               body: `Starts in 1 hour at ${start.toLocaleTimeString()}`,
             });
+            if (notificationAudio) notificationAudio.play();
             console.warn(`[CBRC Scheduler] Browser notification: Upcoming Event: ${event.title} (1 hour before)`);
           } else {
             console.warn(`[CBRC Scheduler] Notification blocked or not granted for Upcoming Event: ${event.title}`);
@@ -90,6 +95,7 @@ const SchedulerPage = () => {
             new Notification(`Event Starting Now: ${event.title}`, {
               body: `It's time for your event! (${start.toLocaleTimeString()})`,
             });
+            if (notificationAudio) notificationAudio.play();
             console.warn(`[CBRC Scheduler] Browser notification: Event Starting Now: ${event.title}`);
           } else {
             console.warn(`[CBRC Scheduler] Notification blocked or not granted for Event Starting Now: ${event.title}`);
