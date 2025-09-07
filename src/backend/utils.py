@@ -12,6 +12,7 @@ import asyncio
 import ollama
 import logging
 from datetime import datetime
+import pytz
 from fastapi import HTTPException
 from config import EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, logger
 from models import Flashcard
@@ -179,8 +180,10 @@ CBRC Students Platform
         logger.error(f"Error sending email: {e}")
 
 def check_schedule_and_notify(users_collection, schedule_collection):
-    current_time = datetime.now().strftime('%I:%M %p')
-    current_day = datetime.now().strftime('%a').upper()
+    tz = pytz.timezone('Asia/Manila')
+    now = datetime.now(tz)
+    current_time = now.strftime('%I:%M %p')
+    current_day = now.strftime('%a').upper()
     schedules = schedule_collection.find()
     daysOfWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
     for schedule in schedules:
