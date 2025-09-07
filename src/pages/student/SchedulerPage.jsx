@@ -1,5 +1,6 @@
-  // In-app notification state
-  const [notifMsg, setNotifMsg] = React.useState("");
+import React, { useEffect, useRef, useState } from "react";
+// In-app notification state
+const [notifMsg, setNotifMsg] = useState("");
   // Test notification button handler
   const handleTestNotification = () => {
     if (Notification && Notification.permission === "granted") {
@@ -27,7 +28,7 @@
       console.warn("[CBRC Scheduler] Notification permission is blocked in browser settings.");
     }
   };
-import React, { useEffect, useRef } from "react";
+// ...existing code...
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
 import format from "date-fns/format";
 import parse from "date-fns/parse";
