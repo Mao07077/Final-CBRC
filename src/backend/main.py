@@ -1,4 +1,14 @@
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from apscheduler.schedulers.background import BackgroundScheduler
+from config import logger
+from database import users_collection, schedule_collection
+from utils import check_schedule_and_notify
+import os
 import datetime as dt
+
 # FastAPI app setup
 app = FastAPI(title="CBRCS API", description="CBRC Students Platform API", version="1.0.0")
 
@@ -15,14 +25,6 @@ async def test_email(user_id: str):
     current_day = now.strftime('%a').upper()
     send_reminder_email(user_id, "Test Task", current_time, current_day, users_collection, schedule_collection)
     return {"message": f"Test email sent to user {user_id} (if email exists in DB)"}
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from apscheduler.schedulers.background import BackgroundScheduler
-from config import logger
-from database import users_collection, schedule_collection
-from utils import check_schedule_and_notify
-import os
 
 # FastAPI app setup
 app = FastAPI(title="CBRCS API", description="CBRC Students Platform API", version="1.0.0")
