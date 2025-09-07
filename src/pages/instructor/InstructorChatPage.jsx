@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
-import ConversationList from "../../features/student/instructorChat/components/ConversationList";
-import ChatWindow from "../../features/student/instructorChat/components/ChatWindow";
+import ConversationList from "../../features/instructor/instructorChat/components/ConversationList";
+import ChatWindow from "../../features/instructor/instructorChat/components/ChatWindow";
 import useChatStore from "../../store/instructor/chatStore";
 
 const InstructorChatPage = () => {
