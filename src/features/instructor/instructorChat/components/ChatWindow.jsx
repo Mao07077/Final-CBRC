@@ -45,7 +45,7 @@ const ChatWindow = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white">
+    <div className="flex-1 flex flex-col h-full min-h-0 bg-white">
       {/* Chat Header */}
       <div className="p-4 border-b bg-white flex items-center gap-4 flex-shrink-0">
         <button onClick={() => setActiveConversation(null)} className="md:hidden p-2 rounded-full hover:bg-gray-100">
@@ -55,7 +55,7 @@ const ChatWindow = () => {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+  <div className="flex-1 min-h-0 p-4 overflow-y-auto bg-gray-50">
         {chatMessages.map((msg, index) => {
           const isFromCurrentUser = msg.sender_id === userData?.id_number;
           const justifyClass = isFromCurrentUser ? "justify-end" : "justify-start";
