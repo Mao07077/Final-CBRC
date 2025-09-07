@@ -1,4 +1,5 @@
 
+
 import React, { useRef, useEffect, useState } from "react";
 import useChatStore from "../../../../store/instructor/chatStore";
 import useAuthStore from "../../../../store/authStore";
@@ -9,9 +10,11 @@ import { FiArrowLeft } from 'react-icons/fi';
 
 
 const ChatWindow = () => {
+
+
   const { conversations, activeConversationId, setActiveConversation } = useChatStore();
   const { userData } = useAuthStore();
-  const { messages: wsMessages, markAsSeen } = useChat();
+  const { messages: wsMessages } = useChat();
   const [history, setHistory] = useState([]);
   const selectedConversation = activeConversationId
     ? conversations[activeConversationId]
@@ -23,7 +26,15 @@ const ChatWindow = () => {
     const fetchHistory = async () => {
       if (userData && selectedConversation) {
         const sender = userData.id_number;
-        const receiver = selectedConversation.user_id || selectedConversation.receiver_id || selectedConversation.participant_id;
+        // Find the other user in the conversation
+        let receiver = null;
+        if (selectedConversation.user_id && selectedConversation.user_id !== sender) receiver = selectedConversation.user_id;
+        else if (selectedConversation.receiver_id && selectedConversation.receiver_id !== sender) receiver = selectedConversation.receiver_id;
+        else if (selectedConversation.participant_id && selectedConversation.participant_id !== sender) receiver = selectedConversation.participant_id;
+        if (!receiver) {
+          setHistory([]);
+          return;
+        }
         try {
           const msgs = await messageService.getMessages(sender, receiver);
           setHistory(msgs || []);
@@ -37,7 +48,7 @@ const ChatWindow = () => {
     fetchHistory();
   }, [activeConversationId, userData, selectedConversation]);
 
-  // Merge history and real-time messages (avoid duplicates by _id)
+  // Merge backend and WebSocket messages, avoid duplicates by _id
   const chatMessages = React.useMemo(() => {
     const wsForThisChat = wsMessages.filter((msg) => msg.chat_id === activeConversationId);
     const all = [...history, ...wsForThisChat];
@@ -51,14 +62,7 @@ const ChatWindow = () => {
 
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
-    // Mark as seen when viewing
-    if (chatMessages.length > 0) {
-      const lastMsg = chatMessages[chatMessages.length - 1];
-      if (lastMsg.sender_id !== userData?.id_number && !lastMsg.seen) {
-        markAsSeen(activeConversationId, lastMsg.sender_id);
-      }
-    }
-  }, [chatMessages, activeConversationId, userData, markAsSeen]);
+  }, [chatMessages]);
 
   if (!selectedConversation) {
     return (
@@ -90,11 +94,6 @@ const ChatWindow = () => {
             <div key={msg._id || index} className={`flex ${justifyClass} mb-4`}>
               <div className={`py-2 px-4 rounded-2xl max-w-sm ${bubbleClass}`}>
                 <p>{msg.message}</p>
-                {isFromCurrentUser && (
-                  <span className="ml-2 text-xs text-gray-400">
-                    {msg.seen ? "Seen" : "Delivered"}
-                  </span>
-                )}
               </div>
             </div>
           );
