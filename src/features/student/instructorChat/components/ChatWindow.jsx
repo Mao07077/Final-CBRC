@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import useChatStore from "../../../../store/student/chatStore";
 import useAuthStore from "../../../../store/authStore";
 import { useChat } from "../../../../context/ChatProvider";
@@ -14,6 +14,8 @@ const ChatWindow = () => {
     ? conversations[activeConversationId]
     : null;
   const endOfMessagesRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const [autoScroll, setAutoScroll] = useState(true);
 
 
   // Merge old (Zustand) and new (WebSocket) messages for this conversation
@@ -27,8 +29,11 @@ const ChatWindow = () => {
   });
   const chatMessages = Object.values(allMessagesMap).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
+  // Only auto-scroll if user is at (or near) the bottom
   useEffect(() => {
-    endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (autoScroll) {
+      endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
     // Mark as seen when viewing
     if (chatMessages.length > 0) {
       const lastMsg = chatMessages[chatMessages.length - 1];
@@ -36,7 +41,16 @@ const ChatWindow = () => {
         markAsSeen(activeConversationId, lastMsg.sender_id);
       }
     }
-  }, [chatMessages, activeConversationId, userData, markAsSeen]);
+  }, [chatMessages, activeConversationId, userData, markAsSeen, autoScroll]);
+
+  // Detect user scroll position
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const threshold = 80; // px from bottom to still auto-scroll
+    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+    setAutoScroll(atBottom);
+  };
 
   if (!selectedConversation) {
     return (
@@ -57,7 +71,11 @@ const ChatWindow = () => {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+      <div
+        className="flex-1 p-4 overflow-y-auto bg-gray-50"
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+      >
         {chatMessages.map((msg, index) => {
           const isFromCurrentUser = msg.sender_id === userData?.id_number;
           const justifyClass = isFromCurrentUser ? "justify-end" : "justify-start";
