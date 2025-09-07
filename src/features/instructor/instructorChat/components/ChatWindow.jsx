@@ -1,19 +1,40 @@
+import React, { useRef, useEffect } from "react";
 import useChatStore from "../../../../store/instructor/chatStore";
 import useAuthStore from "../../../../store/authStore";
+import { useChat } from "../../../../context/ChatProvider";
 import MessageInput from "./MessageInput";
 import { FiArrowLeft } from 'react-icons/fi';
 
 const ChatWindow = () => {
   const { conversations, activeConversationId, setActiveConversation } = useChatStore();
   const { userData } = useAuthStore();
+  const { messages, markAsSeen } = useChat();
   const selectedConversation = activeConversationId
     ? conversations[activeConversationId]
     : null;
   const endOfMessagesRef = useRef(null);
 
+  // Merge old (Zustand) and new (WebSocket) messages for this conversation
+  const oldMessages = selectedConversation?.messages || [];
+  const newMessages = messages.filter((msg) => msg.chat_id === activeConversationId);
+  // Deduplicate by _id (or fallback to timestamp+sender_id)
+  const allMessagesMap = {};
+  [...oldMessages, ...newMessages].forEach((msg) => {
+    const key = msg._id || (msg.timestamp + '-' + msg.sender_id);
+    allMessagesMap[key] = msg;
+  });
+  const chatMessages = Object.values(allMessagesMap).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [selectedConversation?.messages]);
+    // Mark as seen when viewing
+    if (chatMessages.length > 0) {
+      const lastMsg = chatMessages[chatMessages.length - 1];
+      if (lastMsg.sender_id !== userData?.id_number && !lastMsg.seen) {
+        markAsSeen(activeConversationId, lastMsg.sender_id);
+      }
+    }
+  }, [chatMessages, activeConversationId, userData, markAsSeen]);
 
   if (!selectedConversation) {
     return (
@@ -35,17 +56,21 @@ const ChatWindow = () => {
 
       {/* Messages Area */}
       <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
-        {selectedConversation.messages.map((msg, index) => {
+        {chatMessages.map((msg, index) => {
           const isFromCurrentUser = msg.sender_id === userData?.id_number;
           const justifyClass = isFromCurrentUser ? "justify-end" : "justify-start";
           const bubbleClass = isFromCurrentUser
             ? "bg-accent-medium text-white"
             : "bg-gray-200 text-gray-800";
-
           return (
             <div key={msg._id || index} className={`flex ${justifyClass} mb-4`}>
               <div className={`py-2 px-4 rounded-2xl max-w-sm ${bubbleClass}`}>
                 <p>{msg.message}</p>
+                {isFromCurrentUser && (
+                  <span className="ml-2 text-xs text-gray-400">
+                    {msg.seen ? "Seen" : "Delivered"}
+                  </span>
+                )}
               </div>
             </div>
           );
