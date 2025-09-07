@@ -130,6 +130,7 @@ from routes.account_routes import router as account_router
 from routes.schedule_routes import router as schedule_router
 from routes.post_routes import router as post_router
 from routes.websocket_routes import router as websocket_router
+from routes.chat_websocket import router as chat_websocket_router
 from routes.misc_routes import router as misc_router
 from routes.study_group_routes import router as study_group_router
 from routes.music_routes import router as music_router
@@ -151,6 +152,7 @@ app.include_router(account_router)
 app.include_router(schedule_router)
 app.include_router(post_router)
 app.include_router(websocket_router)
+app.include_router(chat_websocket_router)
 app.include_router(misc_router)
 app.include_router(study_group_router)
 app.include_router(music_router)

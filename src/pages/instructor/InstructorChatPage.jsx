@@ -1,9 +1,10 @@
 import React, { useEffect } from "react";
-import ConversationList from "../../features/instructor/instructorChat/components/ConversationList";
-import ChatWindow from "../../features/instructor/instructorChat/components/ChatWindow";
+import ConversationList from "../../features/student/instructorChat/components/ConversationList";
+import ChatWindow from "../../features/student/instructorChat/components/ChatWindow";
 import useChatStore from "../../store/instructor/chatStore";
 
 const InstructorChatPage = () => {
+  // Use instructor chat store to fetch conversations, but use global chat context for real-time features
   const { conversations, activeConversationId, fetchConversations, isLoading, error } = useChatStore();
   const selectedConversation = activeConversationId
     ? conversations[activeConversationId]

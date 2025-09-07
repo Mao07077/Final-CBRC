@@ -4,6 +4,7 @@ import AppRoutes from "./routes/AppRoutes";
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import GlobalAuth from "./components/auth/GlobalAuth";
+import { ChatProvider } from "./context/ChatProvider";
 import useAuthStore from "./store/authStore";
 
 
@@ -61,13 +62,15 @@ function App() {
 
   return (
     <GlobalAuth>
-      <div className="App">
-        <Navbar />
-        <main>
-          <AppRoutes />
-        </main>
-        {!isAuthenticated && <Footer />}
-      </div>
+      <ChatProvider>
+        <div className="App">
+          <Navbar />
+          <main>
+            <AppRoutes />
+          </main>
+          {!isAuthenticated && <Footer />}
+        </div>
+      </ChatProvider>
     </GlobalAuth>
   );
 }
