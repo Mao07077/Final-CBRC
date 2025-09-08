@@ -9,7 +9,7 @@ import { FiArrowLeft } from 'react-icons/fi';
 const ChatWindow = () => {
   const { conversations, activeConversationId, setActiveConversation } = useChatStore();
   const { userData } = useAuthStore();
-  const { messages, markAsSeen } = useChat();
+  const { messages, markAsSeen, userType } = useChat();
   const selectedConversation = activeConversationId
     ? conversations[activeConversationId]
     : null;
@@ -19,8 +19,9 @@ const ChatWindow = () => {
 
 
   // Merge old (Zustand) and new (WebSocket) messages for this conversation
-  const oldMessages = selectedConversation?.messages || [];
-  const newMessages = messages.filter((msg) => msg.chat_id === activeConversationId);
+  // Only use messages for student if userType is 'student'
+  const oldMessages = userType === 'student' ? (selectedConversation?.messages || []) : [];
+  const newMessages = userType === 'student' ? messages.filter((msg) => msg.chat_id === activeConversationId) : [];
   // Deduplicate by _id (or fallback to timestamp+sender_id)
   const allMessagesMap = {};
   [...oldMessages, ...newMessages].forEach((msg) => {

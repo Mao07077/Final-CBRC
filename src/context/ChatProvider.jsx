@@ -10,7 +10,7 @@ const WS_URL = "wss://final-cbrc.onrender.com/ws/chat";
 const notificationAudio = typeof Audio !== 'undefined' ? new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg') : null;
 
 export const ChatProvider = ({ children }) => {
-  const { userData, isAuthenticated } = useAuthStore();
+  const { userData, isAuthenticated, userRole } = useAuthStore();
   const wsRef = useRef(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [messages, setMessages] = useState([]); // [{chat_id, sender_id, recipient_id, message, ...}]
@@ -97,7 +97,8 @@ export const ChatProvider = ({ children }) => {
       unread,
       sendMessage,
       markAsSeen,
-      isUserOnline
+      isUserOnline,
+      userType: userRole // 'student' or 'instructor'
     }}>
       {children}
     </ChatContext.Provider>
