@@ -3,7 +3,7 @@ from collections import defaultdict
 import json
 from datetime import datetime
 from config import logger
-from database import users_collection
+from database import users_collection, messages_collection
 
 router = APIRouter()
 
@@ -41,15 +41,32 @@ async def chat_websocket(websocket: WebSocket):
                 # Broadcast message to recipient (and sender for echo)
                 chat_id = msg.get("chat_id")
                 recipient_id = msg.get("recipient_id")
+                message_text = msg.get("message")
+                timestamp = datetime.utcnow()
                 message = {
                     "type": "chat_message",
                     "chat_id": chat_id,
                     "sender_id": user_id,
                     "sender_name": user_name,
                     "recipient_id": recipient_id,
-                    "message": msg.get("message"),
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "message": message_text,
+                    "timestamp": timestamp.isoformat(),
                 }
+
+                # Save to database (messages_collection)
+                try:
+                    db_message = {
+                        "sender_id": user_id,
+                        "receiver_id": recipient_id,
+                        "message": message_text,
+                        "timestamp": timestamp,
+                        "read": False
+                    }
+                    result = messages_collection.insert_one(db_message)
+                    message["_id"] = str(result.inserted_id)
+                except Exception as e:
+                    logger.error(f"Failed to save chat message to DB: {e}")
+
                 # Mark as delivered for recipient
                 chat_status[chat_id][recipient_id] = "delivered"
                 # Send to recipient if online
