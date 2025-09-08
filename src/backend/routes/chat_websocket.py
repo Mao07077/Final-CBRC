@@ -64,6 +64,7 @@ async def chat_websocket(websocket: WebSocket):
                     }
                     result = messages_collection.insert_one(db_message)
                     message["_id"] = str(result.inserted_id)
+                    logger.info(f"[WS] Saved chat message to DB: {db_message}")
                 except Exception as e:
                     logger.error(f"Failed to save chat message to DB: {e}")
 
