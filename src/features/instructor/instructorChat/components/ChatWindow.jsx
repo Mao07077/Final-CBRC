@@ -18,15 +18,19 @@ const ChatWindow = () => {
 
   // Always merge old (REST) and new (WebSocket) messages for this conversation
   const oldMessages = selectedConversation?.messages || [];
-  // Show all WebSocket messages for this chat, regardless of sender
   const newMessages = messages.filter((msg) => msg.chat_id === activeConversationId);
-  // Deduplicate by _id (or fallback to timestamp+sender_id)
-  const allMessagesMap = {};
-  [...oldMessages, ...newMessages].forEach((msg) => {
-    const key = msg._id || (msg.timestamp + '-' + msg.sender_id + '-' + msg.message);
-    allMessagesMap[key] = msg;
-  });
-  const chatMessages = Object.values(allMessagesMap).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  let chatMessages;
+  if (oldMessages.length === 0 && newMessages.length > 0) {
+    // Fallback: show all WebSocket messages for this chat
+    chatMessages = newMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  } else {
+    const allMessagesMap = {};
+    [...oldMessages, ...newMessages].forEach((msg) => {
+      const key = msg._id || (msg.timestamp + '-' + msg.sender_id + '-' + msg.message);
+      allMessagesMap[key] = msg;
+    });
+    chatMessages = Object.values(allMessagesMap).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  }
 
   // Only auto-scroll if user is at (or near) the bottom
   useEffect(() => {
