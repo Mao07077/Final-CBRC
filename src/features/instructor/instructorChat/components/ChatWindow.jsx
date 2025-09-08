@@ -16,14 +16,14 @@ const ChatWindow = () => {
   const messagesContainerRef = useRef(null);
   const [autoScroll, setAutoScroll] = useState(true);
 
-  // Merge old (Zustand) and new (WebSocket) messages for this conversation
-  // Only use messages for instructor if userType is 'instructor'
-  const oldMessages = userType === 'instructor' ? (selectedConversation?.messages || []) : [];
-  const newMessages = userType === 'instructor' ? messages.filter((msg) => msg.chat_id === activeConversationId) : [];
+  // Always merge old (REST) and new (WebSocket) messages for this conversation
+  const oldMessages = selectedConversation?.messages || [];
+  // Show all WebSocket messages for this chat, regardless of sender
+  const newMessages = messages.filter((msg) => msg.chat_id === activeConversationId);
   // Deduplicate by _id (or fallback to timestamp+sender_id)
   const allMessagesMap = {};
   [...oldMessages, ...newMessages].forEach((msg) => {
-    const key = msg._id || (msg.timestamp + '-' + msg.sender_id);
+    const key = msg._id || (msg.timestamp + '-' + msg.sender_id + '-' + msg.message);
     allMessagesMap[key] = msg;
   });
   const chatMessages = Object.values(allMessagesMap).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
