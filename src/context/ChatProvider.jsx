@@ -70,6 +70,7 @@ export const ChatProvider = ({ children }) => {
       type: "chat_message",
       chat_id,
       sender_id: userData.id_number,
+      sender_name: userData.firstname || "User",
       recipient_id,
       message
     }));
