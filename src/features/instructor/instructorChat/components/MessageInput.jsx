@@ -1,7 +1,9 @@
+
 import React, { useState } from "react";
 import useChatStore from "../../../../store/instructor/chatStore";
 import { useChat } from "../../../../context/ChatProvider";
 import useAuthStore from "../../../../store/authStore";
+import messageService from "../../../../services/messageService";
 
 const MessageInput = () => {
   const [text, setText] = useState("");
@@ -9,13 +11,26 @@ const MessageInput = () => {
   const { sendMessage } = useChat();
   const { userData } = useAuthStore();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (text.trim() && activeConversationId && conversations[activeConversationId]) {
       // Find recipient_id (the other user in the conversation)
       const convo = conversations[activeConversationId];
       const recipient_id = convo.user_id || convo.receiver_id || convo.participant_id;
+      // 1. Send via WebSocket for real-time
       sendMessage(activeConversationId, recipient_id, text);
+      // 2. Save to DB via REST API
+      try {
+        await messageService.sendMessage({
+          sender_id: userData.id_number,
+          receiver_id: recipient_id,
+          message: text.trim(),
+        });
+      } catch (err) {
+        // Optionally show error to user
+        // eslint-disable-next-line no-console
+        console.error("Failed to save message to DB", err);
+      }
       setText("");
     }
   };
