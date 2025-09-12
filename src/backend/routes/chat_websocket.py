@@ -15,6 +15,7 @@ chat_status = defaultdict(dict)  # {chat_id: {user_id: "delivered"/"seen"}}
 
 @router.websocket("/ws/chat")
 async def chat_websocket(websocket: WebSocket):
+    logger.info("[WS] /ws/chat connection attempt")
     await websocket.accept()
     user_id = None
     user_name = ""
