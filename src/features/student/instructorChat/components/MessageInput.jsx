@@ -19,6 +19,12 @@ const MessageInput = () => {
       const recipient_id = convo.user_id || convo.receiver_id || convo.participant_id;
       // 1. Send via WebSocket for real-time
       sendMessage(activeConversationId, recipient_id, text);
+      // Debug log for REST API payload
+      console.log({
+        sender_id: userData.id_number,
+        receiver_id: recipient_id,
+        message: text.trim(),
+      });
       // 2. Save to DB via REST API
       try {
         await messageService.sendMessage({
