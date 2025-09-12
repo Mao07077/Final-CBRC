@@ -64,7 +64,8 @@ export const ChatProvider = ({ children }) => {
   }, []);
 
   // Send chat message (optimistic update)
-  const sendMessage = (chat_id, recipient_name, message) => {
+  // Send chat message (optimistic update, send both recipient_id and recipient_name)
+  const sendMessage = (chat_id, recipient_id, recipient_name, message) => {
     if (!wsRef.current || !userData?.id_number) return;
     // Optimistically add message for sender
     const tempMsg = {
@@ -72,6 +73,7 @@ export const ChatProvider = ({ children }) => {
       chat_id,
       sender_id: userData.id_number,
       sender_name: (userData.firstname || "") + (userData.lastname ? (" " + userData.lastname) : ""),
+      recipient_id,
       recipient_name,
       message,
       timestamp: new Date().toISOString(),
@@ -83,6 +85,7 @@ export const ChatProvider = ({ children }) => {
       chat_id,
       sender_id: userData.id_number,
       sender_name: (userData.firstname || "") + (userData.lastname ? (" " + userData.lastname) : ""),
+      recipient_id,
       recipient_name,
       message
     }));
