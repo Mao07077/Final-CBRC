@@ -23,32 +23,54 @@ def get_messages(sender: str, receiver: str):
 
 @router.post("/api/send-message")
 def send_message(message_data: dict = Body(...)):
-    """Send a message between users"""
-    required_fields = ["sender_id", "receiver_id", "message"]
+    """Send a message between users. Accepts either receiver_id or receiver_name."""
+    required_fields = ["sender_id", "message"]
+    if not any(["receiver_id" in message_data, "receiver_name" in message_data]):
+        raise HTTPException(status_code=400, detail="Missing receiver_id or receiver_name")
     if not all(field in message_data for field in required_fields):
         raise HTTPException(status_code=400, detail="Missing required fields")
-    
-    # Verify both users exist
+
+    # Verify sender exists
     sender = users_collection.find_one({"id_number": message_data["sender_id"]})
-    receiver = users_collection.find_one({"id_number": message_data["receiver_id"]})
-    
     if not sender:
         raise HTTPException(status_code=404, detail="Sender not found")
-    if not receiver:
-        raise HTTPException(status_code=404, detail="Receiver not found")
-    
+
+    # Get receiver_id from name if needed
+    receiver_id = message_data.get("receiver_id")
+    if not receiver_id:
+        receiver_name = message_data.get("receiver_name")
+        if not receiver_name:
+            raise HTTPException(status_code=400, detail="Missing receiver_name")
+        # Try to find user by full name (case-insensitive)
+        receiver = users_collection.find_one({
+            "$expr": {
+                "$regexMatch": {
+                    "input": {"$concat": ["$firstname", " ", "$lastname"]},
+                    "regex": f"^{receiver_name}$",
+                    "options": "i"
+                }
+            }
+        })
+        if not receiver:
+            raise HTTPException(status_code=404, detail=f"Receiver '{receiver_name}' not found")
+        receiver_id = receiver["id_number"]
+    else:
+        receiver = users_collection.find_one({"id_number": receiver_id})
+        if not receiver:
+            raise HTTPException(status_code=404, detail="Receiver not found")
+
     # Create message document
     message_doc = {
         "sender_id": message_data["sender_id"],
-        "receiver_id": message_data["receiver_id"],
+        "receiver_id": receiver_id,
         "message": message_data["message"],
         "timestamp": datetime.utcnow(),
         "read": False
     }
-    
+
     result = messages_collection.insert_one(message_doc)
     message_doc["_id"] = str(result.inserted_id)
-    
+
     return {"success": True, "message": message_doc}
 
 @router.get("/api/conversations/student/{student_id}")
