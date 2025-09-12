@@ -63,15 +63,27 @@ export const ChatProvider = ({ children }) => {
     }
   }, []);
 
-  // Send chat message
-  const sendMessage = (chat_id, recipient_id, message) => {
+  // Send chat message (optimistic update)
+  const sendMessage = (chat_id, recipient_name, message) => {
     if (!wsRef.current || !userData?.id_number) return;
+    // Optimistically add message for sender
+    const tempMsg = {
+      type: "chat_message",
+      chat_id,
+      sender_id: userData.id_number,
+      sender_name: (userData.firstname || "") + (userData.lastname ? (" " + userData.lastname) : ""),
+      recipient_name,
+      message,
+      timestamp: new Date().toISOString(),
+      _id: `temp_${Date.now()}`
+    };
+    setMessages((prev) => [...prev, tempMsg]);
     wsRef.current.send(JSON.stringify({
       type: "chat_message",
       chat_id,
       sender_id: userData.id_number,
-      sender_name: userData.firstname || "User",
-      recipient_id,
+      sender_name: (userData.firstname || "") + (userData.lastname ? (" " + userData.lastname) : ""),
+      recipient_name,
       message
     }));
     setUnread((prev) => ({ ...prev, [chat_id]: false }));
