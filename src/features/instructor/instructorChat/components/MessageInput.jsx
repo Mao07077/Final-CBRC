@@ -14,22 +14,22 @@ const MessageInput = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (text.trim() && activeConversationId && conversations[activeConversationId]) {
-      // Find recipient_id (the other user in the conversation)
+      // Always use convo.user_id as receiver_id for instructor chat
       const convo = conversations[activeConversationId];
-      const recipient_id = convo.user_id || convo.receiver_id || convo.participant_id;
+      const receiver_id = convo.user_id;
       // 1. Send via WebSocket for real-time
-      sendMessage(activeConversationId, recipient_id, text);
+      sendMessage(activeConversationId, receiver_id, text);
       // Debug log for REST API payload
       console.log({
         sender_id: userData.id_number,
-        receiver_id: recipient_id,
+        receiver_id,
         message: text.trim(),
       });
       // 2. Save to DB via REST API
       try {
         await messageService.sendMessage({
           sender_id: userData.id_number,
-          receiver_id: recipient_id,
+          receiver_id,
           message: text.trim(),
         });
       } catch (err) {
