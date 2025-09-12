@@ -16,6 +16,7 @@ const MessageInput = () => {
     if (text.trim() && activeConversationId && conversations[activeConversationId]) {
       // Always use convo.user_id as receiver_id for instructor chat
       const convo = conversations[activeConversationId];
+      console.log('[InstructorChat] convo object:', convo);
       const receiver_id = convo.user_id;
       // 1. Send via WebSocket for real-time
       sendMessage(activeConversationId, receiver_id, text);
