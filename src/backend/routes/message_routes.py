@@ -1,5 +1,13 @@
 from fastapi import APIRouter, HTTPException, Body
 from database import messages_collection, users_collection
+import json
+from fastapi import Request
+import sys
+sys.path.append('..')
+try:
+    from routes.chat_websocket import global_online_users
+except ImportError:
+    global_online_users = None
 from datetime import datetime
 from bson import ObjectId
 
@@ -21,8 +29,9 @@ def get_messages(sender: str, receiver: str):
     
     return messages
 
+
 @router.post("/api/send-message")
-def send_message(message_data: dict = Body(...)):
+def send_message(message_data: dict = Body(...), request: Request = None):
     """Send a message between users. Accepts either receiver_id or receiver_name."""
     required_fields = ["sender_id", "message"]
     if not any(["receiver_id" in message_data, "receiver_name" in message_data]):
@@ -70,6 +79,36 @@ def send_message(message_data: dict = Body(...)):
 
     result = messages_collection.insert_one(message_doc)
     message_doc["_id"] = str(result.inserted_id)
+
+    # Broadcast to sender and receiver via WebSocket if online
+    ws_message = {
+        "type": "chat_message",
+        "chat_id": message_data.get("chat_id", ""),
+        "sender_id": message_data["sender_id"],
+        "sender_name": sender.get("firstname", "") + " " + sender.get("lastname", ""),
+        "recipient_id": receiver_id,
+        "message": message_data["message"],
+        "timestamp": message_doc["timestamp"].isoformat(),
+        "_id": message_doc["_id"]
+    }
+    # Use asyncio.create_task to avoid blocking
+    async def send_ws():
+        if global_online_users:
+            for uid in [message_data["sender_id"], receiver_id]:
+                user_ws = global_online_users.get(uid, {}).get("websocket")
+                if user_ws:
+                    try:
+                        await user_ws.send_text(json.dumps(ws_message))
+                    except Exception:
+                        pass
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.create_task(send_ws())
+        else:
+            loop.run_until_complete(send_ws())
+    except Exception:
+        pass
 
     return {"success": True, "message": message_doc}
 
