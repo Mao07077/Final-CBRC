@@ -63,32 +63,22 @@ export const ChatProvider = ({ children }) => {
     }
   }, []);
 
-  // Send chat message (optimistic update)
-  // Send chat message (optimistic update, send both recipient_id and recipient_name)
-  const sendMessage = (chat_id, recipient_id, recipient_name, message) => {
+  // Send chat message
+  const sendMessage = (chat_id, recipient_id, message) => {
     if (!wsRef.current || !userData?.id_number) return;
-    // Optimistically add message for sender
-    const tempMsg = {
+    // Optimistically add the message to the UI
+    const optimisticMsg = {
       type: "chat_message",
       chat_id,
       sender_id: userData.id_number,
-      sender_name: (userData.firstname || "") + (userData.lastname ? (" " + userData.lastname) : ""),
+      sender_name: userData.firstname || "User",
       recipient_id,
-      recipient_name,
       message,
       timestamp: new Date().toISOString(),
-      _id: `temp_${Date.now()}`
+      _id: `optimistic-${Date.now()}`
     };
-    setMessages((prev) => [...prev, tempMsg]);
-    wsRef.current.send(JSON.stringify({
-      type: "chat_message",
-      chat_id,
-      sender_id: userData.id_number,
-      sender_name: (userData.firstname || "") + (userData.lastname ? (" " + userData.lastname) : ""),
-      recipient_id,
-      recipient_name,
-      message
-    }));
+    setMessages((prev) => [...prev, optimisticMsg]);
+    wsRef.current.send(JSON.stringify(optimisticMsg));
     setUnread((prev) => ({ ...prev, [chat_id]: false }));
   };
 

@@ -14,11 +14,11 @@ const MessageInput = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (text.trim() && activeConversationId && conversations[activeConversationId]) {
+      // Find recipient_id (the other user in the conversation)
       const convo = conversations[activeConversationId];
-      const recipient_id = convo.user_id || convo.receiver_id || convo.participant_id || convo.id_number;
       const recipient_name = convo.name || convo.receiver_name || convo.participant_name;
-      // 1. Send via WebSocket for real-time (with both recipient_id and recipient_name)
-      sendMessage(activeConversationId, recipient_id, recipient_name, text);
+      // 1. Send via WebSocket for real-time
+      sendMessage(activeConversationId, recipient_name, text);
       // 2. Save to DB via REST API
       try {
         await messageService.sendMessage({
