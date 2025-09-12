@@ -66,19 +66,14 @@ export const ChatProvider = ({ children }) => {
   // Send chat message
   const sendMessage = (chat_id, recipient_id, message) => {
     if (!wsRef.current || !userData?.id_number) return;
-    // Optimistically add the message to the UI
-    const optimisticMsg = {
+    wsRef.current.send(JSON.stringify({
       type: "chat_message",
       chat_id,
       sender_id: userData.id_number,
       sender_name: userData.firstname || "User",
       recipient_id,
-      message,
-      timestamp: new Date().toISOString(),
-      _id: `optimistic-${Date.now()}`
-    };
-    setMessages((prev) => [...prev, optimisticMsg]);
-    wsRef.current.send(JSON.stringify(optimisticMsg));
+      message
+    }));
     setUnread((prev) => ({ ...prev, [chat_id]: false }));
   };
 
