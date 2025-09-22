@@ -1,29 +1,40 @@
-from fastapi import APIRouter, HTTPException, Body
 
-import requests
-import os
+
+
+
+from fastapi import APIRouter, HTTPException, Body
+import torch
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 router = APIRouter()
 
-API_URL = "https://api-inference.huggingface.co/models/Vamsi/T5_Paraphrase_Paws"
-API_TOKEN = os.getenv("HUGGINGFACE_API_KEY", "")
+# Load model and tokenizer once at startup
+tokenizer = AutoTokenizer.from_pretrained("Vamsi/T5_Paraphrase_Paws")
+model = AutoModelForSeq2SeqLM.from_pretrained("Vamsi/T5_Paraphrase_Paws")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = model.to(device)
 
 @router.post("/api/paraphrase")
 def paraphrase_question(data: dict = Body(...)):
     question = data.get("question")
     if not question:
         raise HTTPException(status_code=400, detail="Missing 'question' field")
-    headers = {"Authorization": f"Bearer {API_TOKEN}"}
-    payload = {
-        "inputs": f"paraphrase: {question}",
-        "parameters": {"num_beams": 5, "num_return_sequences": 1}
-    }
-    response = requests.post(API_URL, headers=headers, json=payload)
+    text = f"paraphrase: {question} </s>"
+    encoding = tokenizer.encode_plus(text, return_tensors="pt")
+    input_ids = encoding["input_ids"].to(device)
+    attention_mask = encoding["attention_mask"].to(device)
     try:
-        result = response.json()
-        if isinstance(result, list) and len(result) > 0:
-            return {"paraphrased": result[0]["generated_text"]}
-        else:
-            raise HTTPException(status_code=500, detail="No paraphrased result returned")
-    except Exception:
-        raise HTTPException(status_code=500, detail="Error from Hugging Face API")
+        outputs = model.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            max_length=256,
+            do_sample=True,
+            top_k=120,
+            top_p=0.95,
+            early_stopping=True,
+            num_return_sequences=1
+        )
+        paraphrased = tokenizer.decode(outputs[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
+        return {"paraphrased": paraphrased}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Paraphrasing error: {str(e)}")
