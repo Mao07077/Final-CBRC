@@ -43,7 +43,6 @@ const PostTestPage = () => {
               ...q,
               question: paraphrasedQ,
               options: shuffledOptions,
-              originalQuestion: q.question // <-- Save original for debug
             };
           })
         );
@@ -64,10 +63,57 @@ const PostTestPage = () => {
     fetchAndParaphrase();
   }, [moduleId]);
 
+  const handleAnswerSelect = (questionIndex, selectedAnswer) => {
+    setAnswers(prev => ({
+      ...prev,
+      [questionIndex]: selectedAnswer
+    }));
+  };
+
+  const handleNext = () => {
+    if (currentQuestion < postTest.questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      const timeSpent = Math.floor((Date.now() - startTime) / 1000); // Time in seconds
+      const response = await moduleService.submitPostTest(moduleId, answers, userData.id_number, timeSpent);
+      
+      // Navigate to results page with the test results
+      navigate("/post-test-results", { 
+        state: { 
+          results: {
+            correct: response.correct,
+            incorrect: response.incorrect,
+            total_questions: response.total_questions,
+            time_spent: timeSpent
+          },
+          moduleTitle: postTest.title.replace("Post-Test for ", ""),
+          moduleId: moduleId
+        }
+      });
+    } catch (error) {
+      console.error("Failed to submit post-test:", error);
+      setError("Failed to submit post-test. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="flex flex-col justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mb-6"></div>
+        <div className="text-lg text-primary-dark font-semibold">Paraphrasing questions...</div>
       </div>
     );
   }
@@ -124,11 +170,7 @@ const PostTestPage = () => {
           </div>
 
           <div className="mb-8">
-            {/* DEBUG: Show original and paraphrased question */}
-            <div style={{ background: '#fffbe6', border: '1px solid #ffe58f', padding: '12px', borderRadius: '8px', marginBottom: '12px' }}>
-              <div style={{ fontSize: '14px', color: '#b8860b', marginBottom: '4px' }}><strong>Original:</strong> {currentQuestionData.originalQuestion}</div>
-              <div style={{ fontSize: '16px', color: '#333' }}><strong>Paraphrased:</strong> {currentQuestionData.question}</div>
-            </div>
+            <h2 className="text-xl font-semibold mb-6">{currentQuestionData.question}</h2>
             <div className="space-y-3">
               {currentQuestionData.options.map((option, index) => (
                 <label
@@ -212,12 +254,5 @@ const PostTestPage = () => {
     </div>
   );
 };
-
-// ...existing code...
-
-// Add missing handlePrevious function
-function handlePrevious() {
-  setCurrentQuestion((prev) => Math.max(prev - 1, 0));
-}
 
 export default PostTestPage;
