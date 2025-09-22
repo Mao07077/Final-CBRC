@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import moduleService from "../../services/moduleService";
+import paraphraseService from "../../services/paraphraseService";
 import useAuthStore from "../../store/authStore";
 
 const PostTestPage = () => {
@@ -8,6 +9,7 @@ const PostTestPage = () => {
   const navigate = useNavigate();
   const { userData } = useAuthStore();
   const [postTest, setPostTest] = useState(null);
+  const [paraphrasedQuestions, setParaphrasedQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -16,21 +18,50 @@ const PostTestPage = () => {
   const [startTime] = useState(Date.now());
 
   useEffect(() => {
-    fetchPostTest();
+    // Fetch pre-test questions, paraphrase, and randomize
+    const fetchAndParaphrase = async () => {
+      try {
+        setIsLoading(true);
+        // Get pre-test questions for this module
+        const preTest = await moduleService.getPreTest(moduleId);
+        if (!preTest || !preTest.questions) throw new Error("No pre-test found");
+        // Paraphrase each question
+        const paraphrased = await Promise.all(
+          preTest.questions.map(async (q) => {
+            let paraphrasedQ;
+            try {
+              paraphrasedQ = await paraphraseService.paraphrase(q.question);
+            } catch {
+              paraphrasedQ = q.question; // fallback
+            }
+            // Randomize options
+            const shuffledOptions = q.options
+              .map((opt) => ({ opt, sort: Math.random() }))
+              .sort((a, b) => a.sort - b.sort)
+              .map(({ opt }) => opt);
+            return {
+              ...q,
+              question: paraphrasedQ,
+              options: shuffledOptions,
+            };
+          })
+        );
+        // Randomize question order
+        const shuffledQuestions = paraphrased
+          .map((q) => ({ q, sort: Math.random() }))
+          .sort((a, b) => a.sort - b.sort)
+          .map(({ q }) => q);
+        setParaphrasedQuestions(shuffledQuestions);
+        setPostTest({ title: `Post-Test for ${preTest.title || "Module"}`, questions: shuffledQuestions });
+      } catch (error) {
+        console.error("Failed to load post-test:", error);
+        setError("Failed to load post-test. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAndParaphrase();
   }, [moduleId]);
-
-  const fetchPostTest = async () => {
-    try {
-      setIsLoading(true);
-      const data = await moduleService.getPostTest(moduleId);
-      setPostTest(data);
-    } catch (error) {
-      console.error("Failed to fetch post-test:", error);
-      setError("Failed to load post-test. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleAnswerSelect = (questionIndex, selectedAnswer) => {
     setAnswers(prev => ({
@@ -100,7 +131,7 @@ const PostTestPage = () => {
     );
   }
 
-  if (!postTest || !postTest.questions) {
+  if (!postTest || !postTest.questions || postTest.questions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <div className="text-gray-600 text-xl mb-4">No post-test available for this module.</div>
