@@ -213,4 +213,11 @@ const PostTestPage = () => {
   );
 };
 
+// ...existing code...
+
+// Add missing handlePrevious function
+function handlePrevious() {
+  setCurrentQuestion((prev) => Math.max(prev - 1, 0));
+}
+
 export default PostTestPage;
