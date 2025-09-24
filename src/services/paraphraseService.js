@@ -1,6 +1,6 @@
 
 const HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/prithivida/parrot_paraphraser_on_T5";
-const HUGGINGFACE_API_KEY = process.env.REACT_APP_HF_API_KEY || ""; // Set your API key in .env or pass as argument
+const HUGGINGFACE_API_KEY = import.meta.env.VITE_HF_API_KEY || ""; // For Vite projects
 
 const paraphraseService = {
   paraphrase: async (question, apiKey = HUGGINGFACE_API_KEY) => {
