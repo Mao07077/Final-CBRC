@@ -1,5 +1,5 @@
 
-const HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/prithivida/parrot_paraphraser_on_T5";
+const HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base";
 const HUGGINGFACE_API_KEY = import.meta.env.VITE_HF_API_KEY || ""; // For Vite projects
 
 const paraphraseService = {
@@ -11,12 +11,12 @@ const paraphraseService = {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        inputs: `paraphrase: ${question}`,
+        inputs: question,
         parameters: { num_beams: 5, num_return_sequences: 1 }
       })
     });
     const result = await response.json();
-    if (Array.isArray(result) && result.length > 0 && result[0].generated_text) {
+    if (result && result.length > 0 && result[0].generated_text) {
       return result[0].generated_text;
     }
     throw new Error(result.error || "Paraphrasing failed");
