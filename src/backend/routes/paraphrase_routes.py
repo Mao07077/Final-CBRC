@@ -8,9 +8,10 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 router = APIRouter()
 
-# Load model and tokenizer once at startup
-tokenizer = AutoTokenizer.from_pretrained("Vamsi/T5_Paraphrase_Paws")
-model = AutoModelForSeq2SeqLM.from_pretrained("Vamsi/T5_Paraphrase_Paws")
+
+# Load lightweight Parrot paraphraser model and tokenizer once at startup
+tokenizer = AutoTokenizer.from_pretrained("prithivida/parrot_paraphraser_on_T5")
+model = AutoModelForSeq2SeqLM.from_pretrained("prithivida/parrot_paraphraser_on_T5")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
@@ -19,7 +20,7 @@ def paraphrase_question(data: dict = Body(...)):
     question = data.get("question")
     if not question:
         raise HTTPException(status_code=400, detail="Missing 'question' field")
-    text = f"paraphrase: {question} </s>"
+    text = f"paraphrase: {question}"
     encoding = tokenizer.encode_plus(text, return_tensors="pt")
     input_ids = encoding["input_ids"].to(device)
     attention_mask = encoding["attention_mask"].to(device)
@@ -27,9 +28,9 @@ def paraphrase_question(data: dict = Body(...)):
         outputs = model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            max_length=256,
+            max_length=128,
             do_sample=True,
-            top_k=120,
+            top_k=60,
             top_p=0.95,
             early_stopping=True,
             num_return_sequences=1
