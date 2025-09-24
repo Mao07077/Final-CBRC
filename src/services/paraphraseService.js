@@ -1,9 +1,25 @@
-import apiClient from "../api/axiosClient";
+
+const HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/prithivida/parrot_paraphraser_on_T5";
+const HUGGINGFACE_API_KEY = process.env.REACT_APP_HF_API_KEY || ""; // Set your API key in .env or pass as argument
 
 const paraphraseService = {
-  paraphrase: async (question) => {
-    const response = await apiClient.post("/api/paraphrase", { question });
-    return response.data.paraphrased;
+  paraphrase: async (question, apiKey = HUGGINGFACE_API_KEY) => {
+    const response = await fetch(HUGGINGFACE_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        inputs: `paraphrase: ${question}`,
+        parameters: { num_beams: 5, num_return_sequences: 1 }
+      })
+    });
+    const result = await response.json();
+    if (Array.isArray(result) && result.length > 0 && result[0].generated_text) {
+      return result[0].generated_text;
+    }
+    throw new Error(result.error || "Paraphrasing failed");
   },
 };
 
