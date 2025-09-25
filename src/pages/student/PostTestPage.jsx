@@ -34,6 +34,9 @@ const PostTestPage = () => {
             } catch {
               paraphrasedQ = q.question; // fallback
             }
+            // Log original and paraphrased question to console
+            console.log("Original:", q.question);
+            console.log("Paraphrased:", paraphrasedQ);
             // Randomize options
             const shuffledOptions = q.options
               .map((opt) => ({ opt, sort: Math.random() }))
