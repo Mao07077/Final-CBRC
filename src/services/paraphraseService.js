@@ -1,36 +1,26 @@
 
 
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || ""; // Set in Vercel
+async function getSynonym(word) {
+  const res = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(word)}`);
+  const data = await res.json();
+  // Only replace if synonym is not the same as original and is a single word
+  if (data.length > 0 && data[0].word.toLowerCase() !== word.toLowerCase() && !data[0].word.includes(' ')) {
+    return data[0].word;
+  }
+  return word;
+}
 
 const paraphraseService = {
   paraphrase: async (text) => {
-    const response = await fetch(OPENAI_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "You are a helpful assistant that paraphrases quiz questions."
-          },
-          {
-            role: "user",
-            content: `Paraphrase this quiz question: ${text}`
-          }
-        ],
-        max_tokens: 100
-      })
-    });
-    const result = await response.json();
-    if (result && result.choices && result.choices[0]?.message?.content) {
-      return result.choices[0].message.content.trim();
-    }
-    throw new Error(result.error?.message || "Paraphrasing failed");
+    const words = text.split(/(\W+)/); // Split by non-word chars to preserve punctuation
+    const paraphrasedWords = await Promise.all(words.map(async w => {
+      // Only try to paraphrase alphabetic words
+      if (/^[a-zA-Z]+$/.test(w)) {
+        return await getSynonym(w);
+      }
+      return w;
+    }));
+    return paraphrasedWords.join('');
   },
 };
 
