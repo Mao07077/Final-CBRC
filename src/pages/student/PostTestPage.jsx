@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import moduleService from "../../services/moduleService";
-import paraphraseService from "../../services/paraphraseService";
+import { paraphrase } from "../../services/paraphraseService";
 import useAuthStore from "../../store/authStore";
 
 const PostTestPage = () => {
@@ -30,7 +30,7 @@ const PostTestPage = () => {
           preTest.questions.map(async (q) => {
             let paraphrasedQ;
             try {
-              paraphrasedQ = await paraphraseService.paraphrase(q.question);
+              paraphrasedQ = await paraphrase(q.question);
             } catch {
               paraphrasedQ = q.question; // fallback
             }
