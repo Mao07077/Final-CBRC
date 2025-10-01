@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import moduleService from "../../services/moduleService";
+import moduleService from "../.././../../services/moduleService";
 
 const ModuleFlashcards = ({ moduleId }) => {
   const [flashcards, setFlashcards] = useState([]);
