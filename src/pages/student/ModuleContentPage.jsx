@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import ModuleFlashcards from "../../features/student/dashboard/components/ModuleFlashcards";
 import { useParams, useNavigate } from "react-router-dom";
 import moduleService from "../../services/moduleService";
 
@@ -130,6 +131,8 @@ const ModuleContentPage = () => {
                   }
                 </p>
               </div>
+                {/* Auto-generated Flashcards */}
+                <ModuleFlashcards moduleId={moduleId} />
             </div>
 
             {/* Learning Objectives */}

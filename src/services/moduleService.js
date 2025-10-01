@@ -45,7 +45,7 @@ const moduleService = {
   },
 
   getFlashcards: async (moduleId) => {
-    const response = await apiClient.get(`/api/flashcards/${moduleId}`);
+    const response = await apiClient.get(`/api/modules/${moduleId}/flashcards`);
     return response.data;
   }
 };
