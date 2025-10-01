@@ -5,7 +5,7 @@ import useFlashcardStore from "../../store/student/flashcardStore";
 
 const FlashcardLandingPage = () => {
   const navigate = useNavigate();
-  const { modules, decks, isLoading, error, fetchFlashcards, setActiveDeck } =
+  const { modules, decks, isLoading, error, fetchFlashcards, setActiveDeck, generateFlashcards } =
     useFlashcardStore();
 
   useEffect(() => {
