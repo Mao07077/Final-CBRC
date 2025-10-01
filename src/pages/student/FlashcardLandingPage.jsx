@@ -12,10 +12,11 @@ const FlashcardLandingPage = () => {
     fetchFlashcards();
   }, [fetchFlashcards]);
 
-  const handleStartFlashcards = (moduleId) => {
+  const handleStartFlashcards = async (moduleId) => {
+    // Generate new flashcards for the selected module
+    await generateFlashcards(moduleId);
     // Set the active deck in the store
     setActiveDeck(moduleId);
-
     // Navigate to the actual flashcard practice page
     navigate("/student/flashcards/practice");
   };
@@ -79,9 +80,7 @@ const FlashcardLandingPage = () => {
                 <div
                   key={module._id}
                   className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-105"
-                  onClick={() =>
-                    cardCount > 0 && handleStartFlashcards(module._id)
-                  }
+                  onClick={() => handleStartFlashcards(module._id)}
                 >
                   <div className="p-6">
                     <div className="flex items-center mb-4">
