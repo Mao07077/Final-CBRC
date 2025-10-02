@@ -13,8 +13,34 @@ import re
 import random
 
 router = APIRouter()
-@router.get("/api/modules/{module_id}/flashcards")
-def generate_flashcards_from_module(module_id: str, num_cards: int = 5):
+
+@router.post("/api/generate-flashcards/{module_id}")
+def generate_flashcards_post(module_id: str, num_cards: int = 5):
+    """
+    Auto-generate flashcards from module content (title, topic, description) using simple sentence extraction and randomization.
+    Returns a list of Q&A flashcards. Free, lightweight, and works on Render.
+    """
+    module = modules_collection.find_one({"_id": ObjectId(module_id)})
+    if not module:
+        raise HTTPException(status_code=404, detail="Module not found")
+    # Combine all text fields
+    text = " ".join([str(module.get(f, "")) for f in ["title", "topic", "description"]])
+    # Split into sentences
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    # Filter out very short sentences
+    sentences = [s for s in sentences if len(s) > 20]
+    if not sentences:
+        sentences = [text] if text else ["No content available."]
+    # Randomly select sentences for flashcards
+    selected = random.sample(sentences, min(num_cards, len(sentences)))
+    flashcards = []
+    for s in selected:
+        question = f"What is the main idea of: '{s[:40]}...'?" if len(s) > 40 else f"What is the main idea of: '{s}'?"
+        flashcards.append({
+            "question": question,
+            "answer": s.strip()
+        })
+    return {"flashcards": flashcards}
     """
     Auto-generate flashcards from module content (title, topic, description) using simple sentence extraction and randomization.
     Returns a list of Q&A flashcards. Free, lightweight, and works on Render.
