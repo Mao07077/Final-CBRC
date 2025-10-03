@@ -44,8 +44,8 @@ const moduleService = {
     return response.data;
   },
 
-  getFlashcards: async (moduleId) => {
-    const response = await apiClient.get(`/api/modules/${moduleId}/flashcards`);
+  generateFlashcards: async (moduleId, numCards = 5) => {
+    const response = await apiClient.post(`/api/generate-flashcards/${moduleId}?num_cards=${numCards}`);
     return response.data;
   }
 };

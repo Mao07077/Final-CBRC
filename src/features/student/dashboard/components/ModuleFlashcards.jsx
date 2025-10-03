@@ -10,7 +10,7 @@ const ModuleFlashcards = ({ moduleId }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await moduleService.getFlashcards(moduleId);
+      const data = await moduleService.generateFlashcards(moduleId);
       setFlashcards(data.flashcards || []);
     } catch (err) {
       setError("Failed to load flashcards.");
