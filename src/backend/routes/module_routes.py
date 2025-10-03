@@ -16,31 +16,35 @@ router = APIRouter()
 
 @router.post("/api/generate-flashcards/{module_id}")
 def generate_flashcards_post(module_id: str, num_cards: int = 5):
-    """
-    Auto-generate flashcards from module content (title, topic, description) using simple sentence extraction and randomization.
-    Returns a list of Q&A flashcards. Free, lightweight, and works on Render.
-    """
-    module = modules_collection.find_one({"_id": ObjectId(module_id)})
-    if not module:
-        raise HTTPException(status_code=404, detail="Module not found")
-    # Combine all text fields
-    text = " ".join([str(module.get(f, "")) for f in ["title", "topic", "description"]])
-    # Split into sentences
-    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
-    # Filter out very short sentences
-    sentences = [s for s in sentences if len(s) > 20]
-    if not sentences:
-        sentences = [text] if text else ["No content available."]
-    # Randomly select sentences for flashcards
-    selected = random.sample(sentences, min(num_cards, len(sentences)))
-    flashcards = []
-    for s in selected:
-        question = f"What is the main idea of: '{s[:40]}...'?" if len(s) > 40 else f"What is the main idea of: '{s}'?"
-        flashcards.append({
-            "question": question,
-            "answer": s.strip()
-        })
-    return {"flashcards": flashcards}
+    try:
+        if not ObjectId.is_valid(module_id):
+            logger.error(f"Invalid module ID format: {module_id}")
+            raise HTTPException(status_code=400, detail="Invalid module ID format.")
+        module = modules_collection.find_one({"_id": ObjectId(module_id)})
+        if not module:
+            logger.error(f"Module not found for ID: {module_id}")
+            raise HTTPException(status_code=404, detail="Module not found")
+        # Combine all text fields
+        text = " ".join([str(module.get(f, "")) for f in ["title", "topic", "description"]])
+        # Split into sentences
+        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+        # Filter out very short sentences
+        sentences = [s for s in sentences if len(s) > 20]
+        if not sentences:
+            sentences = [text] if text else ["No content available."]
+        # Randomly select sentences for flashcards
+        selected = random.sample(sentences, min(num_cards, len(sentences)))
+        flashcards = []
+        for s in selected:
+            question = f"What is the main idea of: '{s[:40]}...'?" if len(s) > 40 else f"What is the main idea of: '{s}'?"
+            flashcards.append({
+                "question": question,
+                "answer": s.strip()
+            })
+        return {"flashcards": flashcards}
+    except Exception as e:
+        logger.error(f"Error in generate_flashcards_post: {e}")
+        raise HTTPException(status_code=500, detail=f"Flashcard generation failed: {str(e)}")
 @router.get("/api/instructor/modules")
 def get_instructor_modules():
     modules = list(modules_collection.find({}))
