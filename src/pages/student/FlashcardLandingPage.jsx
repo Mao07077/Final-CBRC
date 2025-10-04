@@ -4,6 +4,8 @@ import { BookOpen, Play, Users } from "lucide-react";
 import useFlashcardStore from "../../store/student/flashcardStore";
 
 const FlashcardLandingPage = () => {
+  const { activeDeck, currentIndex } = useFlashcardStore();
+  const currentCard = activeDeck ? activeDeck[currentIndex] : null;
   const navigate = useNavigate();
   const { modules, decks, isLoading, error, fetchFlashcards, setActiveDeck, generateFlashcards } =
     useFlashcardStore();
@@ -57,7 +59,23 @@ const FlashcardLandingPage = () => {
           <p className="text-gray-600">
             Choose a flashcard deck to start practicing
           </p>
-          <button className="px-4 py-2 bg-green-600 text-white rounded shadow mt-4">Hello World</button>
+        </div>
+        {/* Generated Flashcard Preview Section */}
+        <div className="max-w-3xl mx-auto mb-8">
+          <h2 className="text-xl font-bold text-primary-dark mb-4 text-center">Generated Flashcard Preview</h2>
+          <div className="mb-6">
+            <DeckSelector />
+          </div>
+          <div className="mb-6">
+            {currentCard ? (
+              <Flashcard card={currentCard} />
+            ) : (
+              <div className="flex items-center justify-center h-64 bg-white rounded-lg shadow-md">
+                <p className="text-gray-500">Select a deck to preview generated flashcards.</p>
+              </div>
+            )}
+          </div>
+          {currentCard && <FlashcardControls />}
         </div>
 
         {/* Available Flashcard Decks */}
