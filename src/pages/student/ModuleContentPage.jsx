@@ -4,8 +4,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import moduleService from "../../services/moduleService";
 
 const ModuleContentPage = () => {
-  const [showFileModal, setShowFileModal] = useState(false);
   const { moduleId } = useParams();
+  console.log('ModuleContentPage moduleId from useParams:', moduleId);
+  const [showFileModal, setShowFileModal] = useState(false);
   const navigate = useNavigate();
   const [module, setModule] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
