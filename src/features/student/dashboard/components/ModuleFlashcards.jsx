@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import moduleService from "../.././../../services/moduleService";
 
 const ModuleFlashcards = ({ moduleId }) => {
+  console.log('ModuleFlashcards rendered, moduleId:', moduleId);
   const [flashcards, setFlashcards] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
