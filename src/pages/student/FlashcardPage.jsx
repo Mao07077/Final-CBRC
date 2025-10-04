@@ -16,10 +16,7 @@ const FlashcardPage = () => {
     setLoading(true);
     const result = await generateFlashcards(selectedModuleId);
     if (result && result.success) {
-      // Fetch the generated flashcards from backend response
-      // You may need to update generateFlashcards to return flashcards
-      // For now, fetch from store decks
-      setGeneratedDeck(useFlashcardStore.getState().decks[selectedModuleId] || []);
+      setGeneratedDeck(result.flashcards || []);
       setCurrentIndex(0);
     }
     setLoading(false);

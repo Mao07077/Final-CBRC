@@ -54,9 +54,8 @@ const useFlashcardStore = create((set, get) => ({
     try {
       const response = await apiClient.post(`/api/generate-flashcards/${moduleId}?num_cards=${numCards}`);
       if (response.data.flashcards) {
-        // Refresh flashcards after generation
-        await get().fetchFlashcards();
-        return { success: true };
+        set({ isLoading: false });
+        return { success: true, flashcards: response.data.flashcards };
       } else if (response.data.detail) {
         throw new Error(response.data.detail);
       } else {
@@ -68,7 +67,7 @@ const useFlashcardStore = create((set, get) => ({
         isLoading: false, 
         error: error?.message || "Failed to generate flashcards. Please try again later." 
       });
-      return { success: false, message: error.message };
+      return { success: false, message: error.message, flashcards: [] };
     }
   },
 
