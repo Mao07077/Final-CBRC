@@ -3,6 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { BookOpen, Play, Users } from "lucide-react";
 import useFlashcardStore from "../../store/student/flashcardStore";
 
+import DeckSelector from "../../features/student/flashcards/components/DeckSelector";
+import Flashcard from "../../features/student/flashcards/components/Flashcard";
+import FlashcardControls from "../../features/student/flashcards/components/FlashcardControls";
+
 const FlashcardLandingPage = () => {
   const { activeDeck, currentIndex } = useFlashcardStore();
   const currentCard = activeDeck ? activeDeck[currentIndex] : null;
