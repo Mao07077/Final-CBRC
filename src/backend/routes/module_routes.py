@@ -7,6 +7,9 @@ import os
 from typing import Optional
 import re
 import random
+from textblob import TextBlob
+import nltk
+nltk.download('punkt', quiet=True)
 
 router = APIRouter()
 
@@ -20,19 +23,54 @@ def generate_flashcards_post(module_id: str, num_cards: int = 5):
         if not module:
             logger.error(f"Module not found for ID: {module_id}")
             raise HTTPException(status_code=404, detail="Module not found")
-        text = " ".join([str(module.get(f, "")) for f in ["title", "topic", "description"]])
-        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
-        sentences = [s for s in sentences if len(s) > 20]
-        if not sentences:
-            sentences = [text] if text else ["No content available."]
-        selected = random.sample(sentences, min(num_cards, len(sentences)))
         flashcards = []
-        for s in selected:
-            question = f"What is the main idea of: '{s[:40]}...'?" if len(s) > 40 else f"What is the main idea of: '{s}'?"
-            flashcards.append({
-                "question": question,
-                "answer": s.strip()
-            })
+        # Try to extract text from PDF if document_url exists
+        pdf_text = ""
+        if module.get("document_url") and module["document_url"].endswith(".pdf"):
+            import requests
+            from PyPDF2 import PdfReader
+            try:
+                response = requests.get(module["document_url"])
+                response.raise_for_status()
+                from io import BytesIO
+                pdf_file = BytesIO(response.content)
+                reader = PdfReader(pdf_file)
+                for page in reader.pages:
+                    pdf_text += page.extract_text() or ""
+            except Exception as e:
+                logger.error(f"PDF extraction failed: {e}")
+        # Use PDF text if available, else fallback to description
+        content_text = pdf_text if pdf_text.strip() else module.get("description", "")
+        blob = TextBlob(content_text)
+        sentences = blob.sentences
+        # Add sentence-based cards
+        for s in sentences:
+            s_text = str(s)
+            if len(s_text) > 20:
+                flashcards.append({
+                    "question": f"Explain: '{s_text[:40]}...'" if len(s_text) > 40 else f"Explain: '{s_text}'",
+                    "answer": s_text
+                })
+        # Add noun phrase cards
+        for np in blob.noun_phrases:
+            if len(np) > 2:
+                flashcards.append({
+                    "question": f"What is '{np}'?",
+                    "answer": f"'{np}' is mentioned in the module content."
+                })
+        # Fill with extra info if needed
+        if len(flashcards) < num_cards:
+            extra = [module.get("program", ""), module.get("id_number", "")]
+            for e in extra:
+                if e and len(flashcards) < num_cards:
+                    flashcards.append({
+                        "question": "Additional info:",
+                        "answer": e
+                    })
+        # Limit to num_cards
+        flashcards = flashcards[:num_cards]
+        if not flashcards:
+            flashcards = [{"question": "No content available.", "answer": "No content available."}]
         return {"flashcards": flashcards}
     except Exception as e:
         logger.error(f"Error in generate_flashcards_post: {e}")
