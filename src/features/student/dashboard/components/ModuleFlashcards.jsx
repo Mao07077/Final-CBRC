@@ -11,11 +11,19 @@ const ModuleFlashcards = ({ moduleId }) => {
     setLoading(true);
     setError(null);
     try {
-  console.log('Generating flashcards for moduleId:', moduleId);
-  const data = await moduleService.generateFlashcards(moduleId);
-      setFlashcards(data.flashcards || []);
+      console.log('Generating flashcards for moduleId:', moduleId);
+      const data = await moduleService.generateFlashcards(moduleId);
+      console.log('Flashcard response:', data);
+      if (data.flashcards) {
+        setFlashcards(data.flashcards);
+      } else if (data.detail) {
+        setError(`Backend error: ${data.detail}`);
+      } else {
+        setError("No flashcards returned.");
+      }
     } catch (err) {
-      setError("Failed to load flashcards.");
+      console.error('Flashcard fetch error:', err);
+      setError(err?.message || "Failed to load flashcards.");
     } finally {
       setLoading(false);
     }
