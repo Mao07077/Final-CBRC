@@ -57,6 +57,7 @@ const FlashcardLandingPage = () => {
           <p className="text-gray-600">
             Choose a flashcard deck to start practicing
           </p>
+          <button className="px-4 py-2 bg-green-600 text-white rounded shadow mt-4">Hello World</button>
         </div>
 
         {/* Available Flashcard Decks */}
