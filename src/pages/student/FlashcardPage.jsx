@@ -1,4 +1,3 @@
-import React, { useEffect } from "react";
 import React, { useState } from "react";
 import useFlashcardStore from "../../store/student/flashcardStore";
 import Flashcard from "../../features/student/flashcards/components/Flashcard";
