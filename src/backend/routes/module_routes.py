@@ -7,9 +7,14 @@ import os
 from typing import Optional
 import re
 import random
-from textblob import TextBlob
+from textblob import TextBlob, download_corpora
 import nltk
 nltk.download('punkt', quiet=True)
+# Automatically download TextBlob corpora if missing
+try:
+    download_corpora.download_all()
+except Exception as e:
+    print(f"TextBlob corpora download error: {e}")
 
 router = APIRouter()
 
