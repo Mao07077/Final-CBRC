@@ -29,6 +29,11 @@ const FlashcardPage = () => {
     setGeneratedDeck([]);
     try {
       const text = await extractTextFromPDF(pdfFile);
+      if (!text || text.trim().length < 20) {
+        setError('PDF extraction failed or PDF is empty/corrupted. Please try a different PDF.');
+        setLoading(false);
+        return;
+      }
       const aiRaw = await generateFlashcardsFromText(text, 3);
       // Parse Q&A pairs from AI output (simple split)
       const cards = aiRaw.split(/\n|\r/)
@@ -44,7 +49,7 @@ const FlashcardPage = () => {
       setGeneratedDeck(cards);
       setCurrentIndex(0);
     } catch (err) {
-      setError('Failed to generate flashcards: ' + err.message);
+      setError('Failed to generate flashcards: ' + err.message + '\nMake sure you are uploading a real, local PDF file.');
     }
     setLoading(false);
   };
