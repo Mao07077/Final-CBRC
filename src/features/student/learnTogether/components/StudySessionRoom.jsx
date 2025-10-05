@@ -17,10 +17,6 @@ import {
 import useLearnTogetherStore from "../../../../store/student/learnTogetherStore";
 import SessionEndNotification from "../../../../components/common/SessionEndNotification";
 import apiClient from "../../../../api/axiosClient";
-import VideoPanel from "./VideoPanel";
-import ParticipantsPanel from "./ParticipantsPanel";
-import SessionControls from "./SessionControls";
-import ChatPanel from "./ChatPanel";
 
 // Speaking Indicator Component
 const SpeakingIndicator = ({ isActive, audioLevel = 0 }) => {
@@ -1363,14 +1359,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     });
   };
 
-  // Responsive layout state
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   if (connectionStatus === "connecting") {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -1401,25 +1389,244 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
-      <div className="w-full flex flex-col md:flex-row gap-4 p-2 md:p-6">
-        {/* Video/Participants Section */}
-        <div className="flex-1 flex flex-col items-center justify-center min-h-[300px] md:min-h-[500px] bg-gray-800 rounded-xl shadow-lg p-2 md:p-6 mb-2 md:mb-0 overflow-auto">
-          <VideoPanel participants={participants} />
-          <ParticipantsPanel participants={participants} />
+      {/* Header */}
+      <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
+        <div>
+          <h1 className="text-xl font-bold">{roomInfo?.group_title}</h1>
+          <p className="text-sm text-gray-300">{roomInfo?.group_subject}</p>
         </div>
-        {/* Chat Section */}
-        <div className="w-full md:w-96 flex flex-col bg-white rounded-xl shadow-lg p-2 md:p-6 overflow-auto max-h-[80vh]">
-          <ChatPanel messages={chatMessages} onSend={(msg) => setChatMessages([...chatMessages, { sender: userName, text: msg }])} />
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            <span>{participants.length} participants</span>
+          </div>
+          
+          {mediaError && (
+            <div className="text-red-400 text-sm max-w-xs">
+              {mediaError}
+            </div>
+          )}
+          
+          <button
+            onClick={handleLeaveSession}
+            className="px-4 py-2 bg-red-600 rounded-lg hover:bg-red-700 flex items-center gap-2"
+          >
+            <Phone className="w-4 h-4" />
+            Leave Session
+          </button>
         </div>
       </div>
-      {/* Bottom Controls: Responsive, sticky on mobile */}
-      <SessionControls
-        onLeaveSession={onLeaveSession}
-        isMuted={isMuted}
-        setIsMuted={setIsMuted}
-        isCameraOff={isCameraOff}
-        setIsCameraOff={setIsCameraOff}
-      />
+
+      {/* Main content area */}
+      <div className="flex-1 flex">
+        {/* Video area */}
+        <div className="flex-1 p-4">
+          {/* Local video preview */}
+          <div className="mb-4">
+            <h3 className="text-white mb-2 font-semibold">You (Camera: {isCameraOff ? 'OFF' : 'ON'})</h3>
+            <div className="relative bg-gray-800 rounded-lg overflow-hidden" style={{ aspectRatio: '16/9', maxWidth: '300px' }}>
+              {!isCameraOff ? (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover bg-gray-800"
+                  style={{ 
+                    display: 'block',
+                    minHeight: '200px'
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                  <div className="text-center">
+                    <VideoOff className="w-12 h-12 mx-auto mb-2" />
+                    <p className="text-sm">Camera Off</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Speaking indicator overlay */}
+              {speakingParticipants.has(userId) && (
+                <div className="absolute top-2 right-2 bg-green-500 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
+                  <Volume2 className="w-3 h-3" />
+                  <SpeakingIndicator isActive={true} audioLevel={localAudioLevel} />
+                </div>
+              )}
+              
+              <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm flex items-center space-x-2">
+                <span>You {isMuted && <span className="text-red-400">(Muted)</span>}
+                {!isCameraOff && <span className="text-green-400 ml-1">(Camera On)</span>}</span>
+                {!isMuted && (
+                  <SpeakingIndicator 
+                    isActive={speakingParticipants.has(userId)} 
+                    audioLevel={localAudioLevel} 
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Other Participants */}
+          {participants.length > 1 && (
+            <div className="mb-4">
+              <h3 className="text-white mb-2 font-semibold">Other Participants ({participants.length - 1})</h3>
+            </div>
+          )}
+
+          {/* Participants grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {participants.filter(p => p.user_id !== userId).map((participant) => (
+              <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+                {!participant.camera_off ? (
+                  <video
+                    ref={(el) => {
+                      if (el) {
+                        remoteVideosRef.current.set(participant.id, el);
+                      }
+                    }}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                    <div className="text-center">
+                      <VideoOff className="w-8 h-8 mx-auto mb-2" />
+                      <p className="text-xs">{participant.name}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Speaking indicator overlay for remote participants */}
+                {speakingParticipants.has(participant.user_id) && (
+                  <div className="absolute top-2 right-2 bg-green-500 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
+                    <Volume2 className="w-3 h-3" />
+                    <SpeakingIndicator isActive={true} audioLevel={50} />
+                  </div>
+                )}
+                
+                <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm flex items-center space-x-2">
+                  <span>
+                    {participant.name}
+                    {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
+                    {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                    {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
+                    {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
+                  </span>
+                  {!participant.muted && (
+                    <SpeakingIndicator 
+                      isActive={speakingParticipants.has(participant.user_id)} 
+                      audioLevel={50} 
+                    />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Show message if user is alone */}
+          {participants.length === 1 && (
+            <div className="text-center text-gray-400 mt-8">
+              <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>You're the only one in this session right now.</p>
+              <p className="text-sm mt-2">Share the session link to invite others!</p>
+            </div>
+          )}
+        </div>
+
+        {/* Chat sidebar */}
+        {showChat && (
+          <div className="w-80 bg-gray-800 text-white flex flex-col">
+            <div className="p-4 border-b border-gray-700">
+              <h3 className="font-bold">Chat</h3>
+            </div>
+            
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+              {chatMessages.map((message) => (
+                <div key={message.id} className="bg-gray-700 rounded-lg p-3">
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="font-semibold text-sm">{message.sender_name}</span>
+                    <span className="text-xs text-gray-400">{formatTime(message.timestamp)}</span>
+                  </div>
+                  <p className="text-sm">{message.message}</p>
+                </div>
+              ))}
+            </div>
+            
+            <div className="p-4 border-t border-gray-700">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={handleMessageKeyPress}
+                  placeholder="Type a message..."
+                  className="flex-1 px-3 py-2 bg-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={sendMessage}
+                  className="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom controls */}
+      <div className="bg-gray-800 p-4 flex justify-center items-center gap-4">
+        <button
+          onClick={toggleMute}
+          className={`p-3 rounded-full ${isMuted ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+          title={isMuted ? "Unmute" : "Mute"}
+        >
+          {isMuted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
+        </button>
+
+        <button
+          onClick={toggleCamera}
+          className={`p-3 rounded-full ${isCameraOff ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+          title={isCameraOff ? "Turn camera on" : "Turn camera off"}
+        >
+          {isCameraOff ? <VideoOff className="w-6 h-6 text-white" /> : <Video className="w-6 h-6 text-white" />}
+        </button>
+
+        <button
+          onClick={toggleScreenShare}
+          className={`p-3 rounded-full ${isScreenSharing ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+          title={isScreenSharing ? "Stop sharing" : "Share screen"}
+        >
+          {isScreenSharing ? <MonitorOff className="w-6 h-6 text-white" /> : <Monitor className="w-6 h-6 text-white" />}
+        </button>
+
+        <button
+          onClick={toggleHandRaise}
+          className={`p-3 rounded-full ${handRaised ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+          title={handRaised ? "Lower hand" : "Raise hand"}
+        >
+          <Hand className="w-6 h-6 text-white" />
+        </button>
+
+        <button
+          onClick={() => setShowChat(!showChat)}
+          className={`p-3 rounded-full ${showChat ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+          title="Toggle chat"
+        >
+          <MessageSquare className="w-6 h-6 text-white" />
+        </button>
+
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className="p-3 rounded-full bg-gray-600 hover:bg-gray-700"
+          title="Settings"
+        >
+          <Settings className="w-6 h-6 text-white" />
+        </button>
+      </div>
+
       {/* Session End Notification */}
       <SessionEndNotification
         isVisible={showEndNotification}

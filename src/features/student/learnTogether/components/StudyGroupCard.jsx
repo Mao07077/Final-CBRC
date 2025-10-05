@@ -84,7 +84,7 @@ const StudyGroupCard = ({ group }) => {
   const participantCount = group.active_participants?.length || 0; // Show actual count, 0 if empty
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow border-l-4 border-green-500">
+  <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow border-l-4 border-green-500 flex flex-col min-h-[340px]">
       {/* Live Session Indicator */}
       <div className="flex items-center gap-2 mb-3">
         <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
@@ -113,13 +113,13 @@ const StudyGroupCard = ({ group }) => {
           {group.active_participants?.slice(0, 3).map((participant, index) => (
             <span
               key={index}
-              className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
+              className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs sm:text-sm"
             >
               {participant}
             </span>
           ))}
           {group.active_participants?.length > 3 && (
-            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
+            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs sm:text-sm">
               +{group.active_participants.length - 3} more
             </span>
           )}
@@ -128,7 +128,7 @@ const StudyGroupCard = ({ group }) => {
       
       <button 
         onClick={handleJoinSessionClick}
-        className="w-full px-4 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+        className="w-full px-4 py-2 sm:py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-base sm:text-lg"
       >
         <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
         Join Live Session
@@ -137,12 +137,12 @@ const StudyGroupCard = ({ group }) => {
       
       {/* Password Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-0">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-xl max-w-md w-full mx-2 sm:mx-4">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">
               Password Required
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 mb-4 text-center">
               This study group requires a password to join.
             </p>
             <input
@@ -154,20 +154,20 @@ const StudyGroupCard = ({ group }) => {
               }}
               onKeyPress={(e) => e.key === 'Enter' && handlePasswordVerification()}
               placeholder="Enter group password"
-              className="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:border-green-500"
+              className="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:border-green-500 text-base"
               disabled={isVerifyingPassword}
             />
             {passwordError && (
-              <p className="text-red-500 text-sm mb-4">{passwordError}</p>
+              <p className="text-red-500 text-sm mb-4 text-center">{passwordError}</p>
             )}
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => {
                   setShowPasswordModal(false);
                   setPassword("");
                   setPasswordError("");
                 }}
-                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors mb-2 sm:mb-0"
                 disabled={isVerifyingPassword}
               >
                 Cancel

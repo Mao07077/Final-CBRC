@@ -198,7 +198,7 @@ const LearnTogetherPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
         {groups.length > 0 ? (
           groups.map((group) => (
             <StudyGroupCard key={group.id} group={group} />
@@ -216,7 +216,7 @@ const LearnTogetherPage = () => {
             </p>
             <button
               onClick={openModal}
-              className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+              className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors w-full sm:w-auto"
             >
               Start New Session
             </button>
