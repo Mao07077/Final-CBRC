@@ -29,7 +29,7 @@ def generate_flashcards_post(module_id: str, num_cards: int = 5):
             logger.error(f"Module not found for ID: {module_id}")
             raise HTTPException(status_code=404, detail="Module not found")
         flashcards = []
-        # Try to extract text from PDF if document_url exists
+        # Only extract text from PDF if document_url exists and is a PDF
         pdf_text = ""
         if module.get("document_url") and module["document_url"].endswith(".pdf"):
             import requests
@@ -44,11 +44,17 @@ def generate_flashcards_post(module_id: str, num_cards: int = 5):
                     pdf_text += page.extract_text() or ""
             except Exception as e:
                 logger.error(f"PDF extraction failed: {e}")
-        # Use PDF text if available, else fallback to description
-        content_text = pdf_text if pdf_text.strip() else module.get("description", "")
-        blob = TextBlob(content_text)
+                raise HTTPException(status_code=500, detail=f"PDF extraction failed: {e}")
+        else:
+            logger.error("No PDF file found for module.")
+            raise HTTPException(status_code=400, detail="No PDF file found for module.")
+        # If PDF text is empty, return error
+        if not pdf_text.strip():
+            logger.error("PDF file is empty or unreadable.")
+            raise HTTPException(status_code=400, detail="PDF file is empty or unreadable.")
+        # Generate flashcards only from PDF text
+        blob = TextBlob(pdf_text)
         sentences = blob.sentences
-        # Add sentence-based cards
         for s in sentences:
             s_text = str(s)
             if len(s_text) > 20:
@@ -56,26 +62,16 @@ def generate_flashcards_post(module_id: str, num_cards: int = 5):
                     "question": f"Explain: '{s_text[:40]}...'" if len(s_text) > 40 else f"Explain: '{s_text}'",
                     "answer": s_text
                 })
-        # Add noun phrase cards
         for np in blob.noun_phrases:
             if len(np) > 2:
                 flashcards.append({
                     "question": f"What is '{np}'?",
                     "answer": f"'{np}' is mentioned in the module content."
                 })
-        # Fill with extra info if needed
-        if len(flashcards) < num_cards:
-            extra = [module.get("program", ""), module.get("id_number", "")]
-            for e in extra:
-                if e and len(flashcards) < num_cards:
-                    flashcards.append({
-                        "question": "Additional info:",
-                        "answer": e
-                    })
         # Limit to num_cards
         flashcards = flashcards[:num_cards]
         if not flashcards:
-            flashcards = [{"question": "No content available.", "answer": "No content available."}]
+            flashcards = [{"question": "No content available in PDF.", "answer": "No content available in PDF."}]
         return {"flashcards": flashcards}
     except Exception as e:
         logger.error(f"Error in generate_flashcards_post: {e}")
