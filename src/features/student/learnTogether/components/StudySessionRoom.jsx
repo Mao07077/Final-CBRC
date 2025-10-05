@@ -3,11 +3,49 @@
 // Also, remove any unreachable code after the first return statement.
 // Here is the corrected version (keep only the first main return block):
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-// ...other imports...
+import React from "react";
+import { 
+  Mic, 
+  MicOff, 
+  Video, 
+  VideoOff, 
+  Phone, 
+  MessageSquare, 
+  Users, 
+  Hand,
+  Monitor,
+  MonitorOff,
+  Settings,
+  Send,
+  Volume2
+} from "lucide-react";
+import useLearnTogetherStore from "../../../../store/student/learnTogetherStore";
+import SessionEndNotification from "../../../../components/common/SessionEndNotification";
+import apiClient from "../../../../api/axiosClient";
 
-const StudySessionRoom = (props) => {
-  // ...all your hooks and logic...
+const StudySessionRoom = () => {
+  // Example hooks and state (replace with your actual logic)
+  const [participants, setParticipants] = React.useState([]);
+  const [speakingParticipants, setSpeakingParticipants] = React.useState(new Set());
+  const [userId, setUserId] = React.useState(null);
+  const [connectionStatus, setConnectionStatus] = React.useState("connecting");
+  const [roomInfo, setRoomInfo] = React.useState({});
+  const [mediaError, setMediaError] = React.useState("");
+  const [showChat, setShowChat] = React.useState(false);
+  const [chatMessages, setChatMessages] = React.useState([]);
+  const [newMessage, setNewMessage] = React.useState("");
+  const [showSettings, setShowSettings] = React.useState(false);
+  const [showEndNotification, setShowEndNotification] = React.useState(false);
+  const [endNotificationMessage, setEndNotificationMessage] = React.useState("");
+  const [endNotificationType, setEndNotificationType] = React.useState("");
+  const [isMuted, setIsMuted] = React.useState(false);
+  const [isCameraOff, setIsCameraOff] = React.useState(false);
+  const [isScreenSharing, setIsScreenSharing] = React.useState(false);
+  const [handRaised, setHandRaised] = React.useState(false);
+  const localVideoRef = React.useRef(null);
+  const remoteVideosRef = React.useRef(new Map());
+  const chatContainerRef = React.useRef(null);
+  const localAudioLevel = 50;
 
   // --- Responsive Google Meet-like UI ---
   // Find the main participant to pin (screen sharer > speaker > self)
@@ -156,37 +194,39 @@ const StudySessionRoom = (props) => {
         {/* Chat as slide-over panel */}
         {showChat && (
           <div className="fixed inset-0 sm:static sm:w-80 bg-gray-900 bg-opacity-90 sm:bg-gray-800 text-white flex flex-col z-50" style={{ maxWidth: '100vw', width: '100%', height: '100%', top: 0, right: 0 }}>
-            <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-              <h3 className="font-bold">Chat</h3>
-              <button onClick={() => setShowChat(false)} className="text-gray-400 hover:text-white text-xl">×</button>
-            </div>
-            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3" style={{ maxHeight: 'calc(100vh - 160px)' }}>
-              {chatMessages.map((message) => (
-                <div key={message.id} className="bg-gray-700 rounded-lg p-3">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-semibold text-sm">{message.sender_name}</span>
-                    <span className="text-xs text-gray-400">{formatTime(message.timestamp)}</span>
+            <div>
+              <div className="flex items-center justify-between p-4 border-b border-gray-700">
+                <h3 className="font-bold">Chat</h3>
+                <button onClick={() => setShowChat(false)} className="text-gray-400 hover:text-white text-xl">×</button>
+              </div>
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+                {chatMessages.map((message) => (
+                  <div key={message.id} className="bg-gray-700 rounded-lg p-3">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="font-semibold text-sm">{message.sender_name}</span>
+                      <span className="text-xs text-gray-400">{formatTime(message.timestamp)}</span>
+                    </div>
+                    <p className="text-sm break-words">{message.message}</p>
                   </div>
-                  <p className="text-sm break-words">{message.message}</p>
+                ))}
+              </div>
+              <div className="p-4 border-t border-gray-700">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={handleMessageKeyPress}
+                    placeholder="Type a message..."
+                    className="flex-1 px-3 py-2 bg-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={sendMessage}
+                    className="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700"
+                  >
+                    Send
+                  </button>
                 </div>
-              ))}
-            </div>
-            <div className="p-4 border-t border-gray-700">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={handleMessageKeyPress}
-                  placeholder="Type a message..."
-                  className="flex-1 px-3 py-2 bg-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={sendMessage}
-                  className="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700"
-                >
-                  Send
-                </button>
               </div>
             </div>
           </div>
