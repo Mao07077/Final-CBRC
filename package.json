@@ -17,7 +17,7 @@
     "framer-motion": "^12.23.0",
     "jspdf": "^3.0.2",
     "lucide-react": "^0.534.0",
-    "pdfjs-dist": "^5.4.149",
+    "pdfjs-dist": "^3.11.174",
     "react": "^19.1.0",
     "react-big-calendar": "^1.19.4",
     "react-dom": "^19.1.0",
