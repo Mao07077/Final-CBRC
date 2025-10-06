@@ -1,41 +1,71 @@
 // Flashcard AI generation using Xenova transformers.js
-// Works fully offline / client-side — no Hugging Face API key or backend needed
+// Fully frontend-based — no API key, works on Render/Vercel
 
-import { pipeline } from '@xenova/transformers';
+import { pipeline, env } from '@xenova/transformers';
 
-// Keep the pipeline loaded para di ulit-ulit mag-load
+// ✅ Fix: force model/tokenizer to load from Xenova CDN instead of HF
+env.allowLocalModels = false;
+env.remoteModels = true;
+env.useBrowserCache = true;
+env.allowRemoteModels = true;
+env.backends.onnx.wasm.wasmPaths =
+  'https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/';
+
+// Cache model to avoid reloading
 let generator = null;
 
+/**
+ * Generate flashcards (Q&A) from given text
+ * @param {string} text - source text for flashcards
+ * @param {number} num - number of flashcards to generate
+ * @returns {Promise<Array<{question: string, answer: string}>>}
+ */
 export async function generateFlashcardsFromText(text, num = 3) {
-  if (!text || text.trim().length === 0) {
-    throw new Error('Input text is empty. Please provide content to generate flashcards.');
+  if (!text?.trim()) {
+    throw new Error('Input text is empty. Please provide study material.');
   }
 
   try {
-    // Load the model once (t5-base)
+    // Load the model once
     if (!generator) {
-      generator = await pipeline('text2text-generation', 'Xenova/t5-base');
+      generator = await pipeline('text2text-generation', 'Xenova/t5-small');
     }
 
-    // Instruction prompt
-    const prompt = `Create ${num} educational flashcards in Q&A format from the following text. 
-Each flashcard should be written as:
+    const prompt = `Create ${num} educational flashcards in Q&A format from this text.
+Each flashcard should look like:
 Q: [question]
 A: [answer]
 
-Text: ${text}`;
+Text:
+${text}`;
 
-    // Generate flashcards
+    // Generate text output
     const output = await generator(prompt, {
       max_new_tokens: 256,
       temperature: 0.7,
     });
 
-    // Extract and clean the result
-    const result = output?.[0]?.generated_text?.trim();
-    if (!result) throw new Error('No flashcards generated. Try using shorter or simpler text.');
+    const raw = output?.[0]?.generated_text?.trim();
+    if (!raw) throw new Error('No flashcards generated. Try shorter text.');
 
-    return result;
+    // Parse output into Q&A objects
+    const flashcards = [];
+    const regex = /Q:\s*(.+?)\s*A:\s*(.+?)(?=\s*Q:|$)/gs;
+    let match;
+
+    while ((match = regex.exec(raw)) !== null) {
+      flashcards.push({
+        question: match[1].trim(),
+        answer: match[2].trim(),
+      });
+    }
+
+    // Fallback if parsing fails
+    if (flashcards.length === 0) {
+      flashcards.push({ question: 'Unable to parse output', answer: raw });
+    }
+
+    return flashcards;
   } catch (error) {
     console.error('❌ Flashcard generation error:', error);
     throw new Error('Failed to generate flashcards. ' + error.message);
