@@ -92,9 +92,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   
   // Refs
   const localVideoRef = useRef(null);
-  const localCameraStreamRef = useRef(null);
   const localScreenShareRef = useRef(null);
-  const localScreenStreamRef = useRef(null);
   const localStreamRef = useRef(null);
   const socketRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -815,8 +813,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           localStreamRef.current.getTracks().forEach(track => track.stop());
         }
         
-  localCameraStreamRef.current = stream;
-  localStreamRef.current = stream;
+        localStreamRef.current = stream;
         
         // Wait for video ref to be available and set stream
         const setVideoStream = () => {
@@ -994,7 +991,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         });
         
   // Always update localStreamRef to the latest screen stream
-  localScreenStreamRef.current = screenStream;
   localStreamRef.current = screenStream;
   // Replace video track in all peer connections with screen share
   peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
@@ -1468,12 +1464,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div key={screen.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '480px', aspectRatio: '16/9', minHeight: '180px' }}>
                     {screen.self ? (
                       <video
-                        ref={el => {
-                          localScreenShareRef.current = el;
-                          if (el && localScreenStreamRef.current) {
-                            el.srcObject = localScreenStreamRef.current;
-                          }
-                        }}
+                        ref={localScreenShareRef}
                         autoPlay
                         muted
                         playsInline
@@ -1510,12 +1501,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div key="self_camera" className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '320px', aspectRatio: '16/9', minHeight: '120px' }}>
                     {!isCameraOff ? (
                       <video
-                        ref={el => {
-                          localVideoRef.current = el;
-                          if (el && localCameraStreamRef.current) {
-                            el.srcObject = localCameraStreamRef.current;
-                          }
-                        }}
+                        ref={localVideoRef}
                         autoPlay
                         muted
                         playsInline
