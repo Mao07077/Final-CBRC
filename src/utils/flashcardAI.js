@@ -12,9 +12,9 @@ export async function generateFlashcardsFromText(text, num = 3) {
   }
 
   try {
-    // Load the model once (t5-base)
+    // Load the model once (distilbert-base-uncased, smaller for browser)
     if (!generator) {
-      generator = await pipeline('text2text-generation', 'Xenova/t5-base');
+      generator = await pipeline('text2text-generation', 'Xenova/distilbert-base-uncased');
     }
 
     // Instruction prompt
