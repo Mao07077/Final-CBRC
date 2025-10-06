@@ -1476,104 +1476,93 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
           {/* Participants grid with pinning logic */}
           {(() => {
-            // Find who is sharing screen (including self)
-            const screenSharer = participants.find(p => p.is_screen_sharing);
-            // If you are sharing, pin your own screen preview
-            const isSelfSharing = isScreenSharing;
-            // If no one is sharing, find active speaker (not muted, speaking)
-            const activeSpeaker = !screenSharer && !isSelfSharing
-              ? participants.find(p => speakingParticipants.has(p.user_id) && !p.camera_off)
-              : null;
-            // If no one is speaking, fallback to first participant (not self)
-            const fallback = participants.find(p => p.user_id !== userId);
-
-            // Pin priority: self sharing > screen sharer > active speaker > fallback
-            let pinned, pinnedType;
-            if (isSelfSharing) {
-              pinned = { id: 'self_screen', name: userName, is_screen_sharing: true, camera_off: false, muted: isMuted, hand_raised: handRaised, user_id: userId };
-              pinnedType = 'self';
-            } else if (screenSharer) {
-              pinned = screenSharer;
-              pinnedType = 'participant';
-            } else if (activeSpeaker) {
-              pinned = activeSpeaker;
-              pinnedType = 'participant';
-            } else if (fallback) {
-              pinned = fallback;
-              pinnedType = 'participant';
+            // Find all screen shares (including self)
+            const screenShares = [];
+            if (isScreenSharing) {
+              screenShares.push({ id: 'self_screen', name: userName, is_screen_sharing: true, camera_off: false, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true });
             }
-            // Others (exclude pinned and self if self sharing)
-            const others = participants.filter(p => {
-              if (isSelfSharing) return p.user_id !== userId;
-              return p !== pinned && p.user_id !== userId;
+            participants.forEach(p => {
+              if (p.is_screen_sharing && p.user_id !== userId) screenShares.push({ ...p, self: false });
             });
 
+            // All participant tiles (exclude self screen share tile)
+            const participantTiles = participants.filter(p => !screenShares.some(s => s.user_id === p.user_id && s.self)).filter(p => p.user_id !== userId);
+
+            // Use flexbox for responsive wrapping
             return (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Pinned screen share (large tile) */}
-                {pinned && (
-                  <div key={pinned.id} className="relative bg-gray-800 rounded-lg overflow-hidden col-span-1 md:col-span-2 lg:col-span-3" style={{ aspectRatio: '16/9', minHeight: '260px', maxHeight: '400px' }}>
-                    {/* If you are sharing, show your own screen preview */}
-                    {isSelfSharing ? (
+              <div className="flex flex-wrap gap-3 justify-center items-start w-full">
+                {/* Show all screen shares as large tiles */}
+                {screenShares.map(screen => (
+                  <div key={screen.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '480px', aspectRatio: '16/9', minHeight: '180px' }}>
+                    {screen.self ? (
                       <video
                         ref={localVideoRef}
                         autoPlay
                         muted
                         playsInline
                         className="w-full h-full object-cover"
-                        style={{ minHeight: '260px', maxHeight: '400px' }}
+                        style={{ minHeight: '180px' }}
                       />
-                    ) : !pinned.camera_off ? (
+                    ) : !screen.camera_off ? (
                       <video
                         ref={el => {
-                          if (el) remoteVideosRef.current.set(pinned.id, el);
+                          if (el) remoteVideosRef.current.set(screen.id, el);
                         }}
                         autoPlay
                         playsInline
                         className="w-full h-full object-cover"
-                        style={{ minHeight: '260px', maxHeight: '400px' }}
+                        style={{ minHeight: '180px' }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
                         <div className="text-center">
                           <VideoOff className="w-12 h-12 mx-auto mb-2" />
-                          <p className="text-base">{pinned.name}</p>
+                          <p className="text-base">{screen.name}</p>
                         </div>
                       </div>
                     )}
-                    {/* Show sharing badge if sharing */}
                     <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
                       <Monitor className="w-4 h-4" />
                       <span>Screen Sharing</span>
-                      {pinnedType === 'self' && <span className="ml-2">(You)</span>}
+                      {screen.self && <span className="ml-2">(You)</span>}
                     </div>
-                    {/* Speaking indicator overlay for pinned */}
-                    {speakingParticipants.has(pinned.user_id) && (
-                      <div className="absolute top-2 right-2 bg-green-500 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
-                        <Volume2 className="w-3 h-3" />
-                        <SpeakingIndicator isActive={true} audioLevel={50} />
+                  </div>
+                ))}
+                {/* Show your own camera tile (if not sharing screen) */}
+                {!isScreenSharing && (
+                  <div key="self_camera" className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '320px', aspectRatio: '16/9', minHeight: '120px' }}>
+                    {!isCameraOff ? (
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                        style={{ minHeight: '120px' }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                        <div className="text-center">
+                          <VideoOff className="w-12 h-12 mx-auto mb-2" />
+                          <p className="text-base">{userName}</p>
+                        </div>
                       </div>
                     )}
-                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-base flex items-center space-x-2">
-                      <span>
-                        {pinned.name}
-                        {pinned.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                        {!pinned.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
-                        {pinned.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
-                        {pinned.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
-                      </span>
-                      {!pinned.muted && (
+                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm flex items-center space-x-2">
+                      <span>You {isMuted && <span className="text-red-400">(Muted)</span>}
+                      {!isCameraOff && <span className="text-green-400 ml-1">(Camera On)</span>}</span>
+                      {!isMuted && (
                         <SpeakingIndicator 
-                          isActive={speakingParticipants.has(pinned.user_id)} 
-                          audioLevel={50} 
+                          isActive={speakingParticipants.has(userId)} 
+                          audioLevel={localAudioLevel} 
                         />
                       )}
                     </div>
                   </div>
                 )}
-                {/* Other participants (small tiles) */}
-                {others.map(participant => (
-                  <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden" style={{ aspectRatio: '16/9', minHeight: '120px', maxHeight: '180px' }}>
+                {/* Other participants (smaller tiles) */}
+                {participantTiles.map(participant => (
+                  <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '220px', aspectRatio: '16/9', minHeight: '80px' }}>
                     {!participant.camera_off ? (
                       <video
                         ref={el => {
@@ -1582,7 +1571,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                         autoPlay
                         playsInline
                         className="w-full h-full object-cover"
-                        style={{ minHeight: '120px', maxHeight: '180px' }}
+                        style={{ minHeight: '80px' }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
@@ -1599,7 +1588,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                         <SpeakingIndicator isActive={true} audioLevel={50} />
                       </div>
                     )}
-                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm flex items-center space-x-2">
+                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
                       <span>
                         {participant.name}
                         {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
@@ -1633,32 +1622,32 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         {/* Chat sidebar */}
         {/* Chat Drawer Overlay */}
         <div
-          className={`fixed top-0 right-0 h-full z-40 bg-gray-900 bg-opacity-95 text-white flex flex-col shadow-2xl transition-transform duration-300 ${showChat ? 'translate-x-0' : 'translate-x-full'} w-full max-w-xs sm:max-w-sm md:max-w-md`}
-          style={{ pointerEvents: showChat ? 'auto' : 'none', maxHeight: '100vh' }}
+          className={`fixed bottom-4 right-4 z-50 bg-gray-900 bg-opacity-95 text-white flex flex-col shadow-2xl rounded-xl transition-all duration-300 ${showChat ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}
+          style={{ width: '320px', maxWidth: '90vw', height: '420px', maxHeight: '60vh' }}
         >
-          <div className="p-4 border-b border-gray-700 flex justify-between items-center relative">
-            <h3 className="font-bold">Chat</h3>
+          <div className="p-3 border-b border-gray-700 flex justify-between items-center rounded-t-xl">
+            <h3 className="font-bold text-base">Chat</h3>
             <button
               onClick={() => setShowChat(false)}
-              className="absolute top-2 right-2 text-gray-400 hover:text-white bg-gray-700 rounded-full w-10 h-10 flex items-center justify-center text-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-gray-400 hover:text-white bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center text-xl shadow focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Close chat"
               title="Close chat"
             >
               <span aria-hidden="true">×</span>
             </button>
           </div>
-          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 space-y-2" style={{ maxHeight: '260px' }}>
             {chatMessages.map((message) => (
-              <div key={message.id} className="bg-gray-700 rounded-lg p-3">
+              <div key={message.id} className="bg-gray-700 rounded-lg p-2">
                 <div className="flex justify-between items-start mb-1">
-                  <span className="font-semibold text-sm">{message.sender_name}</span>
+                  <span className="font-semibold text-xs">{message.sender_name}</span>
                   <span className="text-xs text-gray-400">{formatTime(message.timestamp)}</span>
                 </div>
-                <p className="text-sm">{message.message}</p>
+                <p className="text-xs break-words">{message.message}</p>
               </div>
             ))}
           </div>
-          <div className="p-4 border-t border-gray-700">
+          <div className="p-3 border-t border-gray-700 rounded-b-xl">
             <div className="flex gap-2">
               <input
                 type="text"
@@ -1666,11 +1655,11 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={handleMessageKeyPress}
                 placeholder="Type a message..."
-                className="flex-1 px-3 py-2 bg-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-2 py-1 bg-gray-700 rounded-lg text-white placeholder-gray-400 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 onClick={sendMessage}
-                className="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700"
+                className="px-3 py-1 bg-blue-600 rounded-lg hover:bg-blue-700 text-xs"
               >
                 Send
               </button>
