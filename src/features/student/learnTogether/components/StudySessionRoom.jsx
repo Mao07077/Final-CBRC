@@ -1421,7 +1421,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       <div className="flex-1 flex">
         {/* Video area */}
         <div className="flex-1 p-4">
-          {/* ...removed local camera preview tile... */}
+          {/* ...removed redundant local camera preview above grid... */}
 
           {/* Other Participants */}
           {participants.length > 1 && (
@@ -1452,17 +1452,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div key={screen.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '480px', aspectRatio: '16/9', minHeight: '180px' }}>
                     {screen.self ? (
                       <video
-                        ref={el => {
-                          // Always show your screen stream in this tile
-                          if (el && localStreamRef.current) {
-                            // Find the video track for screen sharing
-                            const screenTrack = localStreamRef.current.getVideoTracks().find(track => track.label.toLowerCase().includes('screen'));
-                            if (screenTrack) {
-                              const screenStream = new MediaStream([screenTrack]);
-                              el.srcObject = screenStream;
-                            }
-                          }
-                        }}
+                        ref={localVideoRef}
                         autoPlay
                         muted
                         playsInline
@@ -1494,30 +1484,29 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                     </div>
                   </div>
                 ))}
-                {/* Always show your own camera tile if camera is on */}
-                {!isCameraOff && (
+                {/* Show your own camera tile (if not sharing screen) */}
+                {!isScreenSharing && (
                   <div key="self_camera" className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '320px', aspectRatio: '16/9', minHeight: '120px' }}>
-                    <video
-                      ref={el => {
-                        // Always show your camera stream in this tile
-                        if (el && localStreamRef.current) {
-                          // Find the video track for camera
-                          const cameraTrack = localStreamRef.current.getVideoTracks().find(track => !track.label.toLowerCase().includes('screen'));
-                          if (cameraTrack) {
-                            const cameraStream = new MediaStream([cameraTrack]);
-                            el.srcObject = cameraStream;
-                          }
-                        }
-                      }}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="w-full h-full object-cover"
-                      style={{ minHeight: '120px' }}
-                    />
+                    {!isCameraOff ? (
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                        style={{ minHeight: '120px' }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                        <div className="text-center">
+                          <VideoOff className="w-12 h-12 mx-auto mb-2" />
+                          <p className="text-base">{userName}</p>
+                        </div>
+                      </div>
+                    )}
                     <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm flex items-center space-x-2">
                       <span>You {isMuted && <span className="text-red-400">(Muted)</span>}
-                      <span className="text-green-400 ml-1">(Camera On)</span></span>
+                      {!isCameraOff && <span className="text-green-400 ml-1">(Camera On)</span>}</span>
                       {!isMuted && (
                         <SpeakingIndicator 
                           isActive={speakingParticipants.has(userId)} 
