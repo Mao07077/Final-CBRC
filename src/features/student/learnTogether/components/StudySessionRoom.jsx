@@ -989,8 +989,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           audio: true 
         });
         
-        // Replace video track in all peer connections with screen share
-        peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
+  // Always update localStreamRef to the latest screen stream
+  localStreamRef.current = screenStream;
+  // Replace video track in all peer connections with screen share
+  peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
           try {
             const senders = peerConnection.getSenders();
             const videoSender = senders.find(sender => sender.track?.kind === 'video');
