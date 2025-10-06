@@ -91,7 +91,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const [localAudioLevel, setLocalAudioLevel] = useState(0);
   
   // Refs
-  const localVideoRef = useRef(null);
+  const cameraVideoRef = useRef(null);
+  const screenShareVideoRef = useRef(null);
   const localStreamRef = useRef(null);
   const socketRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -1443,7 +1444,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             // Find all screen shares (including self)
             const screenShares = [];
             if (isScreenSharing) {
-              // Use a separate ref for screen share preview
               screenShares.push({ id: 'self_screen', name: userName, is_screen_sharing: true, camera_off: false, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true });
             }
             participants.forEach(p => {
@@ -1461,21 +1461,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div key={screen.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '480px', aspectRatio: '16/9', minHeight: '180px' }}>
                     {screen.self ? (
                       <video
-                        ref={el => {
-                          // Attach the screen share stream if sharing
-                          if (el && localStreamRef.current) {
-                            // Find the screen share track
-                            const screenTrack = localStreamRef.current.getVideoTracks().find(track => track.label.toLowerCase().includes('screen') || track.label.toLowerCase().includes('display'));
-                            if (screenTrack) {
-                              // Create a new MediaStream for just the screen track
-                              const screenStream = new window.MediaStream([screenTrack]);
-                              el.srcObject = screenStream;
-                            } else {
-                              // Fallback: use the whole stream
-                              el.srcObject = localStreamRef.current;
-                            }
-                          }
-                        }}
+                        ref={screenShareVideoRef}
                         autoPlay
                         muted
                         playsInline
@@ -1507,38 +1493,36 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                     </div>
                   </div>
                 ))}
-                {/* Show your own camera tile (if not sharing screen) */}
-                {!isScreenSharing && (
-                  <div key="self_camera" className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '320px', aspectRatio: '16/9', minHeight: '120px' }}>
-                    {!isCameraOff ? (
-                      <video
-                        ref={localVideoRef}
-                        autoPlay
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                        style={{ minHeight: '120px' }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                        <div className="text-center">
-                          <VideoOff className="w-12 h-12 mx-auto mb-2" />
-                          <p className="text-base">{userName}</p>
-                        </div>
+                {/* Always show your own camera tile */}
+                <div key="self_camera" className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '320px', aspectRatio: '16/9', minHeight: '120px' }}>
+                  {!isCameraOff ? (
+                    <video
+                      ref={cameraVideoRef}
+                      autoPlay
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover"
+                      style={{ minHeight: '120px' }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                      <div className="text-center">
+                        <VideoOff className="w-12 h-12 mx-auto mb-2" />
+                        <p className="text-base">{userName}</p>
                       </div>
-                    )}
-                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm flex items-center space-x-2">
-                      <span>You {isMuted && <span className="text-red-400">(Muted)</span>}
-                      {!isCameraOff && <span className="text-green-400 ml-1">(Camera On)</span>}</span>
-                      {!isMuted && (
-                        <SpeakingIndicator 
-                          isActive={speakingParticipants.has(userId)} 
-                          audioLevel={localAudioLevel} 
-                        />
-                      )}
                     </div>
+                  )}
+                  <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm flex items-center space-x-2">
+                    <span>You {isMuted && <span className="text-red-400">(Muted)</span>}
+                    {!isCameraOff && <span className="text-green-400 ml-1">(Camera On)</span>}</span>
+                    {!isMuted && (
+                      <SpeakingIndicator 
+                        isActive={speakingParticipants.has(userId)} 
+                        audioLevel={localAudioLevel} 
+                      />
+                    )}
                   </div>
-                )}
+                </div>
                 {/* Other participants (smaller tiles) */}
                 {participantTiles.map(participant => (
                   <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '220px', aspectRatio: '16/9', minHeight: '80px' }}>
