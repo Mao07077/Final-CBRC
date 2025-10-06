@@ -1442,22 +1442,54 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
           {/* Participants grid with pinning logic */}
           {(() => {
-            // Find the participant who is sharing screen (including self)
-            const screenSharer = participants.find(p => p.is_screen_sharing);
-            // All participant tiles (exclude screen sharer)
-            const participantTiles = participants.filter(p => p !== screenSharer && p.user_id !== userId);
+            // Find all screen shares (including self)
+            const screenShares = [];
+            if (isScreenSharing) {
+              // Use a separate ref for screen share preview
+              screenShares.push({ id: 'self_screen', name: userName, is_screen_sharing: true, camera_off: false, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true });
+            }
+            participants.forEach(p => {
+              if (p.is_screen_sharing && p.user_id !== userId) screenShares.push({ ...p, self: false });
+            });
+
+            // All participant tiles (exclude self screen share tile)
+            const participantTiles = participants.filter(p => !screenShares.some(s => s.user_id === p.user_id && s.self)).filter(p => p.user_id !== userId);
 
             // Use flexbox for responsive wrapping
             return (
               <div className="flex flex-wrap gap-3 justify-center items-start w-full">
-                {/* Pin the screen sharer as the main tile if sharing */}
-                {screenSharer ? (
-                  <div key={screenSharer.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '480px', aspectRatio: '16/9', minHeight: '180px' }}>
-                    {!screenSharer.camera_off ? (
+                {/* Show all screen shares as large tiles */}
+                {screenShares.map(screen => (
+                  <div key={screen.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '480px', aspectRatio: '16/9', minHeight: '180px' }}>
+                    {screen.self ? (
                       <video
-                        ref={screenSharer.user_id === userId ? localVideoRef : el => { if (el) remoteVideosRef.current.set(screenSharer.id, el); }}
+                        ref={el => {
+                          // Attach the screen share stream if sharing
+                          if (el && localStreamRef.current) {
+                            // Find the screen share track
+                            const screenTrack = localStreamRef.current.getVideoTracks().find(track => track.label.toLowerCase().includes('screen') || track.label.toLowerCase().includes('display'));
+                            if (screenTrack) {
+                              // Create a new MediaStream for just the screen track
+                              const screenStream = new window.MediaStream([screenTrack]);
+                              el.srcObject = screenStream;
+                            } else {
+                              // Fallback: use the whole stream
+                              el.srcObject = localStreamRef.current;
+                            }
+                          }
+                        }}
                         autoPlay
-                        muted={screenSharer.user_id === userId}
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                        style={{ minHeight: '180px' }}
+                      />
+                    ) : !screen.camera_off ? (
+                      <video
+                        ref={el => {
+                          if (el) remoteVideosRef.current.set(screen.id, el);
+                        }}
+                        autoPlay
                         playsInline
                         className="w-full h-full object-cover"
                         style={{ minHeight: '180px' }}
@@ -1466,17 +1498,19 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
                         <div className="text-center">
                           <VideoOff className="w-12 h-12 mx-auto mb-2" />
-                          <p className="text-base">{screenSharer.name}</p>
+                          <p className="text-base">{screen.name}</p>
                         </div>
                       </div>
                     )}
                     <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
                       <Monitor className="w-4 h-4" />
                       <span>Screen Sharing</span>
-                      {screenSharer.user_id === userId && <span className="ml-2">(You)</span>}
+                      {screen.self && <span className="ml-2">(You)</span>}
                     </div>
                   </div>
-                ) : (
+                ))}
+                {/* Show your own camera tile (if not sharing screen) */}
+                {!isScreenSharing && (
                   <div key="self_camera" className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '320px', aspectRatio: '16/9', minHeight: '120px' }}>
                     {!isCameraOff ? (
                       <video
