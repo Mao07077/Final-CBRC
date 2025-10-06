@@ -92,6 +92,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   
   // Refs
   const localVideoRef = useRef(null);
+  const localCameraStreamRef = useRef(null);
+  const localScreenShareRef = useRef(null);
+  const localScreenStreamRef = useRef(null);
   const localStreamRef = useRef(null);
   const socketRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -812,7 +815,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           localStreamRef.current.getTracks().forEach(track => track.stop());
         }
         
-        localStreamRef.current = stream;
+  localCameraStreamRef.current = stream;
+  localStreamRef.current = stream;
         
         // Wait for video ref to be available and set stream
         const setVideoStream = () => {
@@ -990,6 +994,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         });
         
   // Always update localStreamRef to the latest screen stream
+  localScreenStreamRef.current = screenStream;
   localStreamRef.current = screenStream;
   // Replace video track in all peer connections with screen share
   peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
@@ -1464,18 +1469,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                     {screen.self ? (
                       <video
                         ref={el => {
-                          // Attach the screen share stream if sharing
-                          if (el && localStreamRef.current) {
-                            // Find the screen share track
-                            const screenTrack = localStreamRef.current.getVideoTracks().find(track => track.label.toLowerCase().includes('screen') || track.label.toLowerCase().includes('display'));
-                            if (screenTrack) {
-                              // Create a new MediaStream for just the screen track
-                              const screenStream = new window.MediaStream([screenTrack]);
-                              el.srcObject = screenStream;
-                            } else {
-                              // Fallback: use the whole stream
-                              el.srcObject = localStreamRef.current;
-                            }
+                          localScreenShareRef.current = el;
+                          if (el && localScreenStreamRef.current) {
+                            el.srcObject = localScreenStreamRef.current;
                           }
                         }}
                         autoPlay
@@ -1514,7 +1510,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div key="self_camera" className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '320px', aspectRatio: '16/9', minHeight: '120px' }}>
                     {!isCameraOff ? (
                       <video
-                        ref={localVideoRef}
+                        ref={el => {
+                          localVideoRef.current = el;
+                          if (el && localCameraStreamRef.current) {
+                            el.srcObject = localCameraStreamRef.current;
+                          }
+                        }}
                         autoPlay
                         muted
                         playsInline
