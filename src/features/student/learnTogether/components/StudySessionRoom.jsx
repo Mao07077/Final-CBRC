@@ -1434,8 +1434,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           {(() => {
             // Find all screen shares (including self)
             const screenShares = [];
-            // Always show your own screen share tile if sharing
             if (isScreenSharing) {
+              // Use a separate ref for screen share preview
               screenShares.push({ id: 'self_screen', name: userName, is_screen_sharing: true, camera_off: false, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true });
             }
             participants.forEach(p => {
@@ -1453,7 +1453,21 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div key={screen.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '480px', aspectRatio: '16/9', minHeight: '180px' }}>
                     {screen.self ? (
                       <video
-                        ref={localVideoRef}
+                        ref={el => {
+                          // Attach the screen share stream if sharing
+                          if (el && localStreamRef.current) {
+                            // Find the screen share track
+                            const screenTrack = localStreamRef.current.getVideoTracks().find(track => track.label.toLowerCase().includes('screen') || track.label.toLowerCase().includes('display'));
+                            if (screenTrack) {
+                              // Create a new MediaStream for just the screen track
+                              const screenStream = new window.MediaStream([screenTrack]);
+                              el.srcObject = screenStream;
+                            } else {
+                              // Fallback: use the whole stream
+                              el.srcObject = localStreamRef.current;
+                            }
+                          }
+                        }}
                         autoPlay
                         muted
                         playsInline
