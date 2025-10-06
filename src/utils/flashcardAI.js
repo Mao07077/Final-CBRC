@@ -6,11 +6,13 @@
 export async function generateFlashcardsFromText(text, num = 3) {
   const endpoint = 'https://api-inference.huggingface.co/models/t5-base';
   const prompt = `Create ${num} study flashcards in Q&A format from this text:\n${text}`;
+  const token = import.meta.env.VITE_HF_API_TOKEN;
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ inputs: prompt })
     });
