@@ -1024,6 +1024,14 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         // Update local video to show screen share
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = screenStream;
+          // Force play and update style for visibility
+          localVideoRef.current.muted = true;
+          localVideoRef.current.playsInline = true;
+          localVideoRef.current.style.display = 'block';
+          localVideoRef.current.style.opacity = '1';
+          localVideoRef.current.play().catch((err) => {
+            console.log('Screen share video play error:', err);
+          });
         }
         
         // Handle when user stops screen share via browser controls
