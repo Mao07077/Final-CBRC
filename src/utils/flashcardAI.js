@@ -4,7 +4,7 @@
 
 // Hugging Face Inference API (no key required for public models, but rate-limited)
 export async function generateFlashcardsFromText(text, num = 3) {
-  const endpoint = 'https://api-inference.huggingface.co/models/Xenova/t5-base';
+  const endpoint = 'https://api-inference.huggingface.co/models/google/flan-t5-base';
   const prompt = `Create ${num} study flashcards in Q&A format from this text:\n${text}`;
   const token = import.meta.env.VITE_HF_API_TOKEN;
   try {
