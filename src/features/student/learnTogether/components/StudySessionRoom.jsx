@@ -1434,6 +1434,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           {(() => {
             // Find all screen shares (including self)
             const screenShares = [];
+            // If you are sharing, push your own screen share tile and ensure localVideoRef uses the screen stream
             if (isScreenSharing) {
               screenShares.push({ id: 'self_screen', name: userName, is_screen_sharing: true, camera_off: false, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true });
             }
@@ -1452,7 +1453,22 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div key={screen.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '480px', aspectRatio: '16/9', minHeight: '180px' }}>
                     {screen.self ? (
                       <video
-                        ref={localVideoRef}
+                        ref={el => {
+                          // Always set localVideoRef for your own screen share
+                          localVideoRef.current = el;
+                          // If you are sharing, set srcObject to the screen stream
+                          if (el && localStreamRef.current) {
+                            // Find the screen stream (should be set in toggleScreenShare)
+                            const screenTrack = localStreamRef.current.getVideoTracks().find(track => track.label.toLowerCase().includes('screen') || track.label.toLowerCase().includes('display'));
+                            if (screenTrack) {
+                              // Create a new MediaStream for just the screen track
+                              const screenStream = new window.MediaStream([screenTrack]);
+                              if (el.srcObject !== screenStream) {
+                                el.srcObject = screenStream;
+                              }
+                            }
+                          }
+                        }}
                         autoPlay
                         muted
                         playsInline
