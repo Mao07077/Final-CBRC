@@ -81,7 +81,21 @@ const FlashcardPage = () => {
           <FaMagic /> {loading ? "Generating..." : "Generate AI Flashcards"}
         </button>
         {error && (
-          <div className="text-red-500 mt-4 text-center">{error}</div>
+          <div className="text-red-500 mt-4 text-center">
+            {error}
+            {error.includes('Failed to load AI model') && (
+              <div className="mt-2 text-sm text-red-400">
+                <strong>Troubleshooting:</strong>
+                <ul className="list-disc list-inside text-left mt-1">
+                  <li>Check your internet connection.</li>
+                  <li>Try a different browser (Chrome, Edge, Firefox).</li>
+                  <li>Disable adblockers, privacy extensions, or VPN.</li>
+                  <li>Make sure Hugging Face is not blocked by your network/firewall.</li>
+                  <li>Try again later—sometimes the model host is slow or rate-limited.</li>
+                </ul>
+              </div>
+            )}
+          </div>
         )}
       </div>
       <div className="mb-6">
