@@ -1,11 +1,14 @@
 // Flashcard AI generation using Gemini API via secure backend route
 // Frontend calls the Render backend's /generate-flashcards endpoint
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL = import.meta.env.VITE_API_URL;
 
 export async function generateFlashcardsFromText(text, num = 3) {
   if (!text || text.trim().length === 0) {
     throw new Error('Input text is empty. Please provide content to generate flashcards.');
+  }
+  if (!BACKEND_URL) {
+    throw new Error('Backend URL is not set. Please set VITE_API_URL in your environment variables.');
   }
   try {
     const response = await fetch(`${BACKEND_URL}/generate-flashcards`, {
