@@ -16,7 +16,7 @@ async def generate_flashcards(request: Request):
     prompt = f"Create {num} flashcards in Q&A format from this text:\n{text}"
     try:
         response = requests.post(
-            endpoint,
+            endpoint.strip(),
             headers={"Content-Type": "application/json"},
             json={
                 "contents": [{"parts": [{"text": prompt}]}]
