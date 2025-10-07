@@ -1,43 +1,31 @@
-// Flashcard AI generation using Xenova transformers.js
-// Works fully offline / client-side — no Hugging Face API key or backend needed
-
-import { pipeline } from '@xenova/transformers';
-
-// Keep the pipeline loaded para di ulit-ulit mag-load
-let generator = null;
+// Flashcard AI generation using Hugging Face Inference API (Vercel-friendly)
+// Requires VITE_HF_API_TOKEN in your Vercel environment variables
 
 export async function generateFlashcardsFromText(text, num = 3) {
   if (!text || text.trim().length === 0) {
     throw new Error('Input text is empty. Please provide content to generate flashcards.');
   }
-
+  const endpoint = 'https://api-inference.huggingface.co/models/t5-base';
+  const prompt = `Create ${num} study flashcards in Q&A format from this text:\n${text}`;
+  const token = import.meta.env.VITE_HF_API_TOKEN;
   try {
-    // Load the model once (distilbert-base-uncased, smaller for browser)
-    if (!generator) {
-      generator = await pipeline('text2text-generation', 'Xenova/distilbert-base-uncased');
-    }
-
-    // Instruction prompt
-    const prompt = `Create ${num} educational flashcards in Q&A format from the following text. 
-Each flashcard should be written as:
-Q: [question]
-A: [answer]
-
-Text: ${text}`;
-
-    // Generate flashcards
-    const output = await generator(prompt, {
-      max_new_tokens: 256,
-      temperature: 0.7,
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ inputs: prompt })
     });
-
-    // Extract and clean the result
-    const result = output?.[0]?.generated_text?.trim();
-    if (!result) throw new Error('No flashcards generated. Try using shorter or simpler text.');
-
-    return result;
-  } catch (error) {
-    console.error('❌ Flashcard generation error:', error);
-    throw new Error('Failed to generate flashcards. ' + error.message);
+    if (!response.ok) {
+      throw new Error('Hugging Face API error: ' + response.statusText);
+    }
+    const data = await response.json();
+    if (!data || !data[0] || !data[0].generated_text) {
+      throw new Error('No flashcards generated. Try a different PDF or shorter text.');
+    }
+    return data[0].generated_text;
+  } catch (err) {
+    throw new Error('Failed to generate flashcards via Hugging Face API: ' + err.message);
   }
 }
