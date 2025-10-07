@@ -136,6 +136,7 @@ from routes.paraphrase_routes import router as paraphrase_router
 from routes.study_group_routes import router as study_group_router
 from routes.music_routes import router as music_router
 from routes.landing_routes import router as landing_router
+from routes.gemini_flashcard_routes import router as gemini_flashcard_router
 from routes.instructor_routes import router as instructor_router
 from routes.admin_routes import router as admin_router
 
@@ -158,9 +159,9 @@ app.include_router(misc_router)
 app.include_router(paraphrase_router)
 app.include_router(study_group_router)
 app.include_router(music_router)
-app.include_router(landing_router)
-app.include_router(instructor_router)
-app.include_router(admin_router)
+
+# Gemini flashcard generation route
+app.include_router(gemini_flashcard_router)
 
 # Health check endpoint for Docker
 @app.get("/health")

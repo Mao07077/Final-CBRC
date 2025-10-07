@@ -1,5 +1,5 @@
-// Flashcard AI generation using Gemini API (Vercel-friendly)
-// Requires VITE_HF_API_TOKEN in your Vercel environment variables
+// Flashcard AI generation using Gemini API via secure backend route
+// Frontend calls /api/generate-flashcards (serverless function)
 
 export async function generateFlashcardsFromText(text, num = 3) {
   if (!text || text.trim().length === 0) {
