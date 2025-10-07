@@ -1,7 +1,10 @@
 // Flashcard AI generation using Gemini API via secure backend route
 // Frontend calls the Render backend's /generate-flashcards endpoint
 
-const BACKEND_URL = import.meta.env.VITE_API_URL;
+let BACKEND_URL = import.meta.env.VITE_API_URL;
+if (BACKEND_URL && BACKEND_URL.endsWith('/')) {
+  BACKEND_URL = BACKEND_URL.slice(0, -1);
+}
 
 export async function generateFlashcardsFromText(text, num = 3) {
   if (!text || text.trim().length === 0) {
