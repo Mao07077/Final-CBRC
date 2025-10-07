@@ -1,31 +1,20 @@
-// Flashcard AI generation using Hugging Face Inference API (Vercel-friendly)
+// Flashcard AI generation using Gemini API (Vercel-friendly)
 // Requires VITE_HF_API_TOKEN in your Vercel environment variables
 
 export async function generateFlashcardsFromText(text, num = 3) {
   if (!text || text.trim().length === 0) {
     throw new Error('Input text is empty. Please provide content to generate flashcards.');
   }
-  const endpoint = 'https://api-inference.huggingface.co/models/t5-base';
-  const prompt = `Create ${num} study flashcards in Q&A format from this text:\n${text}`;
-  const token = import.meta.env.VITE_HF_API_TOKEN;
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch('/api/generate-flashcards', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ inputs: prompt })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, num })
     });
-    if (!response.ok) {
-      throw new Error('Hugging Face API error: ' + response.statusText);
-    }
     const data = await response.json();
-    if (!data || !data[0] || !data[0].generated_text) {
-      throw new Error('No flashcards generated. Try a different PDF or shorter text.');
-    }
-    return data[0].generated_text;
+    // Adjust this depending on Gemini's response format
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || JSON.stringify(data);
   } catch (err) {
-    throw new Error('Failed to generate flashcards via Hugging Face API: ' + err.message);
+    throw new Error('Failed to generate flashcards via Gemini API: ' + err.message);
   }
 }
