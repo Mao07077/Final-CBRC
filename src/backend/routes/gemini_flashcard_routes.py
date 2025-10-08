@@ -22,7 +22,12 @@ async def generate_flashcards(request: Request):
                 "contents": [{"parts": [{"text": prompt}]}]
             }
         )
+        # Debug logging: print status and response body
+        print("[Gemini API] Status:", response.status_code)
+        print("[Gemini API] Response:", response.text)
         response.raise_for_status()
         return response.json()
     except Exception as e:
+        # Print the error for debugging
+        print("[Gemini API] Exception:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
