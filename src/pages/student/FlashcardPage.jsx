@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Flashcard from "../../features/student/flashcards/components/Flashcard";
 import { extractTextFromPDF } from "../../utils/pdfExtract";
-import { generateFlashcardsFromText } from "../../utils/flashcardAI";
+import { generateFlashcards } from "../../utils/flashcardAI";
 import { FaFilePdf, FaMagic, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 
 const FlashcardPage = () => {
@@ -34,7 +34,7 @@ const FlashcardPage = () => {
         setLoading(false);
         return;
       }
-      const aiRaw = await generateFlashcardsFromText(text, 3);
+  const aiRaw = await generateFlashcards(text);
       // Parse Q&A pairs from AI output (simple split)
       const cards = aiRaw.split(/\n|\r/)
         .map(line => line.trim())
