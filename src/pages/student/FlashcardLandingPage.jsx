@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, Play, Users } from "lucide-react";
 import useFlashcardStore from "../../store/student/flashcardStore";
@@ -14,17 +14,38 @@ const FlashcardLandingPage = () => {
   const { modules, decks, isLoading, error, fetchFlashcards, setActiveDeck, generateFlashcards } =
     useFlashcardStore();
 
+  // State for PDF fetch popup
+  const [pdfStatus, setPdfStatus] = useState({ open: false, message: "", error: false });
+
   useEffect(() => {
     fetchFlashcards();
   }, [fetchFlashcards]);
 
+  // Step 1: Fetch PDF file for the selected module and show popup
   const handleStartFlashcards = async (moduleId) => {
-    // Generate new flashcards for the selected module
-    await generateFlashcards(moduleId);
-    // Set the active deck in the store
-    setActiveDeck(moduleId);
-    // Navigate to the actual flashcard practice page
-    navigate("/student/flashcards/practice");
+    const module = modules.find((m) => m._id === moduleId);
+    if (!module || !module.document_url) {
+      setPdfStatus({ open: true, message: "No PDF URL found for this module.", error: true });
+      return;
+    }
+    setPdfStatus({ open: true, message: "Fetching PDF...", error: false });
+    try {
+      const res = await fetch(module.document_url);
+      if (!res.ok) throw new Error("Failed to fetch PDF");
+      // Optionally, you can check if it's a PDF by content-type
+      const blob = await res.blob();
+      if (blob.type !== "application/pdf") {
+        setPdfStatus({ open: true, message: `Fetched file is not a PDF (type: ${blob.type})`, error: true });
+        return;
+      }
+      setPdfStatus({ open: true, message: "PDF fetched successfully!", error: false });
+      // You can proceed to the next step after confirmation
+      // await generateFlashcards(moduleId);
+      // setActiveDeck(moduleId);
+      // navigate("/student/flashcards/practice");
+    } catch (err) {
+      setPdfStatus({ open: true, message: `Error fetching PDF: ${err.message}`, error: true });
+    }
   };
 
   if (isLoading) {
@@ -56,6 +77,22 @@ const FlashcardLandingPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      {/* PDF Fetch Popup/Modal */}
+      {pdfStatus.open && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 min-w-[300px] max-w-[90vw] text-center">
+            <div className={pdfStatus.error ? "text-red-600" : "text-green-700"}>
+              {pdfStatus.message}
+            </div>
+            <button
+              className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+              onClick={() => setPdfStatus({ ...pdfStatus, open: false })}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
