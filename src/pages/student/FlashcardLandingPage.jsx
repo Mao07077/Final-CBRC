@@ -24,10 +24,12 @@ const FlashcardLandingPage = () => {
   // Step 1: Fetch PDF file for the selected module and show popup
   const handleStartFlashcards = async (moduleId) => {
     const module = modules.find((m) => m._id === moduleId);
+    console.log("[DEBUG] Selected module:", module);
     if (!module || !module.document_url) {
       setPdfStatus({ open: true, message: "No PDF URL found for this module.", error: true });
       return;
     }
+    console.log("[DEBUG] document_url:", module.document_url);
     setPdfStatus({ open: true, message: "Fetching PDF...", error: false });
     try {
       const res = await fetch(module.document_url);
