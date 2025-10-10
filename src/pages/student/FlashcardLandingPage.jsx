@@ -16,6 +16,8 @@ const FlashcardLandingPage = () => {
 
   // State for PDF fetch popup
   const [pdfStatus, setPdfStatus] = useState({ open: false, message: "", error: false });
+  const [generatedFlashcards, setGeneratedFlashcards] = useState([]);
+  const [showFlashcards, setShowFlashcards] = useState(false);
 
   useEffect(() => {
     fetchFlashcards();
@@ -24,12 +26,10 @@ const FlashcardLandingPage = () => {
   // Step 1: Fetch PDF file for the selected module and show popup
   const handleStartFlashcards = async (moduleId) => {
     const module = modules.find((m) => m._id === moduleId);
-    console.log("[DEBUG] Selected module:", module);
     if (!module || !module.document_url) {
       setPdfStatus({ open: true, message: "No PDF URL found for this module.", error: true });
       return;
     }
-    console.log("[DEBUG] document_url:", module.document_url);
     setPdfStatus({ open: true, message: "Fetching PDF...", error: false });
     try {
       const res = await fetch(module.document_url);
@@ -43,9 +43,7 @@ const FlashcardLandingPage = () => {
       const arrayBuffer = await blob.arrayBuffer();
       let pdfText = "";
       try {
-        // Dynamically import pdfjs-dist
         const pdfjsLib = await import('pdfjs-dist/build/pdf');
-        // Set workerSrc if needed
         if (pdfjsLib.GlobalWorkerOptions) {
           pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
         }
@@ -55,20 +53,21 @@ const FlashcardLandingPage = () => {
           const content = await page.getTextContent();
           const pageText = content.items.map(item => item.str).join(' ');
           pdfText += pageText + '\n';
-          if (pdfText.length > 500) break; // Only show first 500 chars
         }
       } catch (e) {
         pdfText = '[PDF.js failed to extract text]';
       }
-      setPdfStatus({
-        open: true,
-        message: `PDF fetched! Preview (first 500 chars):\n\n${pdfText.slice(0, 500)}`,
-        error: false
-      });
-      // You can proceed to the next step after confirmation
-      // await generateFlashcards(moduleId);
-      // setActiveDeck(moduleId);
-      // navigate("/student/flashcards/practice");
+      setPdfStatus({ open: true, message: "Generating flashcards from PDF...", error: false });
+      // Call Gemini backend to generate flashcards
+      const { generateFlashcards } = useFlashcardStore.getState();
+      const result = await generateFlashcards(pdfText, 5); // You can change 5 to desired number
+      if (result.success) {
+        setGeneratedFlashcards(result.flashcards);
+        setShowFlashcards(true);
+        setPdfStatus({ open: false, message: "", error: false });
+      } else {
+        setPdfStatus({ open: true, message: result.message || "Failed to generate flashcards.", error: true });
+      }
     } catch (err) {
       setPdfStatus({ open: true, message: `Error fetching PDF: ${err.message}`, error: true });
     }
@@ -103,7 +102,7 @@ const FlashcardLandingPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      {/* PDF Fetch Popup/Modal */}
+      {/* PDF Fetch/Generate Popup/Modal */}
       {pdfStatus.open && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
           <div className="bg-white rounded-lg shadow-lg p-6 min-w-[300px] max-w-[90vw] text-center">
@@ -115,6 +114,32 @@ const FlashcardLandingPage = () => {
               onClick={() => setPdfStatus({ ...pdfStatus, open: false })}
             >
               OK
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Flashcards Modal */}
+      {showFlashcards && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 min-w-[300px] max-w-[90vw] text-center max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">Generated Flashcards</h2>
+            {generatedFlashcards.length === 0 ? (
+              <div>No flashcards generated.</div>
+            ) : (
+              <ul className="space-y-4">
+                {generatedFlashcards.map((fc, idx) => (
+                  <li key={idx} className="border rounded p-3 text-left">
+                    <div className="font-semibold text-primary">Q: {fc.question}</div>
+                    <div className="mt-1 text-gray-700">A: {fc.answer}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button
+              className="mt-6 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+              onClick={() => setShowFlashcards(false)}
+            >
+              Close
             </button>
           </div>
         </div>

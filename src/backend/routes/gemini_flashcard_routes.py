@@ -1,8 +1,23 @@
 import os
 import requests
+import re
 from fastapi import APIRouter, HTTPException, Request
 
 router = APIRouter()
+
+def parse_flashcards(text: str):
+    """
+    Extract Q&A pairs from raw Gemini response text.
+    Format expected: Q: ... A: ...
+    """
+    flashcards = []
+    matches = re.findall(r"Q:\s*(.*?)\s*A:\s*(.*?)(?=\nQ:|\Z)", text, re.DOTALL)
+    for q, a in matches:
+        flashcards.append({
+            "question": q.strip(),
+            "answer": a.strip()
+        })
+    return flashcards
 
 @router.post("/generate-flashcards")
 async def generate_flashcards(request: Request):
@@ -14,9 +29,7 @@ async def generate_flashcards(request: Request):
     if not api_key:
         raise HTTPException(status_code=500, detail="Gemini API key not set")
 
-    # ✅ Use the updated Gemini endpoint
-    endpoint = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
-
+    endpoint = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}"
     prompt = f"Create {num} flashcards in Q&A format from this text:\n{text}"
 
     try:
@@ -28,10 +41,18 @@ async def generate_flashcards(request: Request):
         )
 
         print("[Gemini API] Status:", response.status_code)
-        print("[Gemini API] Response:", response.text)
         response.raise_for_status()
 
-        return response.json()
+        result = response.json()
+        raw_text = (
+            result.get("candidates", [{}])[0]
+            .get("content", {})
+            .get("parts", [{}])[0]
+            .get("text", "")
+        )
+
+        flashcards = parse_flashcards(raw_text)
+        return {"flashcards": flashcards}
 
     except Exception as e:
         print("[Gemini API] Exception:", str(e))

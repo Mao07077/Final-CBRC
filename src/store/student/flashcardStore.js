@@ -49,10 +49,13 @@ const useFlashcardStore = create((set, get) => ({
     }
   },
 
-  generateFlashcards: async (moduleId, numCards = 5) => {
+  generateFlashcards: async (pdfText, numCards = 5) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await apiClient.post(`/api/generate-flashcards/${moduleId}?num_cards=${numCards}`);
+      const response = await apiClient.post(
+        "/generate-flashcards",
+        { text: pdfText, num: numCards }
+      );
       if (response.data.flashcards) {
         set({ isLoading: false });
         return { success: true, flashcards: response.data.flashcards };
