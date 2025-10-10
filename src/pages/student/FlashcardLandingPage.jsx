@@ -34,13 +34,37 @@ const FlashcardLandingPage = () => {
     try {
       const res = await fetch(module.document_url);
       if (!res.ok) throw new Error("Failed to fetch PDF");
-      // Optionally, you can check if it's a PDF by content-type
       const blob = await res.blob();
       if (blob.type !== "application/pdf") {
         setPdfStatus({ open: true, message: `Fetched file is not a PDF (type: ${blob.type})`, error: true });
         return;
       }
-      setPdfStatus({ open: true, message: "PDF fetched successfully!", error: false });
+      // Read PDF text using PDF.js
+      const arrayBuffer = await blob.arrayBuffer();
+      let pdfText = "";
+      try {
+        // Dynamically import pdfjs-dist
+        const pdfjsLib = await import('pdfjs-dist/build/pdf');
+        // Set workerSrc if needed
+        if (pdfjsLib.GlobalWorkerOptions) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+        }
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = content.items.map(item => item.str).join(' ');
+          pdfText += pageText + '\n';
+          if (pdfText.length > 500) break; // Only show first 500 chars
+        }
+      } catch (e) {
+        pdfText = '[PDF.js failed to extract text]';
+      }
+      setPdfStatus({
+        open: true,
+        message: `PDF fetched! Preview (first 500 chars):\n\n${pdfText.slice(0, 500)}`,
+        error: false
+      });
       // You can proceed to the next step after confirmation
       // await generateFlashcards(moduleId);
       // setActiveDeck(moduleId);
