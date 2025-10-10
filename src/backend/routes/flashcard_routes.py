@@ -36,14 +36,12 @@ def get_user_flashcards(user_id: str):
             for flashcard in flashcards
         ]
     
-    modules_list = [
-        {
-            "_id": str(module["_id"]),
-            "title": module["title"]
-        }
-        for module in modules
-    ]
-    
+    modules_list = []
+    for module in modules:
+        m = dict(module)
+        m["_id"] = str(m["_id"])
+        # Optionally, remove MongoDB ObjectId fields from nested objects if any
+        modules_list.append(m)
     return {
         "success": True,
         "modules": modules_list,
