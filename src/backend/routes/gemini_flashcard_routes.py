@@ -29,7 +29,8 @@ async def generate_flashcards(request: Request):
     if not api_key:
         raise HTTPException(status_code=500, detail="Gemini API key not set")
 
-    endpoint = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}"
+    # ✅ Corrected endpoint version
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
     prompt = f"Create {num} flashcards in Q&A format from this text:\n{text}"
 
     try:
@@ -44,8 +45,12 @@ async def generate_flashcards(request: Request):
         response.raise_for_status()
 
         result = response.json()
+        candidates = result.get("candidates", [])
+        if not candidates:
+            raise HTTPException(status_code=500, detail="No candidates returned from Gemini API")
+
         raw_text = (
-            result.get("candidates", [{}])[0]
+            candidates[0]
             .get("content", {})
             .get("parts", [{}])[0]
             .get("text", "")
@@ -54,6 +59,9 @@ async def generate_flashcards(request: Request):
         flashcards = parse_flashcards(raw_text)
         return {"flashcards": flashcards}
 
+    except requests.exceptions.HTTPError as http_err:
+        print("[Gemini API] HTTP error:", str(http_err))
+        raise HTTPException(status_code=response.status_code, detail="Gemini API error: " + str(http_err))
     except Exception as e:
         print("[Gemini API] Exception:", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Unexpected error: " + str(e))
