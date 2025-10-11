@@ -16,7 +16,8 @@ const FlashcardLandingPage = () => {
 
   // State for PDF fetch popup
   const [pdfStatus, setPdfStatus] = useState({ open: false, message: "", error: false });
-  // Remove generatedFlashcards and showFlashcards state
+  const [generatedFlashcards, setGeneratedFlashcards] = useState([]);
+  const [showFlashcards, setShowFlashcards] = useState(false);
 
   useEffect(() => {
     fetchFlashcards();
@@ -61,9 +62,9 @@ const FlashcardLandingPage = () => {
       const { generateFlashcards } = useFlashcardStore.getState();
       const result = await generateFlashcards(pdfText, 5); // You can change 5 to desired number
       if (result.success) {
+        setGeneratedFlashcards(result.flashcards);
+        setShowFlashcards(true);
         setPdfStatus({ open: false, message: "", error: false });
-        // Navigate to FlashcardPage with generated flashcards
-        navigate("/student/flashcards/generated", { state: { generatedDeck: result.flashcards } });
       } else {
         setPdfStatus({ open: true, message: result.message || "Failed to generate flashcards.", error: true });
       }
@@ -117,7 +118,32 @@ const FlashcardLandingPage = () => {
           </div>
         </div>
       )}
-
+      {/* Flashcards Modal */}
+      {showFlashcards && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 min-w-[300px] max-w-[90vw] text-center max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">Generated Flashcards</h2>
+            {generatedFlashcards.length === 0 ? (
+              <div>No flashcards generated.</div>
+            ) : (
+              <ul className="space-y-4">
+                {generatedFlashcards.map((fc, idx) => (
+                  <li key={idx} className="border rounded p-3 text-left">
+                    <div className="font-semibold text-primary">Q: {fc.question}</div>
+                    <div className="mt-1 text-gray-700">A: {fc.answer}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button
+              className="mt-6 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+              onClick={() => setShowFlashcards(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
