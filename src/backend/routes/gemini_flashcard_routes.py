@@ -30,7 +30,13 @@ async def generate_flashcards(request: Request):
         raise HTTPException(status_code=500, detail="Groq API key not set")
 
     endpoint = "https://api.groq.com/openai/v1/chat/completions"
-    prompt = f"Create {num} flashcards in Q&A format from this text. Format each as 'Q: ... A: ...':\n{text}"
+    prompt = (
+        f"Create {num} unique flashcards in Q&A format from this text. "
+        "Each flashcard should cover a different key concept, fact, or section. "
+        "Do not repeat questions. Cover as many distinct topics as possible from the text. "
+        "Format each as 'Q: ... A: ...':\n"
+        f"{text}"
+    )
 
     try:
         response = requests.post(
