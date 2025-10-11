@@ -18,6 +18,7 @@ const FlashcardLandingPage = () => {
   const [pdfStatus, setPdfStatus] = useState({ open: false, message: "", error: false });
   const [generatedFlashcards, setGeneratedFlashcards] = useState([]);
   const [showFlashcards, setShowFlashcards] = useState(false);
+  const [modalIndex, setModalIndex] = useState(0);
 
   useEffect(() => {
     fetchFlashcards();
@@ -63,6 +64,7 @@ const FlashcardLandingPage = () => {
       const result = await generateFlashcards(pdfText, 5); // You can change 5 to desired number
       if (result.success) {
         setGeneratedFlashcards(result.flashcards);
+        setModalIndex(0);
         setShowFlashcards(true);
         setPdfStatus({ open: false, message: "", error: false });
       } else {
@@ -118,22 +120,37 @@ const FlashcardLandingPage = () => {
           </div>
         </div>
       )}
-      {/* Flashcards Modal */}
+      {/* Flashcards Modal - one at a time with navigation */}
       {showFlashcards && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 min-w-[300px] max-w-[90vw] text-center max-h-[80vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg p-6 min-w-[340px] max-w-[95vw] text-center max-h-[90vh] flex flex-col items-center">
             <h2 className="text-xl font-bold mb-4">Generated Flashcards</h2>
             {generatedFlashcards.length === 0 ? (
               <div>No flashcards generated.</div>
             ) : (
-              <ul className="space-y-4">
-                {generatedFlashcards.map((fc, idx) => (
-                  <li key={idx} className="border rounded p-3 text-left">
-                    <div className="font-semibold text-primary">Q: {fc.question}</div>
-                    <div className="mt-1 text-gray-700">A: {fc.answer}</div>
-                  </li>
-                ))}
-              </ul>
+              <>
+                {/* Show one flashcard at a time using Flashcard component */}
+                <Flashcard card={generatedFlashcards[modalIndex]} />
+                <div className="flex items-center justify-center mt-6 space-x-8">
+                  <button
+                    onClick={() => setModalIndex(i => Math.max(i - 1, 0))}
+                    className="flex items-center gap-2 px-6 py-3 bg-white rounded-lg shadow-md font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                    disabled={modalIndex === 0}
+                  >
+                    Prev
+                  </button>
+                  <span className="text-xl font-bold text-blue-700">
+                    {modalIndex + 1} / {generatedFlashcards.length}
+                  </span>
+                  <button
+                    onClick={() => setModalIndex(i => Math.min(i + 1, generatedFlashcards.length - 1))}
+                    className="flex items-center gap-2 px-6 py-3 bg-white rounded-lg shadow-md font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                    disabled={modalIndex === generatedFlashcards.length - 1}
+                  >
+                    Next
+                  </button>
+                </div>
+              </>
             )}
             <button
               className="mt-6 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
