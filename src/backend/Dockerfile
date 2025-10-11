@@ -1,5 +1,6 @@
-# Use Python 3.12 slim image
-FROM python:3.12-slim
+
+# Use Python 3.10 slim image for Cerebras compatibility
+FROM python:3.10-slim
 
 # Set working directory
 WORKDIR /app

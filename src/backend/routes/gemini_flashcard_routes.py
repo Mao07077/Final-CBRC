@@ -49,4 +49,4 @@ async def generate_flashcards(request: Request):
         return {"flashcards": flashcards}
     except Exception as e:
         print("[Cerebras API] Exception:", str(e))
-        raise HTTPException(status_code=500, detail="Cerebras API error: " + str(e))
+        raise HTTPException(status_code=500, detail="Cerebras API error: " + str(e))        git add . ; git commit -m "chore: update Dockerfile to python 3.10 for Cerebras compatibility" ; git push        git add . ; git commit -m "chore: update Dockerfile to python 3.10 for Cerebras compatibility" ; git push
