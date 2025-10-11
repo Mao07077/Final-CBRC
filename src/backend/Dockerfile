@@ -1,4 +1,3 @@
-
 # Use Python 3.10 slim image for Cerebras compatibility
 FROM python:3.10-slim
 
