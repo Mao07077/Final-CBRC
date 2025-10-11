@@ -24,44 +24,48 @@ async def generate_flashcards(request: Request):
     data = await request.json()
     text = data.get("text")
     num = data.get("num", 3)
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY")
 
     if not api_key:
-        raise HTTPException(status_code=500, detail="Gemini API key not set")
+        raise HTTPException(status_code=500, detail="OpenAI API key not set")
 
-    # ✅ Corrected endpoint version
-    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
-    prompt = f"Create {num} flashcards in Q&A format from this text:\n{text}"
+    endpoint = "https://api.openai.com/v1/chat/completions"
+    prompt = f"Create {num} flashcards in Q&A format from this text. Format each as 'Q: ... A: ...':\n{text}"
 
     try:
         response = requests.post(
             endpoint,
-            headers={"Content-Type": "application/json"},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            },
+            json={
+                "model": "gpt-3.5-turbo",
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant that generates flashcards in Q&A format."},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 1024,
+                "temperature": 0.7
+            },
             timeout=60
         )
 
-        print("[Gemini API] Status:", response.status_code)
+        print("[OpenAI API] Status:", response.status_code)
         response.raise_for_status()
 
         result = response.json()
-        candidates = result.get("candidates", [])
-        if not candidates:
-            raise HTTPException(status_code=500, detail="No candidates returned from Gemini API")
+        choices = result.get("choices", [])
+        if not choices:
+            raise HTTPException(status_code=500, detail="No choices returned from OpenAI API")
 
-        raw_text = (
-            candidates[0]
-            .get("content", {})
-            .get("parts", [{}])[0]
-            .get("text", "")
-        )
-
+        raw_text = choices[0]["message"]["content"]
         flashcards = parse_flashcards(raw_text)
         return {"flashcards": flashcards}
 
     except requests.exceptions.HTTPError as http_err:
-        print("[Gemini API] HTTP error:", str(http_err))
-        raise HTTPException(status_code=response.status_code, detail="Gemini API error: " + str(http_err))
+        print("[OpenAI API] HTTP error:", str(http_err))
+        raise HTTPException(status_code=response.status_code, detail="OpenAI API error: " + str(http_err))
     except Exception as e:
-        print("[Gemini API] Exception:", str(e))
+        print("[OpenAI API] Exception:", str(e))
         raise HTTPException(status_code=500, detail="Unexpected error: " + str(e))
