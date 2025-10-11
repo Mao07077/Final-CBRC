@@ -1,8 +1,7 @@
-
 import os
+import requests
 import re
 from fastapi import APIRouter, HTTPException, Request
-from cerebras.cloud.sdk import Cerebras
 
 router = APIRouter()
 
@@ -25,28 +24,50 @@ async def generate_flashcards(request: Request):
     data = await request.json()
     text = data.get("text")
     num = data.get("num", 3)
-    api_key = os.getenv("CEREBRAS_API_KEY")
+    api_key = os.getenv("GROQ_API_KEY")
 
     if not api_key:
-        raise HTTPException(status_code=500, detail="Cerebras API key not set")
+        raise HTTPException(status_code=500, detail="Groq API key not set")
 
-    client = Cerebras(api_key=api_key)
+    endpoint = "https://api.groq.com/openai/v1/chat/completions"
     prompt = f"Create {num} flashcards in Q&A format from this text. Format each as 'Q: ... A: ...':\n{text}"
 
     try:
-        response = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that generates flashcards in Q&A format."},
-                {"role": "user", "content": prompt}
-            ],
-            model="qwen-3-235b-a22b-instruct-2507",
-            max_completion_tokens=1024,
-            temperature=0.7,
-            top_p=0.8
+        response = requests.post(
+            endpoint,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            },
+            json={
+                "model": "llama-3-8b-8192",
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant that generates flashcards in Q&A format."},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 1024,
+                "temperature": 0.7
+            },
+            timeout=60
         )
-        result = response.choices[0].message.content
-        flashcards = parse_flashcards(result)
+
+        print("[Groq API] Status:", response.status_code)
+        print("[Groq API] Response:", response.text)
+        response.raise_for_status()
+
+        result = response.json()
+        choices = result.get("choices", [])
+        if not choices:
+            raise HTTPException(status_code=500, detail="No choices returned from Groq API")
+
+        raw_text = choices[0]["message"]["content"]
+        flashcards = parse_flashcards(raw_text)
         return {"flashcards": flashcards}
+
+    except requests.exceptions.HTTPError as http_err:
+        print("[Groq API] HTTP error:", str(http_err))
+        print("[Groq API] Response:", getattr(response, 'text', 'No response'))
+        raise HTTPException(status_code=response.status_code, detail="Groq API error: " + str(http_err))
     except Exception as e:
-        print("[Cerebras API] Exception:", str(e))
-        raise HTTPException(status_code=500, detail="Cerebras API error: " + str(e))
+        print("[Groq API] Exception:", str(e))
+        raise HTTPException(status_code=500, detail="Unexpected error: " + str(e))
