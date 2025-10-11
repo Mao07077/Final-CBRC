@@ -40,7 +40,7 @@ async def generate_flashcards(request: Request):
                 "Authorization": f"Bearer {api_key}"
             },
             json={
-                "model": "llama3-8b-8192",
+                "model": "llama-3.3-70b-versatile",
                 "messages": [
                     {"role": "system", "content": "You are a helpful assistant that generates flashcards in Q&A format."},
                     {"role": "user", "content": prompt}
