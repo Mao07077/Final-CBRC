@@ -52,6 +52,7 @@ async def generate_flashcards(request: Request):
         )
 
         print("[OpenAI API] Status:", response.status_code)
+        print("[OpenAI API] Response:", response.text)
         response.raise_for_status()
 
         result = response.json()
@@ -65,6 +66,7 @@ async def generate_flashcards(request: Request):
 
     except requests.exceptions.HTTPError as http_err:
         print("[OpenAI API] HTTP error:", str(http_err))
+        print("[OpenAI API] Response:", getattr(response, 'text', 'No response'))
         raise HTTPException(status_code=response.status_code, detail="OpenAI API error: " + str(http_err))
     except Exception as e:
         print("[OpenAI API] Exception:", str(e))
