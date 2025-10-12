@@ -3,11 +3,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import moduleService from "../../services/moduleService";
 import paraphraseService from "../../services/paraphraseService";
 import useAuthStore from "../../store/authStore";
+import useDashboardStore from '../../store/student/dashboardStore';
 
 const PostTestPage = () => {
   const { moduleId } = useParams();
   const navigate = useNavigate();
   const { userData } = useAuthStore();
+  const refreshDashboard = useDashboardStore(state => state.fetchDashboardData);
   const [postTest, setPostTest] = useState(null);
   const [paraphrasedQuestions, setParaphrasedQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -90,7 +92,8 @@ const PostTestPage = () => {
       setIsSubmitting(true);
       const timeSpent = Math.floor((Date.now() - startTime) / 1000); // Time in seconds
       const response = await moduleService.submitPostTest(moduleId, answers, userData.id_number, timeSpent);
-      
+      // Refresh dashboard data after submitting post-test
+      await refreshDashboard();
       // Navigate to results page with the test results
       navigate("/post-test-results", { 
         state: { 
