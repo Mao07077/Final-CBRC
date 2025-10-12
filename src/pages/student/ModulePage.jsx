@@ -24,15 +24,17 @@ const ModulePage = () => {
 
   return (
     <div>
+      <button className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Hello World</button>
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">Modules</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {modules.map((module) => {
-          const isPreTestCompleted = preTests.some(
-            (test) => test.module_id === module._id && typeof test.total_questions === 'number' && test.total_questions > 0
-          );
-          const isPostTestCompleted = postTests.some(
-            (test) => test.module_id === module._id && typeof test.total_questions === 'number' && test.total_questions > 0
-          );
+          // Find pre-test and post-test objects for this module
+          const preTest = preTests.find((test) => test.module_id === module._id);
+          const postTest = postTests.find((test) => test.module_id === module._id);
+
+          // A test is completed if total_questions > 0 (as per backend logic)
+          const isPreTestCompleted = preTest && typeof preTest.total_questions === 'number' && preTest.total_questions > 0;
+          const isPostTestCompleted = postTest && typeof postTest.total_questions === 'number' && postTest.total_questions > 0;
 
           let statusText, buttonText, isButtonDisabled, buttonAction;
           if (isPostTestCompleted) {
