@@ -42,10 +42,7 @@ const DashboardPage = () => {
       <RecommendedPages />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mt-6">
-        <div className="lg:col-span-2">
-          <ModuleList />
-        </div>
-
+        <div className="lg:col-span-2"></div>
         <div>
           <ScoreOverview />
         </div>
