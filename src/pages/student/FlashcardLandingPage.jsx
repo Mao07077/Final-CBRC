@@ -122,45 +122,52 @@ const FlashcardLandingPage = () => {
       )}
       {/* Flashcards Modal - one at a time with navigation */}
       {showFlashcards && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 min-w-[340px] max-w-[95vw] text-center max-h-[90vh] flex flex-col items-center">
-            <h2 className="text-xl font-bold mb-4">Generated Flashcards</h2>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
+          <div className="flex flex-col items-center justify-center w-full h-full">
             {generatedFlashcards.length === 0 ? (
-              <div>No flashcards generated.</div>
+              <div className="bg-white rounded-2xl shadow-2xl p-8 text-xl font-bold">No flashcards generated.</div>
             ) : modalIndex < generatedFlashcards.length ? (
               <>
-                {/* Slide animation for card transitions */}
-                <div className="w-full flex justify-center items-center">
-                  <div className="transition-transform duration-500" style={{transform: `translateX(0)`}}>
-                    <Flashcard card={generatedFlashcards[modalIndex]} />
+                {/* Main, large, responsive flashcard container */}
+                <div className="flex flex-col items-center justify-center w-full h-[60vh] max-h-[600px]">
+                  <div className="w-full flex justify-center items-center h-full">
+                    <div className="transition-transform duration-500 w-full max-w-2xl" style={{transform: `translateX(0)`}}>
+                      <Flashcard card={generatedFlashcards[modalIndex]} />
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center justify-center mt-6 space-x-8">
+                <div className="flex items-center justify-center mt-8 space-x-8">
                   <button
                     onClick={() => setModalIndex(i => Math.max(i - 1, 0))}
-                    className="flex items-center gap-2 px-6 py-3 bg-white rounded-lg shadow-md font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                    className="flex items-center gap-2 px-8 py-4 bg-white rounded-xl shadow-md font-semibold text-blue-700 hover:bg-blue-100 transition-colors text-lg"
                     disabled={modalIndex === 0}
                   >
                     Prev
                   </button>
-                  <span className="text-xl font-bold text-blue-700">
+                  <span className="text-2xl font-bold text-blue-700">
                     {modalIndex + 1} / {generatedFlashcards.length}
                   </span>
                   <button
                     onClick={() => setModalIndex(i => Math.min(i + 1, generatedFlashcards.length))}
-                    className="flex items-center gap-2 px-6 py-3 bg-white rounded-lg shadow-md font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                    className="flex items-center gap-2 px-8 py-4 bg-white rounded-xl shadow-md font-semibold text-blue-700 hover:bg-blue-100 transition-colors text-lg"
                     disabled={modalIndex === generatedFlashcards.length - 1}
                   >
                     Next
                   </button>
                 </div>
+                <button
+                  className="mt-8 px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary-dark text-lg font-bold shadow"
+                  onClick={() => setShowFlashcards(false)}
+                >
+                  Close
+                </button>
               </>
             ) : (
               <div className="flex flex-col items-center justify-center mt-8">
-                <div className="text-2xl font-bold text-primary mb-4">You've reached the end!</div>
-                <div className="mb-4 text-gray-700">Do you want to generate more cards?</div>
+                <div className="text-3xl font-bold text-primary mb-4">You've reached the end!</div>
+                <div className="mb-4 text-gray-700 text-lg">Do you want to generate more cards?</div>
                 <button
-                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-full font-bold shadow hover:scale-105 transition-all"
+                  className="px-8 py-4 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-full font-bold shadow hover:scale-105 transition-all text-lg"
                   onClick={async () => {
                     setPdfStatus({ open: true, message: "Generating new unique flashcards...", error: false });
                     // Regenerate with a new seed (simulate by adding a random string)
@@ -180,20 +187,12 @@ const FlashcardLandingPage = () => {
                   Generate More Cards
                 </button>
                 <button
-                  className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+                  className="mt-4 px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary-dark text-lg font-bold shadow"
                   onClick={() => setShowFlashcards(false)}
                 >
                   Close
                 </button>
               </div>
-            )}
-            {modalIndex < generatedFlashcards.length && (
-              <button
-                className="mt-6 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
-                onClick={() => setShowFlashcards(false)}
-              >
-                Close
-              </button>
             )}
           </div>
         </div>
