@@ -65,8 +65,8 @@ const ModulePage = () => {
                 <img
                   src={imageUrl}
                   alt={module.title}
-                  className="w-full h-full object-cover object-center block"
-                  style={{ aspectRatio: '2/1', display: 'block' }}
+                  className="w-full h-full object-contain object-center block bg-white"
+                  style={{ aspectRatio: '2/1', display: 'block', maxHeight: '200px' }}
                 />
               </div>
               <div className="p-6 flex flex-col flex-grow">
