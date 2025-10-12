@@ -27,12 +27,12 @@ const ModulePage = () => {
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">Modules</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {modules.map((module) => {
-          // Consider test completed only if it has a score (not just existence)
+          // Consider test completed if total_questions > 0 (even if score is 0)
           const isPreTestCompleted = preTests.some(
-            (test) => test.module_id === module._id && typeof test.score === 'number' && test.score >= 0
+            (test) => test.module_id === module._id && typeof test.total_questions === 'number' && test.total_questions > 0
           );
           const isPostTestCompleted = postTests.some(
-            (test) => test.module_id === module._id && typeof test.score === 'number' && test.score >= 0
+            (test) => test.module_id === module._id && typeof test.total_questions === 'number' && test.total_questions > 0
           );
 
           return (
