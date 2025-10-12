@@ -127,10 +127,14 @@ const FlashcardLandingPage = () => {
             <h2 className="text-xl font-bold mb-4">Generated Flashcards</h2>
             {generatedFlashcards.length === 0 ? (
               <div>No flashcards generated.</div>
-            ) : (
+            ) : modalIndex < generatedFlashcards.length ? (
               <>
-                {/* Show one flashcard at a time using Flashcard component */}
-                <Flashcard card={generatedFlashcards[modalIndex]} />
+                {/* Slide animation for card transitions */}
+                <div className="w-full flex justify-center items-center">
+                  <div className="transition-transform duration-500" style={{transform: `translateX(0)`}}>
+                    <Flashcard card={generatedFlashcards[modalIndex]} />
+                  </div>
+                </div>
                 <div className="flex items-center justify-center mt-6 space-x-8">
                   <button
                     onClick={() => setModalIndex(i => Math.max(i - 1, 0))}
@@ -143,7 +147,7 @@ const FlashcardLandingPage = () => {
                     {modalIndex + 1} / {generatedFlashcards.length}
                   </span>
                   <button
-                    onClick={() => setModalIndex(i => Math.min(i + 1, generatedFlashcards.length - 1))}
+                    onClick={() => setModalIndex(i => Math.min(i + 1, generatedFlashcards.length))}
                     className="flex items-center gap-2 px-6 py-3 bg-white rounded-lg shadow-md font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
                     disabled={modalIndex === generatedFlashcards.length - 1}
                   >
@@ -151,13 +155,46 @@ const FlashcardLandingPage = () => {
                   </button>
                 </div>
               </>
+            ) : (
+              <div className="flex flex-col items-center justify-center mt-8">
+                <div className="text-2xl font-bold text-primary mb-4">You've reached the end!</div>
+                <div className="mb-4 text-gray-700">Do you want to generate more cards?</div>
+                <button
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-full font-bold shadow hover:scale-105 transition-all"
+                  onClick={async () => {
+                    setPdfStatus({ open: true, message: "Generating new unique flashcards...", error: false });
+                    // Regenerate with a new seed (simulate by adding a random string)
+                    const lastText = generatedFlashcards.map(fc => fc.question + fc.answer).join("|");
+                    const { generateFlashcards } = useFlashcardStore.getState();
+                    const result = await generateFlashcards(lastText + Math.random().toString(36).slice(2), 5);
+                    if (result.success) {
+                      setGeneratedFlashcards(result.flashcards);
+                      setModalIndex(0);
+                      setShowFlashcards(true);
+                      setPdfStatus({ open: false, message: "", error: false });
+                    } else {
+                      setPdfStatus({ open: true, message: result.message || "Failed to generate flashcards.", error: true });
+                    }
+                  }}
+                >
+                  Generate More Cards
+                </button>
+                <button
+                  className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+                  onClick={() => setShowFlashcards(false)}
+                >
+                  Close
+                </button>
+              </div>
             )}
-            <button
-              className="mt-6 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
-              onClick={() => setShowFlashcards(false)}
-            >
-              Close
-            </button>
+            {modalIndex < generatedFlashcards.length && (
+              <button
+                className="mt-6 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+                onClick={() => setShowFlashcards(false)}
+              >
+                Close
+              </button>
+            )}
           </div>
         </div>
       )}
