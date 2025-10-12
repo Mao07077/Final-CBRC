@@ -125,7 +125,7 @@ const FlashcardLandingPage = () => {
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
           <div className="flex flex-col items-center justify-center w-full h-full">
             {generatedFlashcards.length === 0 ? (
-              <div className="bg-white rounded-2xl shadow-2xl p-8 text-xl font-bold">No flashcards generated.</div>
+              <div className="bg-white rounded-2xl shadow-2xl p-8 text-xl font-bold text-center">No flashcards generated.</div>
             ) : modalIndex < generatedFlashcards.length ? (
               <>
                 {/* Main, large, responsive flashcard container */}
@@ -177,15 +177,18 @@ const FlashcardLandingPage = () => {
                     Next
                   </button>
                 </div>
+                {/* X close icon at top right */}
                 <button
-                  className="mt-8 px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary-dark text-lg font-bold shadow"
+                  className="absolute top-4 right-4 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-white/80 hover:bg-red-100 text-2xl font-bold text-gray-700 shadow transition-all focus:outline-none"
+                  style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }}
                   onClick={() => setShowFlashcards(false)}
+                  aria-label="Close"
                 >
-                  Close
+                  ×
                 </button>
               </>
             ) : (
-              <div className="flex flex-col items-center justify-center mt-8">
+              <div className="flex flex-col items-center justify-center mt-8 text-center">
                 <div className="text-3xl font-bold text-primary mb-4">You've reached the end!</div>
                 <div className="mb-4 text-gray-700 text-lg">Do you want to generate more cards?</div>
                 <button
@@ -207,12 +210,6 @@ const FlashcardLandingPage = () => {
                   }}
                 >
                   Generate More Cards
-                </button>
-                <button
-                  className="mt-4 px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary-dark text-lg font-bold shadow"
-                  onClick={() => setShowFlashcards(false)}
-                >
-                  Close
                 </button>
               </div>
             )}
