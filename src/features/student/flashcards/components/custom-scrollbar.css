@@ -1,25 +1,8 @@
-/* Custom scrollbar for flashcard content */
+/* Hide scrollbar but keep scrollable */
 .custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #a0aec0 #f7fafc;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
 }
 .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 8px;
-  border: 2px solid #f7fafc;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-@media (max-width: 640px) {
-  .custom-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .custom-scrollbar {
-    scrollbar-width: none;
-  }
+  display: none; /* Chrome, Safari, Opera */
 }
