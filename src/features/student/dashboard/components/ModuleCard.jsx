@@ -14,14 +14,17 @@ const ModuleCard = ({ module, isPreTestCompleted, isPostTestCompleted }) => {
     statusText = "Completed";
     buttonText = "Completed";
     isButtonDisabled = true;
+    buttonAction = undefined;
   } else if (isPreTestCompleted) {
     statusText = "In Progress";
     buttonText = "Continue Module";
     buttonAction = () => navigate(`/module/${module._id}`);
+    isButtonDisabled = false;
   } else {
     statusText = "Not Started";
     buttonText = "Take Pre-Test";
     buttonAction = () => navigate(`/pre-test/${module._id}`);
+    isButtonDisabled = false;
   }
 
   const imageUrl = module.image_url
