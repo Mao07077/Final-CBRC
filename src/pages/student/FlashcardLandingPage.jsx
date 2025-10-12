@@ -129,13 +129,13 @@ const FlashcardLandingPage = () => {
             ) : modalIndex < generatedFlashcards.length ? (
               <>
                 {/* Main, large, responsive flashcard container */}
-                <div className="flex flex-col items-center justify-center w-full h-[70vh] max-h-[700px]">
-                  <div className="relative w-full flex justify-center items-center h-full">
+                <div className="flex flex-col items-center justify-center w-full h-[80vh] max-h-[90vh]">
+                  <div className="relative w-full flex justify-center items-center h-full overflow-visible">
                     {/* Previous card peeking */}
                     {modalIndex > 0 && (
                       <div
                         className="absolute left-1/2 -translate-x-[70%] z-0 scale-90 opacity-60 pointer-events-none select-none rotate--8"
-                        style={{ width: '320px', height: '440px' }}
+                        style={{ maxWidth: '320px', maxHeight: '440px', width: '28vw', height: '38vw', minWidth: '180px', minHeight: '250px' }}
                       >
                         <Flashcard card={generatedFlashcards[modalIndex - 1]} peek />
                       </div>
@@ -144,7 +144,7 @@ const FlashcardLandingPage = () => {
                     {modalIndex < generatedFlashcards.length - 1 && (
                       <div
                         className="absolute left-1/2 -translate-x-[30%] z-0 scale-90 opacity-60 pointer-events-none select-none rotate-8"
-                        style={{ width: '320px', height: '440px' }}
+                        style={{ maxWidth: '320px', maxHeight: '440px', width: '28vw', height: '38vw', minWidth: '180px', minHeight: '250px' }}
                       >
                         <Flashcard card={generatedFlashcards[modalIndex + 1]} peek />
                       </div>
@@ -152,7 +152,7 @@ const FlashcardLandingPage = () => {
                     {/* Main card */}
                     <div
                       className="relative z-10 transition-transform duration-500 w-full flex justify-center"
-                      style={{ width: '340px', height: '480px' }}
+                      style={{ maxWidth: '340px', maxHeight: '480px', width: '32vw', height: '44vw', minWidth: '200px', minHeight: '270px' }}
                     >
                       <Flashcard card={generatedFlashcards[modalIndex]} portrait />
                     </div>
