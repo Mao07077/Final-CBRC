@@ -129,10 +129,32 @@ const FlashcardLandingPage = () => {
             ) : modalIndex < generatedFlashcards.length ? (
               <>
                 {/* Main, large, responsive flashcard container */}
-                <div className="flex flex-col items-center justify-center w-full h-[60vh] max-h-[600px]">
-                  <div className="w-full flex justify-center items-center h-full">
-                    <div className="transition-transform duration-500 w-full max-w-2xl" style={{transform: `translateX(0)`}}>
-                      <Flashcard card={generatedFlashcards[modalIndex]} />
+                <div className="flex flex-col items-center justify-center w-full h-[70vh] max-h-[700px]">
+                  <div className="relative w-full flex justify-center items-center h-full">
+                    {/* Previous card peeking */}
+                    {modalIndex > 0 && (
+                      <div
+                        className="absolute left-1/2 -translate-x-[70%] z-0 scale-90 opacity-60 pointer-events-none select-none rotate--8"
+                        style={{ width: '320px', height: '440px' }}
+                      >
+                        <Flashcard card={generatedFlashcards[modalIndex - 1]} peek />
+                      </div>
+                    )}
+                    {/* Next card peeking */}
+                    {modalIndex < generatedFlashcards.length - 1 && (
+                      <div
+                        className="absolute left-1/2 -translate-x-[30%] z-0 scale-90 opacity-60 pointer-events-none select-none rotate-8"
+                        style={{ width: '320px', height: '440px' }}
+                      >
+                        <Flashcard card={generatedFlashcards[modalIndex + 1]} peek />
+                      </div>
+                    )}
+                    {/* Main card */}
+                    <div
+                      className="relative z-10 transition-transform duration-500 w-full flex justify-center"
+                      style={{ width: '340px', height: '480px' }}
+                    >
+                      <Flashcard card={generatedFlashcards[modalIndex]} portrait />
                     </div>
                   </div>
                 </div>

@@ -20,9 +20,12 @@ const getRandomColor = (seed) => {
   return CARD_COLORS[Math.abs(hash) % CARD_COLORS.length];
 };
 
-const Flashcard = ({ card, stacked = false, stackIndex = 0 }) => {
+const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portrait = false }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const cardColor = useMemo(() => getRandomColor(card.question || ""), [card.question]);
+  // For peeking cards, don't allow flipping and reduce brightness
+  const isPeek = peek;
+  const isPortrait = portrait || !peek;
   const stackStyle = stacked
     ? {
         transform: `translateY(${stackIndex * 10}px) scale(${1 - stackIndex * 0.04})`,
@@ -34,13 +37,19 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0 }) => {
     : {};
 
   // Flip card only when the card is clicked (not on hover or button)
-  const handleCardClick = () => setIsFlipped(f => !f);
+  const handleCardClick = () => {
+    if (!isPeek) setIsFlipped(f => !f);
+  };
+
+  // Portrait aspect ratio for main card, slightly smaller for peeking
+  const cardWidth = isPortrait ? '340px' : '320px';
+  const cardHeight = isPortrait ? '480px' : '440px';
 
   return (
     <div className="flex flex-col items-center w-full">
       <div
-        className="relative w-full max-w-2xl h-[60vh] min-h-[340px] perspective-1000 select-none cursor-pointer"
-        style={stackStyle}
+        className={`relative select-none cursor-pointer ${isPeek ? 'pointer-events-none' : ''}`}
+        style={{ width: cardWidth, height: cardHeight, ...stackStyle }}
         onClick={handleCardClick}
       >
         <div
@@ -49,20 +58,20 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0 }) => {
           }`}
         >
           {/* Front */}
-          <div className={`absolute w-full h-full backface-hidden flex flex-col items-center justify-center p-8 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all`}
+          <div className={`absolute w-full h-full backface-hidden flex flex-col items-center justify-center p-8 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all ${isPeek ? 'brightness-90 blur-[1.5px] opacity-70' : ''}`}
             style={{ boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.25)" }}
           >
             <span className="uppercase tracking-widest text-xs text-gray-700/80 mb-2">Question</span>
             <p className="text-2xl text-center text-gray-900 font-bold drop-shadow-lg mb-4 font-mono break-words whitespace-pre-line max-h-[40vh] overflow-y-auto">{card.question}</p>
-            <span className="text-xs text-gray-500 mt-2">(Click card to flip)</span>
+            {!isPeek && <span className="text-xs text-gray-500 mt-2">(Click card to flip)</span>}
           </div>
           {/* Back */}
-          <div className={`absolute w-full h-full backface-hidden rotate-y-180 flex flex-col items-center justify-center p-8 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all`}
+          <div className={`absolute w-full h-full backface-hidden rotate-y-180 flex flex-col items-center justify-center p-8 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all ${isPeek ? 'brightness-90 blur-[1.5px] opacity-70' : ''}`}
             style={{ boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.25)" }}
           >
             <span className="uppercase tracking-widest text-xs text-gray-700/80 mb-2">Answer</span>
             <p className="text-xl text-center text-gray-900 font-bold drop-shadow-lg font-mono break-words whitespace-pre-line max-h-[40vh] overflow-y-auto">{card.answer}</p>
-            <span className="text-xs text-gray-500 mt-2">(Click card to flip)</span>
+            {!isPeek && <span className="text-xs text-gray-500 mt-2">(Click card to flip)</span>}
           </div>
         </div>
       </div>
