@@ -1,5 +1,7 @@
 
+
 import React, { useState, useMemo } from "react";
+import "./custom-scrollbar.css";
 
 // Card color palette
 const CARD_COLORS = [
