@@ -22,10 +22,7 @@ const getRandomColor = (seed) => {
 
 const Flashcard = ({ card, stacked = false, stackIndex = 0 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
-  // Memoize color for this card
   const cardColor = useMemo(() => getRandomColor(card.question || ""), [card.question]);
-
-  // Stacked effect: offset and scale for background cards
   const stackStyle = stacked
     ? {
         transform: `translateY(${stackIndex * 10}px) scale(${1 - stackIndex * 0.04})`,
@@ -36,11 +33,15 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0 }) => {
       }
     : {};
 
+  // Flip card only when the card is clicked (not on hover or button)
+  const handleCardClick = () => setIsFlipped(f => !f);
+
   return (
     <div className="flex flex-col items-center w-full">
       <div
-        className="relative w-full max-w-md h-80 perspective-1000 select-none"
+        className="relative w-full max-w-2xl h-[60vh] min-h-[340px] perspective-1000 select-none cursor-pointer"
         style={stackStyle}
+        onClick={handleCardClick}
       >
         <div
           className={`absolute w-full h-full transition-transform duration-700 transform-style-preserve-3d ${
@@ -48,30 +49,20 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0 }) => {
           }`}
         >
           {/* Front */}
-          <div className={`absolute w-full h-full backface-hidden flex flex-col items-center justify-center p-8 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu hover:scale-105 transition-all`}
+          <div className={`absolute w-full h-full backface-hidden flex flex-col items-center justify-center p-8 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all`}
             style={{ boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.25)" }}
           >
             <span className="uppercase tracking-widest text-xs text-gray-700/80 mb-2">Question</span>
-            <p className="text-2xl text-center text-gray-900 font-bold drop-shadow-lg mb-4 font-mono">{card.question}</p>
-            <button
-              className="mt-4 px-4 py-2 bg-white/80 text-gray-800 font-semibold rounded-full shadow hover:bg-white transition-all"
-              onClick={e => { e.stopPropagation(); setIsFlipped(true); }}
-            >
-              Flip to Answer
-            </button>
+            <p className="text-2xl text-center text-gray-900 font-bold drop-shadow-lg mb-4 font-mono break-words whitespace-pre-line max-h-[40vh] overflow-y-auto">{card.question}</p>
+            <span className="text-xs text-gray-500 mt-2">(Click card to flip)</span>
           </div>
           {/* Back */}
-          <div className={`absolute w-full h-full backface-hidden rotate-y-180 flex flex-col items-center justify-center p-8 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu hover:scale-105 transition-all`}
+          <div className={`absolute w-full h-full backface-hidden rotate-y-180 flex flex-col items-center justify-center p-8 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all`}
             style={{ boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.25)" }}
           >
             <span className="uppercase tracking-widest text-xs text-gray-700/80 mb-2">Answer</span>
-            <p className="text-xl text-center text-gray-900 font-bold drop-shadow-lg font-mono">{card.answer}</p>
-            <button
-              className="mt-4 px-4 py-2 bg-white/80 text-gray-800 font-semibold rounded-full shadow hover:bg-white transition-all"
-              onClick={e => { e.stopPropagation(); setIsFlipped(false); }}
-            >
-              Flip to Question
-            </button>
+            <p className="text-xl text-center text-gray-900 font-bold drop-shadow-lg font-mono break-words whitespace-pre-line max-h-[40vh] overflow-y-auto">{card.answer}</p>
+            <span className="text-xs text-gray-500 mt-2">(Click card to flip)</span>
           </div>
         </div>
       </div>
