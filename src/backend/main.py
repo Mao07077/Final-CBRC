@@ -158,7 +158,10 @@ app.include_router(chat_websocket_router)
 app.include_router(misc_router)
 app.include_router(paraphrase_router)
 app.include_router(study_group_router)
+
 app.include_router(music_router)
+app.include_router(instructor_router)
+app.include_router(admin_router)
 
 # Gemini flashcard generation route
 app.include_router(gemini_flashcard_router)
