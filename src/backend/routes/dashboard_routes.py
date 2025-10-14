@@ -233,7 +233,9 @@ def dashboard(id_number: str):
             "assessmentBreakdown": assessment_results,
             "preTestCount": pre_test_count,
             "postTestCount": post_test_count,
-            "recommendedPages": recommended_pages
+            "recommendedPages": recommended_pages,
+            "preTests": pre_tests,
+            "postTests": post_tests
         }
     
     # Generate recommended pages based on user's study habits
