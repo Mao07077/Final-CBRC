@@ -38,16 +38,16 @@ def dashboard(id_number: str):
     query = {}
     if program and program != "All Programs":
         query["program"] = program
-    modules = list(modules_collection.find(query))
+    modules_in_program = list(modules_collection.find(query))
     scores = list(scores_collection.find({"user_id": id_number}))
-    # Get all unique module_ids from scores
     answered_module_ids = set(str(s["module_id"]) for s in scores)
-    # Add any modules not in the main list but answered by the user
-    all_module_ids = set(str(module["_id"]) for module in modules)
-    missing_module_ids = answered_module_ids - all_module_ids
-    if missing_module_ids:
-        extra_modules = list(modules_collection.find({"_id": {"$in": [ObjectId(mid) for mid in missing_module_ids]}}))
-        modules.extend(extra_modules)
+    # Get all modules the user has answered
+    answered_modules = list(modules_collection.find({"_id": {"$in": [ObjectId(mid) for mid in answered_module_ids]}})) if answered_module_ids else []
+    # Combine and deduplicate modules (by _id)
+    all_modules_dict = {str(module["_id"]): module for module in modules_in_program}
+    for module in answered_modules:
+        all_modules_dict[str(module["_id"])] = module
+    modules = list(all_modules_dict.values())
     modules_list = [{"_id": str(module["_id"]), "title": module["title"], "image_url": module.get("image_url", "")} for module in modules]
     pre_tests = []
     post_tests = []
