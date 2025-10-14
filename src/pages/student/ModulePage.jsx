@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import useDashboardStore from "../../store/student/dashboardStore";
-
+import ModuleCard from "../../features/student/dashboard/components/ModuleCard";
 
 const ModulePage = () => {
   const { modules, preTests, postTests, isLoading, error, fetchDashboardData } =
@@ -27,65 +27,21 @@ const ModulePage = () => {
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">Modules</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {modules.map((module) => {
-          // Find pre-test and post-test objects for this module
-          const preTest = preTests.find((test) => test.module_id === module._id);
-          const postTest = postTests.find((test) => test.module_id === module._id);
-
-          // A test is completed if total_questions > 0 (as per backend logic)
-          const isPreTestCompleted = preTest && typeof preTest.total_questions === 'number' && preTest.total_questions > 0;
-          const isPostTestCompleted = postTest && typeof postTest.total_questions === 'number' && postTest.total_questions > 0;
-
-          let statusText, buttonText, isButtonDisabled, buttonAction;
-          if (isPostTestCompleted) {
-            statusText = "Completed";
-            buttonText = "Completed";
-            isButtonDisabled = true;
-            buttonAction = undefined;
-          } else if (isPreTestCompleted) {
-            statusText = "In Progress";
-            buttonText = "Continue Module";
-            buttonAction = () => window.location.href = `/student/module/${module._id}`;
-            isButtonDisabled = false;
-          } else {
-            statusText = "Not Started";
-            buttonText = "Take Pre-Test";
-            buttonAction = () => window.location.href = `/student/pre-test/${module._id}`;
-            isButtonDisabled = false;
-          }
-
-          const imageUrl = module.image_url || "https://via.placeholder.com/400x200?text=Module";
+          // Consider test completed if total_questions > 0 (even if score is 0)
+          const isPreTestCompleted = preTests.some(
+            (test) => test.module_id === module._id && typeof test.total_questions === 'number' && test.total_questions > 0
+          );
+          const isPostTestCompleted = postTests.some(
+            (test) => test.module_id === module._id && typeof test.total_questions === 'number' && test.total_questions > 0
+          );
 
           return (
-            <div
+            <ModuleCard
               key={module._id}
-              className={`bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col transition-transform hover:scale-105 ${isPostTestCompleted ? "opacity-60" : ""}`}
-            >
-              <div className="w-full aspect-[2/1] bg-gray-100 overflow-hidden rounded-t-2xl">
-                <img
-                  src={imageUrl}
-                  alt={module.title}
-                  className="w-full h-full object-contain object-center block bg-white"
-                  style={{ aspectRatio: '2/1', display: 'block', maxHeight: '200px' }}
-                />
-              </div>
-              <div className="p-6 flex flex-col flex-grow">
-                <h3 className="text-xl font-bold text-primary-dark mb-2">
-                  {module.title}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Status: <span className="font-semibold">{statusText}</span>
-                </p>
-                <div className="mt-auto">
-                  <button
-                    onClick={buttonAction}
-                    disabled={isButtonDisabled}
-                    className="w-full py-2 px-4 bg-primary text-white font-semibold rounded-lg shadow-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary-light disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {buttonText}
-                  </button>
-                </div>
-              </div>
-            </div>
+              module={module}
+              isPreTestCompleted={isPreTestCompleted}
+              isPostTestCompleted={isPostTestCompleted}
+            />
           );
         })}
       </div>

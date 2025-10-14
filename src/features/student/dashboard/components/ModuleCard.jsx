@@ -37,12 +37,11 @@ const ModuleCard = ({ module, isPreTestCompleted, isPostTestCompleted }) => {
         isPostTestCompleted ? "opacity-60" : ""
       }`}
     >
-      <div className="w-full aspect-[2/1] bg-gray-100 overflow-hidden rounded-t-2xl">
+      <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
         <img
           src={imageUrl}
           alt={module.title}
-          className="w-full h-full object-cover object-center block"
-          style={{ aspectRatio: '2/1', display: 'block' }}
+          className="w-full h-full object-contain"
         />
       </div>
       <div className="p-6 flex flex-col flex-grow">
