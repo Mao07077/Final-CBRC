@@ -23,8 +23,17 @@ const ModulePage = () => {
   }
 
   // Debug: log preTests and postTests for troubleshooting
-  console.log('preTests:', preTests);
-  console.log('postTests:', postTests);
+  console.debug('[DEBUG] preTests:', preTests);
+  console.debug('[DEBUG] postTests:', postTests);
+  // Debug: log status for each module
+  modules.forEach((module) => {
+    const pre = preTests.find((t) => t.module_id === module._id);
+    const post = postTests.find((t) => t.module_id === module._id);
+    let status = 'Not Started';
+    if (pre && pre.total_questions > 0) status = 'In Progress';
+    if (post && post.total_questions > 0) status = 'Completed';
+    console.debug(`[DEBUG] Module: ${module.title} (${module._id}) - Status: ${status}`);
+  });
 
   return (
     <div>
