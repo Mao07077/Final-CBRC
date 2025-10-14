@@ -53,12 +53,16 @@ def dashboard(id_number: str):
     correct_answers = 0
     flashcard_time = user.get("flashcard_time", 0)
 
+    print("[DEBUG] All scores for user:", scores)
     for module in modules:
         module_id = str(module["_id"])
         module_title = module["title"]
+        print(f"[DEBUG] Checking module: {module_title} (module_id={module_id})")
         # Pre-test
-        pre_score = next((s for s in scores if s["module_id"] == module_id and s.get("test_type") == "pretest"), None)
-        post_score = next((s for s in scores if s["module_id"] == module_id and s.get("test_type") == "posttest"), None)
+        pre_score = next((s for s in scores if str(s["module_id"]) == module_id and s.get("test_type") == "pretest"), None)
+        post_score = next((s for s in scores if str(s["module_id"]) == module_id and s.get("test_type") == "posttest"), None)
+        print(f"[DEBUG]  pre_score: {pre_score}")
+        print(f"[DEBUG]  post_score: {post_score}")
         # Pre-test metrics
         if pre_score:
             time_spent = min(pre_score.get("time_spent", 0), 600)
