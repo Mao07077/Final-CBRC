@@ -22,6 +22,10 @@ const ModulePage = () => {
     return <div className="text-center p-4 text-red-500">Error: {error}</div>;
   }
 
+  // Debug: log preTests and postTests for troubleshooting
+  console.log('preTests:', preTests);
+  console.log('postTests:', postTests);
+
   return (
     <div>
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">Modules</h1>
