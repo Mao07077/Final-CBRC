@@ -54,6 +54,8 @@ def dashboard(id_number: str):
     flashcard_time = user.get("flashcard_time", 0)
 
     print("[DEBUG] All scores for user:", scores)
+    print("[DEBUG] All module IDs:", [str(module["_id"]) for module in modules])
+    print("[DEBUG] All score module_ids:", [str(s["module_id"]) for s in scores])
     for module in modules:
         module_id = str(module["_id"])
         module_title = module["title"]
