@@ -39,8 +39,16 @@ def dashboard(id_number: str):
     if program and program != "All Programs":
         query["program"] = program
     modules = list(modules_collection.find(query))
-    modules_list = [{"_id": str(module["_id"]), "title": module["title"], "image_url": module.get("image_url", "")} for module in modules]
     scores = list(scores_collection.find({"user_id": id_number}))
+    # Get all unique module_ids from scores
+    answered_module_ids = set(str(s["module_id"]) for s in scores)
+    # Add any modules not in the main list but answered by the user
+    all_module_ids = set(str(module["_id"]) for module in modules)
+    missing_module_ids = answered_module_ids - all_module_ids
+    if missing_module_ids:
+        extra_modules = list(modules_collection.find({"_id": {"$in": [ObjectId(mid) for mid in missing_module_ids]}}))
+        modules.extend(extra_modules)
+    modules_list = [{"_id": str(module["_id"]), "title": module["title"], "image_url": module.get("image_url", "")} for module in modules]
     pre_tests = []
     post_tests = []
     module_completion = set()
@@ -54,8 +62,6 @@ def dashboard(id_number: str):
     flashcard_time = user.get("flashcard_time", 0)
 
     print("[DEBUG] All scores for user:", scores)
-    print("[DEBUG] All module IDs:", [str(module["_id"]) for module in modules])
-    print("[DEBUG] All score module_ids:", [str(s["module_id"]) for s in scores])
     for module in modules:
         module_id = str(module["_id"])
         module_title = module["title"]

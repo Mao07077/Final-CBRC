@@ -3,14 +3,6 @@ import useDashboardStore from "../../store/student/dashboardStore";
 import ModuleCard from "../../features/student/dashboard/components/ModuleCard";
 
 const ModulePage = () => {
-  // Debug: log all module IDs and all score module_ids for easier troubleshooting
-  const allModuleIds = modules.map((m) => m._id);
-  window.allModuleIdsDebug = allModuleIds;
-  console.log('All module IDs:', allModuleIds);
-  // If preTests is available, extract all score module_ids
-  const allScoreModuleIds = preTests.map((t) => t.module_id);
-  window.allScoreModuleIdsDebug = allScoreModuleIds;
-  console.log('All score module_ids (from preTests):', allScoreModuleIds);
   const { modules, preTests, postTests, isLoading, error, fetchDashboardData } =
     useDashboardStore();
 
