@@ -40,15 +40,26 @@ def dashboard(id_number: str):
         query["program"] = program
     modules_in_program = list(modules_collection.find(query))
     scores = list(scores_collection.find({"user_id": id_number}))
+    # Collect all module_ids from scores (pretest or posttest)
     answered_module_ids = set(str(s["module_id"]) for s in scores)
-    # Get all modules the user has answered
+    # Get all modules the user has answered (even if not in program)
     answered_modules = list(modules_collection.find({"_id": {"$in": [ObjectId(mid) for mid in answered_module_ids]}})) if answered_module_ids else []
     # Combine and deduplicate modules (by _id)
     all_modules_dict = {str(module["_id"]): module for module in modules_in_program}
     for module in answered_modules:
         all_modules_dict[str(module["_id"])] = module
+    # Also, for any module_id in scores that is not found in modules_collection, create a placeholder
+    for mid in answered_module_ids:
+        if mid not in all_modules_dict:
+            # Try to get from modules_collection, if not found, create minimal placeholder
+            module = modules_collection.find_one({"_id": ObjectId(mid)})
+            if module:
+                all_modules_dict[mid] = module
+            else:
+                # Placeholder if module is missing from collection
+                all_modules_dict[mid] = {"_id": mid, "title": f"Module {mid}", "image_url": ""}
     modules = list(all_modules_dict.values())
-    modules_list = [{"_id": str(module["_id"]), "title": module["title"], "image_url": module.get("image_url", "")} for module in modules]
+    modules_list = [{"_id": str(module["_id"]), "title": module.get("title", f"Module {module['_id']}"), "image_url": module.get("image_url", "")} for module in modules]
     print("[DEBUG] All module _id values:", [str(module["_id"]) for module in modules])
     print("[DEBUG] All score module_id values:", [str(s["module_id"]) for s in scores])
     pre_tests = []
