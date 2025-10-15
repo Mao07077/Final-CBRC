@@ -47,26 +47,11 @@ const StatisticsOverview = () => {
   // Assign color to each subject
   const pieData = subjectPerformance.map((entry, idx) => ({ ...entry, color: PIE_COLORS[idx % PIE_COLORS.length] }));
 
-  // Custom label renderer to avoid cropping/overlap
-  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, subject, score }) => {
-    const RADIAN = Math.PI / 180;
-    const radius = outerRadius + 20;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="#333"
-        textAnchor={x > cx ? 'start' : 'end'}
-        dominantBaseline="central"
-        fontSize={13}
-        fontWeight="bold"
-        style={{ pointerEvents: 'none', background: 'white' }}
-      >
-        {`${subject}: ${score}%`}
-      </text>
-    );
+  // Custom label for inside the pie, truncates long subject names
+  const renderPieLabel = ({ subject, score }) => {
+    const maxLen = 12;
+    const label = subject.length > maxLen ? subject.slice(0, maxLen) + '…' : subject;
+    return `${label}: ${score}%`;
   };
 
   const StatCard = ({ icon: Icon, title, value, subtitle, color = "blue" }) => (
@@ -191,7 +176,8 @@ const StatisticsOverview = () => {
                 cy="50%"
                 outerRadius={80}
                 dataKey="score"
-                label={renderCustomLabel}
+                label={renderPieLabel}
+                labelLine={false}
                 isAnimationActive={false}
               >
                 {pieData.map((entry, index) => (
@@ -199,15 +185,7 @@ const StatisticsOverview = () => {
                 ))}
               </Pie>
               <Tooltip formatter={(value, name, props) => [`${value}%`, 'Score']} />
-              {/* Legend for color mapping */}
-              <g>
-                {pieData.map((entry, idx) => (
-                  <g key={`legend-${idx}`}>
-                    <rect x={10} y={210 + idx * 20} width={14} height={14} fill={entry.color} rx={3} />
-                    <text x={30} y={220 + idx * 20} fontSize={13} fill="#333">{entry.subject}</text>
-                  </g>
-                ))}
-              </g>
+              <Legend layout="vertical" align="right" verticalAlign="middle" iconType="circle" />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -260,7 +238,11 @@ const StatisticsOverview = () => {
                 borderRadius: "8px",
               }}
             />
-            <Bar dataKey="score" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="score" radius={[4, 4, 0, 0]}>
+              {assessmentResults.map((entry, idx) => (
+                <Cell key={`bar-cell-${idx}`} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
         <div className="flex justify-between mt-4">
