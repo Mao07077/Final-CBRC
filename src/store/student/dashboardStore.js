@@ -37,10 +37,6 @@ const useDashboardStore = create((set) => ({
       // Fetch all dashboard data from backend
       const data = await dashboardService.getDashboardData(userData.id_number);
 
-      // Debug: expose module IDs and score module_ids to window for inspection
-      window.dashboardModuleIds = (data.modules || []).map(m => m._id);
-      window.dashboardPreTestIds = (data.preTests || []).map(t => t.module_id);
-      window.dashboardPostTestIds = (data.postTests || []).map(t => t.module_id);
       set({
         recommendedPages: data.recommendedPages || [],
         modules: data.modules || [],

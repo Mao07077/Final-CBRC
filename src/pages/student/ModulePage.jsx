@@ -28,6 +28,14 @@ const ModulePage = () => {
   console.log('postTests:', postTests);
   window.postTestsDebug = postTests;
 
+  // Debug: log all module _id values and all score module_id values
+  const moduleIds = modules.map(m => m._id);
+  const scoreModuleIds = preTests.map(t => t.module_id).concat(postTests.map(t => t.module_id));
+  console.log('All module _id values:', moduleIds);
+  console.log('All score module_id values:', scoreModuleIds);
+  window.moduleIdsDebug = moduleIds;
+  window.scoreModuleIdsDebug = scoreModuleIds;
+
   return (
     <div>
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">Modules</h1>
