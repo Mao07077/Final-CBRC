@@ -62,7 +62,7 @@ const SignupForm = () => {
   return (
     <div className="w-full">
       <div className="flex justify-center mb-6">
-        <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-16 w-16" />
+        <img src="/cbrc_logo.png" alt="CBRC Logo" className="h-12 w-12 md:h-16 md:w-16 lg:h-20 lg:w-20 mx-auto" />
       </div>
       <h2 className="text-2xl font-bold text-center text-primary-dark mb-6">
         Create Your Account
