@@ -39,6 +39,36 @@ const StatisticsOverview = () => {
     postTestCount,
   } = useDashboardStore();
 
+  // Color palette for pie chart
+  const PIE_COLORS = [
+    '#8884d8', '#82ca9d', '#ffc658', '#ff7f50', '#8dd1e1', '#a4de6c', '#d0ed57', '#ffbb28', '#ff8042', '#b39ddb', '#f06292', '#4dd0e1', '#ffd54f', '#aed581', '#ba68c8', '#e57373', '#64b5f6', '#81c784', '#fff176', '#ffb74d'
+  ];
+
+  // Assign color to each subject
+  const pieData = subjectPerformance.map((entry, idx) => ({ ...entry, color: PIE_COLORS[idx % PIE_COLORS.length] }));
+
+  // Custom label renderer to avoid cropping/overlap
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, subject, score }) => {
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius + 20;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#333"
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        fontSize={13}
+        fontWeight="bold"
+        style={{ pointerEvents: 'none', background: 'white' }}
+      >
+        {`${subject}: ${score}%`}
+      </text>
+    );
+  };
+
   const StatCard = ({ icon: Icon, title, value, subtitle, color = "blue" }) => (
     <div className="bg-white p-6 rounded-2xl shadow-md hover:shadow-lg transition-shadow">
       <div className="flex items-center justify-between mb-4">
@@ -156,19 +186,28 @@ const StatisticsOverview = () => {
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie
-                data={subjectPerformance}
+                data={pieData}
                 cx="50%"
                 cy="50%"
                 outerRadius={80}
-                fill="#8884d8"
                 dataKey="score"
-                label={({ subject, score }) => `${subject}: ${score}%`}
+                label={renderCustomLabel}
+                isAnimationActive={false}
               >
-                {subjectPerformance.map((entry, index) => (
+                {pieData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip formatter={(value, name, props) => [`${value}%`, 'Score']} />
+              {/* Legend for color mapping */}
+              <g>
+                {pieData.map((entry, idx) => (
+                  <g key={`legend-${idx}`}>
+                    <rect x={10} y={210 + idx * 20} width={14} height={14} fill={entry.color} rx={3} />
+                    <text x={30} y={220 + idx * 20} fontSize={13} fill="#333">{entry.subject}</text>
+                  </g>
+                ))}
+              </g>
             </PieChart>
           </ResponsiveContainer>
         </div>
