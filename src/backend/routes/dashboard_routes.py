@@ -35,6 +35,16 @@ def dashboard(id_number: str):
     user = users_collection.find_one({"id_number": str(id_number)})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    import datetime
+    today = datetime.date.today().isoformat()
+    # Ensure login_history exists and is a list
+    login_history = user.get("login_history", [])
+    if not isinstance(login_history, list):
+        login_history = []
+    # If today is not in login_history, add it and update user doc
+    if today not in login_history:
+        login_history.append(today)
+        users_collection.update_one({"_id": user["_id"]}, {"$set": {"login_history": login_history}})
     program = user.get("program", "All Programs")
     query = {}
     if program and program != "All Programs":
@@ -68,7 +78,20 @@ def dashboard(id_number: str):
     module_completion = set()
     study_hour = 0
     assessment_results = []
-    streak_days = set()
+    # Calculate learning streak: consecutive days up to today in login_history
+    login_history_sorted = sorted(set(login_history), reverse=True)
+    streak = 0
+    current = datetime.date.today()
+    for day_str in login_history_sorted:
+        try:
+            day = datetime.date.fromisoformat(day_str)
+        except Exception:
+            continue
+        if day == current:
+            streak += 1
+            current -= datetime.timedelta(days=1)
+        else:
+            break
     daily_progress = {}
     subject_scores = {}
     total_questions = 0
@@ -98,8 +121,6 @@ def dashboard(id_number: str):
                 daily_progress[day]["hours"] += time_spent / 60
                 daily_progress[day]["score"] += (pre_score.get("correct", 0) / max(pre_score.get("total_questions", 1), 1)) * 100
                 daily_progress[day]["count"] += 1
-                if daily_progress[day]["hours"] >= 1:
-                    streak_days.add(day)
             pre_test = pre_test_collection.find_one({"module_id": module_id})
             pre_test_title = pre_test["title"] if pre_test else f"Pre-Test for {module_title}"
             pre_tests.append({
@@ -138,8 +159,6 @@ def dashboard(id_number: str):
                 daily_progress[day]["hours"] += time_spent / 60
                 daily_progress[day]["score"] += (post_score.get("correct", 0) / max(post_score.get("total_questions", 1), 1)) * 100
                 daily_progress[day]["count"] += 1
-                if daily_progress[day]["hours"] >= 1:
-                    streak_days.add(day)
             post_test = post_test_collection.find_one({"module_id": module_id})
             post_test_title = post_test["title"] if post_test else f"Post-Test for {module_title}"
             post_tests.append({
@@ -183,10 +202,10 @@ def dashboard(id_number: str):
     total_modules = len(modules)
 
     # Weekly progress (last 7 days)
-    today = datetime.date.today()
+    today_dt = datetime.date.today()
     weekly_progress = []
     for i in range(6, -1, -1):
-        day = (today - datetime.timedelta(days=i)).isoformat()
+        day = (today_dt - datetime.timedelta(days=i)).isoformat()
         data = daily_progress.get(day, {"hours": 0, "score": 0, "count": 0})
         avg_score = (data["score"] / data["count"]) if data["count"] > 0 else 0
         weekly_progress.append({"day": day, "hours": round(data["hours"], 2), "score": round(avg_score, 2)})
@@ -245,7 +264,7 @@ def dashboard(id_number: str):
         "completedModules": completed_modules,
         "totalModules": total_modules,
         "studyHours": round(study_hour, 2),
-        "learningStreak": len(streak_days),
+        "learningStreak": streak,
         "weeklyProgress": weekly_progress,
         "subjectPerformance": subject_performance,
         "strengths": strengths,
@@ -263,7 +282,8 @@ def dashboard(id_number: str):
         "postTestCount": post_test_count,
         "recommendedPages": recommended_pages,
         "preTests": pre_tests,
-        "postTests": post_tests
+        "postTests": post_tests,
+        "loginHistory": login_history
     }
 
 @router.get("/api/instructor/dashboard/{instructor_id}")

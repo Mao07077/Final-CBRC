@@ -44,8 +44,9 @@ const Navbar = () => {
     <nav className="bg-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-6 py-3">
         <div className="flex justify-between items-center">
-          <RouterLink to="/" className="flex items-center">
-            <img src="/cbrc_logo.png" alt="CBRC Logo" className="h-12 w-12 md:h-16 md:w-16 lg:h-20 lg:w-20 transition-all duration-200" />
+          <RouterLink to="/" className="flex items-center space-x-2">
+            <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-10" />
+            <span className="text-xl font-bold text-primary-dark">CBRCS</span>
           </RouterLink>
 
           {!isAuthenticated && (
