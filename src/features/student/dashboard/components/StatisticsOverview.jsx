@@ -123,69 +123,48 @@ const StatisticsOverview = () => {
         </div>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Weekly Progress Chart */}
-        <div className="bg-white p-6 rounded-2xl shadow-md">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
-            Weekly Progress
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={weeklyProgress}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="day" stroke="#666" />
-              <YAxis stroke="#666" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "white",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "8px",
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="hours"
-                stroke="#3B82F6"
-                strokeWidth={3}
-                dot={{ fill: "#3B82F6", strokeWidth: 2, r: 4 }}
-                name="Study Hours"
-              />
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke="#10B981"
-                strokeWidth={3}
-                dot={{ fill: "#10B981", strokeWidth: 2, r: 4 }}
-                name="Average Score"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Subject Performance Horizontal Bar Chart */}
-        <div className="bg-white p-6 rounded-2xl shadow-md">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <Target className="w-5 h-5 mr-2 text-purple-600" />
-            Subject Performance
-          </h3>
-          <ResponsiveContainer width="100%" height={40 + pieData.length * 40}>
-            <BarChart
-              data={pieData}
-              layout="vertical"
-              margin={{ top: 20, right: 30, left: 40, bottom: 20 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis type="number" domain={[0, 100]} stroke="#666" tickFormatter={(v) => `${v}%`} />
-              <YAxis type="category" dataKey="subject" stroke="#666" width={120} />
-              <Tooltip formatter={(value) => [`${value}%`, 'Score']} />
-              <Bar dataKey="score" radius={[0, 8, 8, 0]}>
-                {pieData.map((entry, idx) => (
-                  <Cell key={`bar-cell-h-${idx}`} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+      {/* Weekly Progress Chart - now full width and more detailed */}
+      <div className="bg-white p-6 rounded-2xl shadow-md">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+          <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
+          Weekly Progress
+        </h3>
+        <ResponsiveContainer width="100%" height={320}>
+          <LineChart data={weeklyProgress} margin={{ top: 20, right: 40, left: 0, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="day" stroke="#666" tick={{ fontSize: 13 }} />
+            <YAxis stroke="#666" tick={{ fontSize: 13 }} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "white",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+              }}
+              formatter={(value, name) => name === 'hours' ? [`${value} hrs`, 'Study Hours'] : [`${value}%`, 'Average Score']}
+            />
+            <Legend verticalAlign="top" height={36} iconType="circle" />
+            <Line
+              type="monotone"
+              dataKey="hours"
+              stroke="#3B82F6"
+              strokeWidth={3}
+              dot={{ fill: "#3B82F6", strokeWidth: 2, r: 4 }}
+              name="Study Hours"
+              label={{ position: 'top', fill: '#3B82F6', fontSize: 12, formatter: v => `${v}h` }}
+            />
+            <Line
+              type="monotone"
+              dataKey="score"
+              stroke="#10B981"
+              strokeWidth={3}
+              dot={{ fill: "#10B981", strokeWidth: 2, r: 4 }}
+              name="Average Score"
+              label={{ position: 'top', fill: '#10B981', fontSize: 12, formatter: v => `${v}%` }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+        <div className="flex justify-end mt-2 text-sm text-gray-500">
+          <span>Shows the last 7 days of your study hours and average score.</span>
         </div>
       </div>
 
