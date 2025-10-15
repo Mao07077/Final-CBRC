@@ -31,7 +31,9 @@ async def get_instructor_modules(request: Request):
 
 @router.get("/api/dashboard/{id_number}")
 def dashboard(id_number: str):
-    print("[DEBUG] Final modules in dashboard:", [str(module["_id"]) for module in modules])
+    # Print debug info after modules is defined
+    if 'modules' in locals():
+        print("[DEBUG] Final modules in dashboard:", [str(module["_id"]) for module in modules])
     print("[DEBUG] module_ids in user's scores:", [str(s["module_id"]) for s in scores])
     user = users_collection.find_one({"id_number": str(id_number)})
     if not user:
