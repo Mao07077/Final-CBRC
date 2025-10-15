@@ -31,6 +31,7 @@ async def get_instructor_modules(request: Request):
 
 @router.get("/api/dashboard/{id_number}")
 def dashboard(id_number: str):
+    import datetime  # Move any other imports up if needed
     user = users_collection.find_one({"id_number": str(id_number)})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -174,99 +175,47 @@ def dashboard(id_number: str):
             subject_scores[module_title]["score"] += post_score.get("correct", 0)
             subject_scores[module_title]["count"] += post_score.get("total_questions", 0)
 
-        # Add flashcard time to study hour
-        study_hour += flashcard_time / 60
+    # Add flashcard time to study hour (once, after loop)
+    study_hour += flashcard_time / 60
 
-        # Module completion: only modules with post-test done
-        completed_modules = len(module_completion)
-        total_modules = len(modules)
+    # Module completion: only modules with post-test done
+    completed_modules = len(module_completion)
+    total_modules = len(modules)
 
-        # Weekly progress (last 7 days)
-        import datetime
-        today = datetime.date.today()
-        weekly_progress = []
-        for i in range(6, -1, -1):
-            day = (today - datetime.timedelta(days=i)).isoformat()
-            data = daily_progress.get(day, {"hours": 0, "score": 0, "count": 0})
-            avg_score = (data["score"] / data["count"]) if data["count"] > 0 else 0
-            weekly_progress.append({"day": day, "hours": round(data["hours"], 2), "score": round(avg_score, 2)})
+    # Weekly progress (last 7 days)
+    today = datetime.date.today()
+    weekly_progress = []
+    for i in range(6, -1, -1):
+        day = (today - datetime.timedelta(days=i)).isoformat()
+        data = daily_progress.get(day, {"hours": 0, "score": 0, "count": 0})
+        avg_score = (data["score"] / data["count"]) if data["count"] > 0 else 0
+        weekly_progress.append({"day": day, "hours": round(data["hours"], 2), "score": round(avg_score, 2)})
 
-        # Subject performance pie chart
-        subject_performance = []
-        strengths = []
-        weaknesses = []
-        for module_title, stats in subject_scores.items():
-            percent = (stats["score"] / max(stats["count"], 1)) * 100
-            subject_performance.append({"subject": module_title, "score": round(percent, 2)})
-        # Strengths/weaknesses
-        passed = [sp for sp in subject_performance if sp["score"] >= 50]
-        failed = [sp for sp in subject_performance if sp["score"] < 50]
-        if passed:
-            strengths = [max(passed, key=lambda x: x["score"])]
-        if failed:
-            weaknesses = [min(failed, key=lambda x: x["score"])]
+    # Subject performance pie chart
+    subject_performance = []
+    strengths = []
+    weaknesses = []
+    for module_title, stats in subject_scores.items():
+        percent = (stats["score"] / max(stats["count"], 1)) * 100
+        subject_performance.append({"subject": module_title, "score": round(percent, 2)})
+    # Strengths/weaknesses
+    passed = [sp for sp in subject_performance if sp["score"] >= 50]
+    failed = [sp for sp in subject_performance if sp["score"] < 50]
+    if passed:
+        strengths = [max(passed, key=lambda x: x["score"])]
+    if failed:
+        weaknesses = [min(failed, key=lambda x: x["score"])]
 
-        # Detailed metrics
-        accuracy = (correct_answers / max(total_questions, 1)) * 100
+    # Detailed metrics
+    accuracy = (correct_answers / max(total_questions, 1)) * 100
 
-        # Assessment breakdown
-        pre_test_count = len(pre_tests)
-        post_test_count = len(post_tests)
+    # Assessment breakdown
+    pre_test_count = len(pre_tests)
+    post_test_count = len(post_tests)
 
-        # Generate recommended pages based on user's study habits
-        recommended_pages = []
-        if user.get("top3Habits"):
-            habit_to_page = {
-                "Study with Friends": "learn-together",
-                "Asking for Help": "messages",
-                "Test Yourself Periodically": "modules",
-                "Creating a Study Schedule": "scheduler",
-                "Setting Study Goals": "notes",
-                "Organizing Notes": "notes",
-                "Teach What You've Learned": "learn-together",
-                "Use of Flashcards": "flashcards",
-                "Using Aromatherapy, Plants, or Music": "music"
-            }
-            for habit in user.get("top3Habits", []):
-                page = habit_to_page.get(habit)
-                if page and page not in recommended_pages:
-                    recommended_pages.append(page)
-            default_pages = ["modules", "scheduler", "flashcards", "learn-together", "notes", "music"]
-            for page in default_pages:
-                if len(recommended_pages) >= 3:
-                    break
-                if page not in recommended_pages:
-                    recommended_pages.append(page)
-        else:
-            recommended_pages = ["notes", "scheduler", "flashcards"]
-
-        return {
-            "modules": modules_list,
-            "completedModules": completed_modules,
-            "totalModules": total_modules,
-            "studyHours": round(study_hour, 2),
-            "learningStreak": len(streak_days),
-            "weeklyProgress": weekly_progress,
-            "subjectPerformance": subject_performance,
-            "strengths": strengths,
-            "weaknesses": weaknesses,
-            "detailedMetrics": {
-                "totalQuestions": total_questions,
-                "correctAnswers": correct_answers,
-                "accuracy": round(accuracy, 2)
-            },
-            "assessmentBreakdown": assessment_results,
-            "preTestCount": pre_test_count,
-            "postTestCount": post_test_count,
-            "recommendedPages": recommended_pages,
-            "preTests": pre_tests,
-            "postTests": post_tests
-        }
-    
     # Generate recommended pages based on user's study habits
     recommended_pages = []
     if user.get("top3Habits"):
-        # Map survey habits to page recommendations
         habit_to_page = {
             "Study with Friends": "learn-together",
             "Asking for Help": "messages",
@@ -278,14 +227,10 @@ def dashboard(id_number: str):
             "Use of Flashcards": "flashcards",
             "Using Aromatherapy, Plants, or Music": "music"
         }
-        
-        # First, add pages based on user's top habits
         for habit in user.get("top3Habits", []):
             page = habit_to_page.get(habit)
             if page and page not in recommended_pages:
                 recommended_pages.append(page)
-        
-        # If we don't have 3 recommendations, fill with defaults
         default_pages = ["modules", "scheduler", "flashcards", "learn-together", "notes", "music"]
         for page in default_pages:
             if len(recommended_pages) >= 3:
@@ -293,14 +238,32 @@ def dashboard(id_number: str):
             if page not in recommended_pages:
                 recommended_pages.append(page)
     else:
-        # Default recommendations if no survey completed
         recommended_pages = ["notes", "scheduler", "flashcards"]
-    
+
     return {
         "modules": modules_list,
+        "completedModules": completed_modules,
+        "totalModules": total_modules,
+        "studyHours": round(study_hour, 2),
+        "learningStreak": len(streak_days),
+        "weeklyProgress": weekly_progress,
+        "subjectPerformance": subject_performance,
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "totalQuestions": total_questions,
+        "correctAnswers": correct_answers,
+        "accuracy": round(accuracy, 2),
+        "detailedMetrics": {
+            "totalQuestions": total_questions,
+            "correctAnswers": correct_answers,
+            "accuracy": round(accuracy, 2)
+        },
+        "assessmentBreakdown": assessment_results,
+        "preTestCount": pre_test_count,
+        "postTestCount": post_test_count,
+        "recommendedPages": recommended_pages,
         "preTests": pre_tests,
-        "postTests": post_tests,
-        "recommendedPages": recommended_pages
+        "postTests": post_tests
     }
 
 @router.get("/api/instructor/dashboard/{instructor_id}")
