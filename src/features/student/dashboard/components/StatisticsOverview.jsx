@@ -163,31 +163,28 @@ const StatisticsOverview = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Subject Performance Pie Chart */}
+        {/* Subject Performance Horizontal Bar Chart */}
         <div className="bg-white p-6 rounded-2xl shadow-md">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
             <Target className="w-5 h-5 mr-2 text-purple-600" />
             Subject Performance
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                dataKey="score"
-                label={renderPieLabel}
-                labelLine={false}
-                isAnimationActive={false}
-              >
-                {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+          <ResponsiveContainer width="100%" height={40 + pieData.length * 40}>
+            <BarChart
+              data={pieData}
+              layout="vertical"
+              margin={{ top: 20, right: 30, left: 40, bottom: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis type="number" domain={[0, 100]} stroke="#666" tickFormatter={(v) => `${v}%`} />
+              <YAxis type="category" dataKey="subject" stroke="#666" width={120} />
+              <Tooltip formatter={(value) => [`${value}%`, 'Score']} />
+              <Bar dataKey="score" radius={[0, 8, 8, 0]}>
+                {pieData.map((entry, idx) => (
+                  <Cell key={`bar-cell-h-${idx}`} fill={entry.color} />
                 ))}
-              </Pie>
-              <Tooltip formatter={(value, name, props) => [`${value}%`, 'Score']} />
-              <Legend layout="vertical" align="right" verticalAlign="middle" iconType="circle" />
-            </PieChart>
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
