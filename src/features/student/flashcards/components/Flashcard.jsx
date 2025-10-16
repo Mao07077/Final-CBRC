@@ -1,7 +1,32 @@
 
 
 import React, { useState, useMemo, useEffect } from "react";
-import { generateFlashcardImage } from "../../../../utils/flashcardImageGen";
+import apiClient from "../../../../api/axiosClient";
+// Helper to fetch image from backend Bytez API
+const useFlashcardImage = (topic) => {
+  const [imageUrl, setImageUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!topic) return;
+    setImageUrl(null);
+    setError(null);
+    setLoading(true);
+    apiClient.post("/api/flashcard/generate-image", { topic })
+      .then(res => {
+        setImageUrl(res.data.image_url);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError("Image generation failed");
+        setLoading(false);
+      });
+    // Only run when topic changes
+  }, [topic]);
+
+  return { imageUrl, loading, error };
+};
 import "./custom-scrollbar.css";
 
 // Card color palette
@@ -23,8 +48,9 @@ const getRandomColor = (seed) => {
   return CARD_COLORS[Math.abs(hash) % CARD_COLORS.length];
 };
 
-
 const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portrait = false }) => {
+  // Generate image for the card's question/topic
+  const { imageUrl, loading: imageLoading, error: imageError } = useFlashcardImage(card.question);
   const [isFlipped, setIsFlipped] = useState(false);
   const cardColor = useMemo(() => getRandomColor(card.question || ""), [card.question]);
   // For peeking cards, don't allow flipping and reduce brightness
@@ -39,25 +65,6 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portra
         pointerEvents: stackIndex > 0 ? "none" : "auto",
       }
     : {};
-
-  // State for AI-generated image
-  const [imageUrl, setImageUrl] = useState(null);
-  const [loadingImage, setLoadingImage] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    setImageUrl(null);
-    if (card && card.question) {
-      setLoadingImage(true);
-      generateFlashcardImage(card.question).then(url => {
-        if (isMounted) {
-          setImageUrl(url);
-          setLoadingImage(false);
-        }
-      });
-    }
-    return () => { isMounted = false; };
-  }, [card && card.question]);
 
   // Flip card only when the card is clicked (not on hover or button)
   const handleCardClick = () => {
@@ -97,15 +104,20 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portra
           <div className={`absolute w-full h-full backface-hidden flex flex-col items-center justify-center p-2 sm:p-4 md:p-6 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all ${isPeek ? 'brightness-90 blur-[1.5px] opacity-70' : ''}`}
             style={{ boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.25)" }}
           >
-            <span className="uppercase tracking-widest text-[10px] sm:text-xs text-gray-700/80 mb-2">Question</span>
-            {/* AI-generated image */}
-            <div className="w-full flex justify-center items-center mb-2" style={{ minHeight: 120 }}>
-              {loadingImage ? (
-                <span className="text-xs text-gray-400 animate-pulse">Generating image...</span>
-              ) : imageUrl ? (
-                <img src={imageUrl} alt="AI generated" className="rounded-lg max-h-28 object-contain border border-gray-200 shadow" style={{ maxWidth: '90%' }} />
-              ) : null}
+            {/* Generated image for the card topic/question */}
+            <div className="w-full flex justify-center items-center mb-2 min-h-[80px]">
+              {imageLoading && <span className="text-xs text-gray-500 animate-pulse">Generating image...</span>}
+              {imageError && <span className="text-xs text-red-500">{imageError}</span>}
+              {imageUrl && (
+                <img
+                  src={imageUrl}
+                  alt={card.question}
+                  className="rounded-lg max-h-20 object-contain border border-gray-200 shadow"
+                  style={{ maxWidth: '90%' }}
+                />
+              )}
             </div>
+            <span className="uppercase tracking-widest text-[10px] sm:text-xs text-gray-700/80 mb-2">Question</span>
             <div className="w-full flex-1 overflow-auto custom-scrollbar">
               <p className="text-lg sm:text-xl md:text-2xl text-center text-gray-900 font-bold drop-shadow-lg mb-2 font-mono break-words whitespace-pre-line">{card.question}</p>
             </div>
