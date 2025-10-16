@@ -15,10 +15,12 @@ const useFlashcardImage = (topic) => {
     setLoading(true);
     apiClient.post("/api/flashcard/generate-image", { topic })
       .then(res => {
+        console.log("[Flashcard Image] Success:", res);
         setImageUrl(res.data.image_url);
         setLoading(false);
       })
       .catch(err => {
+        console.error("[Flashcard Image] Error:", err, err?.response?.data);
         setError("Image generation failed");
         setLoading(false);
       });
