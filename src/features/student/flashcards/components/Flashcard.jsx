@@ -23,7 +23,10 @@ const useFlashcardImage = (topic, cachedImage, setCachedImage) => {
       .then(res => {
         console.log("[Flashcard Image] Success:", res);
         setImageUrl(res.data.image_url);
-        setCachedImage && setCachedImage(res.data.image_url);
+        // Only set cache if not already present
+        if (setCachedImage && !cachedImage) {
+          setCachedImage(res.data.image_url);
+        }
         setLoading(false);
       })
       .catch(err => {
