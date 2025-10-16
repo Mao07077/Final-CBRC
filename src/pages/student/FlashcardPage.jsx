@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Flashcard from "../../features/student/flashcards/components/Flashcard";
+import apiClient from "../../api/axiosClient";
 import { extractTextFromPDF } from "../../utils/pdfExtract";
 import { generateFlashcardsFromText } from "../../utils/flashcardAI";
 import { FaFilePdf, FaMagic, FaArrowLeft, FaArrowRight } from "react-icons/fa";
@@ -11,6 +12,9 @@ const FlashcardPage = () => {
   const [pdfFile, setPdfFile] = useState(null);
   const [error, setError] = useState(null);
   const [pdfName, setPdfName] = useState("");
+  // Store image URLs for each card (by index)
+  const [imageUrls, setImageUrls] = useState([]);
+  const [imagesLoading, setImagesLoading] = useState(false);
 
   // Handle PDF upload and AI flashcard generation
   const handlePDFUpload = async (e) => {
@@ -20,6 +24,7 @@ const FlashcardPage = () => {
     setGeneratedDeck([]);
     setCurrentIndex(0);
     setError(null);
+    setImageUrls([]);
   };
 
   const handleGenerateAI = async () => {
@@ -27,6 +32,7 @@ const FlashcardPage = () => {
     setLoading(true);
     setError(null);
     setGeneratedDeck([]);
+    setImageUrls([]);
     try {
       const text = await extractTextFromPDF(pdfFile);
       if (!text || text.trim().length < 20) {
@@ -48,13 +54,29 @@ const FlashcardPage = () => {
         });
       setGeneratedDeck(cards);
       setCurrentIndex(0);
+      // Fetch all images in parallel for the generated cards
+      setImagesLoading(true);
+      const fetchImage = async (topic) => {
+        try {
+          const res = await apiClient.post("/api/flashcard/generate-image", { topic });
+          return res.data.image_url;
+        } catch (err) {
+          return null;
+        }
+      };
+      const imagePromises = cards.map(card => fetchImage(card.question));
+      const urls = await Promise.all(imagePromises);
+      setImageUrls(urls);
+      setImagesLoading(false);
     } catch (err) {
       setError('Failed to generate flashcards: ' + err.message + '\nMake sure you are uploading a real, local PDF file.');
+      setImagesLoading(false);
     }
     setLoading(false);
   };
 
   const currentCard = generatedDeck.length > 0 ? generatedDeck[currentIndex] : null;
+  const currentImageUrl = imageUrls.length > currentIndex ? imageUrls[currentIndex] : null;
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
@@ -99,8 +121,12 @@ const FlashcardPage = () => {
         )}
       </div>
       <div className="mb-6">
-        {currentCard ? (
-          <Flashcard card={currentCard} />
+        {imagesLoading ? (
+          <div className="flex items-center justify-center h-64 bg-gradient-to-br from-blue-100 to-blue-300 rounded-xl shadow-md">
+            <p className="text-blue-700 text-lg font-semibold animate-pulse">Generating images for flashcards...</p>
+          </div>
+        ) : currentCard ? (
+          <Flashcard card={currentCard} imageUrl={currentImageUrl} />
         ) : (
           <div className="flex items-center justify-center h-64 bg-gradient-to-br from-blue-100 to-blue-300 rounded-xl shadow-md">
             <p className="text-gray-500 text-lg">Upload a module PDF and generate AI flashcards.</p>

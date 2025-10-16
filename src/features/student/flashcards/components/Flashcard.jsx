@@ -3,32 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import apiClient from "../../../../api/axiosClient";
 // Helper to fetch image from backend Bytez API
-const useFlashcardImage = (topic) => {
-  const [imageUrl, setImageUrl] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (!topic) return;
-    setImageUrl(null);
-    setError(null);
-    setLoading(true);
-    apiClient.post("/api/flashcard/generate-image", { topic })
-      .then(res => {
-        console.log("[Flashcard Image] Success:", res);
-        setImageUrl(res.data.image_url);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("[Flashcard Image] Error:", err, err?.response?.data);
-        setError("Image generation failed");
-        setLoading(false);
-      });
-    // Only run when topic changes
-  }, [topic]);
-
-  return { imageUrl, loading, error };
-};
+// No more useFlashcardImage; imageUrl is passed as prop
 import "./custom-scrollbar.css";
 
 // Card color palette
@@ -50,9 +25,7 @@ const getRandomColor = (seed) => {
   return CARD_COLORS[Math.abs(hash) % CARD_COLORS.length];
 };
 
-const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portrait = false }) => {
-  // Generate image for the card's question/topic
-  const { imageUrl, loading: imageLoading, error: imageError } = useFlashcardImage(card.question);
+const Flashcard = ({ card, imageUrl, stacked = false, stackIndex = 0, peek = false, portrait = false }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const cardColor = useMemo(() => getRandomColor(card.question || ""), [card.question]);
   // For peeking cards, don't allow flipping and reduce brightness
@@ -108,15 +81,15 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portra
           >
             {/* Generated image for the card topic/question */}
             <div className="w-full flex justify-center items-center mb-2 min-h-[80px]">
-              {imageLoading && <span className="text-xs text-gray-500 animate-pulse">Generating image...</span>}
-              {imageError && <span className="text-xs text-red-500">{imageError}</span>}
-              {imageUrl && (
+              {imageUrl ? (
                 <img
                   src={imageUrl}
                   alt={card.question}
                   className="rounded-lg max-h-20 object-contain border border-gray-200 shadow"
                   style={{ maxWidth: '90%' }}
                 />
+              ) : (
+                <span className="text-xs text-gray-400">No image available</span>
               )}
             </div>
             <span className="uppercase tracking-widest text-[10px] sm:text-xs text-gray-700/80 mb-2">Question</span>
