@@ -3,7 +3,32 @@
 import React, { useState, useMemo, useEffect } from "react";
 import apiClient from "../../../../api/axiosClient";
 // Helper to fetch image from backend Bytez API
-// Remove useFlashcardImage, use imageUrl prop from parent
+const useFlashcardImage = (topic) => {
+  const [imageUrl, setImageUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!topic) return;
+    setImageUrl(null);
+    setError(null);
+    setLoading(true);
+    apiClient.post("/api/flashcard/generate-image", { topic })
+      .then(res => {
+        console.log("[Flashcard Image] Success:", res);
+        setImageUrl(res.data.image_url);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("[Flashcard Image] Error:", err, err?.response?.data);
+        setError("Image generation failed");
+        setLoading(false);
+      });
+    // Only run when topic changes
+  }, [topic]);
+
+  return { imageUrl, loading, error };
+};
 import "./custom-scrollbar.css";
 
 // Card color palette
@@ -25,7 +50,9 @@ const getRandomColor = (seed) => {
   return CARD_COLORS[Math.abs(hash) % CARD_COLORS.length];
 };
 
-const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portrait = false, imageUrl }) => {
+const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portrait = false }) => {
+  // Generate image for the card's question/topic
+  const { imageUrl, loading: imageLoading, error: imageError } = useFlashcardImage(card.question);
   const [isFlipped, setIsFlipped] = useState(false);
   const cardColor = useMemo(() => getRandomColor(card.question || ""), [card.question]);
   // For peeking cards, don't allow flipping and reduce brightness
@@ -79,7 +106,19 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portra
           <div className={`absolute w-full h-full backface-hidden flex flex-col items-center justify-center p-2 sm:p-4 md:p-6 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all ${isPeek ? 'brightness-90 blur-[1.5px] opacity-70' : ''}`}
             style={{ boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.25)" }}
           >
-            {/* Image is now handled by parent, so nothing here */}
+            {/* Generated image for the card topic/question */}
+            <div className="w-full flex justify-center items-center mb-2 min-h-[80px]">
+              {imageLoading && <span className="text-xs text-gray-500 animate-pulse">Generating image...</span>}
+              {imageError && <span className="text-xs text-red-500">{imageError}</span>}
+              {imageUrl && (
+                <img
+                  src={imageUrl}
+                  alt={card.question}
+                  className="rounded-lg max-h-20 object-contain border border-gray-200 shadow"
+                  style={{ maxWidth: '90%' }}
+                />
+              )}
+            </div>
             <span className="uppercase tracking-widest text-[10px] sm:text-xs text-gray-700/80 mb-2">Question</span>
             <div className="w-full flex-1 overflow-auto custom-scrollbar">
               <p className="text-lg sm:text-xl md:text-2xl text-center text-gray-900 font-bold drop-shadow-lg mb-2 font-mono break-words whitespace-pre-line">{card.question}</p>

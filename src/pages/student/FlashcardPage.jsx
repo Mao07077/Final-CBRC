@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import Flashcard from "../../features/student/flashcards/components/Flashcard";
-import apiClient from "../../api/axiosClient";
 import { extractTextFromPDF } from "../../utils/pdfExtract";
 import { generateFlashcardsFromText } from "../../utils/flashcardAI";
 import { FaFilePdf, FaMagic, FaArrowLeft, FaArrowRight } from "react-icons/fa";
@@ -13,32 +12,7 @@ const FlashcardPage = () => {
   const [error, setError] = useState(null);
   const [pdfName, setPdfName] = useState("");
 
-  // Cache for image URLs: { [question]: imageUrl }
-  const [imageCache, setImageCache] = useState({});
-  const [imageLoading, setImageLoading] = useState(false);
-  const [imageError, setImageError] = useState(null);
-
-  // Fetch image for a card if not cached
-  const fetchImageForCard = async (question) => {
-    if (!question || imageCache[question]) return;
-    setImageLoading(true);
-    setImageError(null);
-    try {
-      const res = await apiClient.post("/api/flashcard/generate-image", { topic: question });
-      setImageCache(prev => ({ ...prev, [question]: res.data.image_url }));
-    } catch (err) {
-      setImageError("Image generation failed");
-    }
-    setImageLoading(false);
-  };
-
-  // When currentCard changes, fetch image if not cached
-  React.useEffect(() => {
-    if (currentCard && currentCard.question && !imageCache[currentCard.question]) {
-      fetchImageForCard(currentCard.question);
-    }
-    // eslint-disable-next-line
-  }, [currentCard]);
+  // Handle PDF upload and AI flashcard generation
   const handlePDFUpload = async (e) => {
     const file = e.target.files[0];
     setPdfFile(file);
@@ -126,22 +100,7 @@ const FlashcardPage = () => {
       </div>
       <div className="mb-6">
         {currentCard ? (
-          <>
-            {/* Show image above flashcard, use cache if available */}
-            <div className="w-full flex justify-center items-center mb-2 min-h-[80px]">
-              {imageLoading && <span className="text-xs text-gray-500 animate-pulse">Generating image...</span>}
-              {imageError && <span className="text-xs text-red-500">{imageError}</span>}
-              {imageCache[currentCard.question] && (
-                <img
-                  src={imageCache[currentCard.question]}
-                  alt={currentCard.question}
-                  className="rounded-lg max-h-20 object-contain border border-gray-200 shadow"
-                  style={{ maxWidth: '90%' }}
-                />
-              )}
-            </div>
-            <Flashcard card={currentCard} imageUrl={imageCache[currentCard.question] || null} />
-          </>
+          <Flashcard card={currentCard} />
         ) : (
           <div className="flex items-center justify-center h-64 bg-gradient-to-br from-blue-100 to-blue-300 rounded-xl shadow-md">
             <p className="text-gray-500 text-lg">Upload a module PDF and generate AI flashcards.</p>
