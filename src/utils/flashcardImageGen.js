@@ -1,16 +1,19 @@
-import Bytez from 'bytez.js';
-
-// Use Bytez API key from environment variable
-const sdk = new Bytez(process.env.NEXT_PUBLIC_BYTEZ_KEY || process.env.BYTEZ_KEY);
-
-// Generate an image for a given flashcard topic/question
+// Client-side: call the Next.js API route to generate the image
 export async function generateFlashcardImage(topic) {
-  const model = sdk.model('dreamlike-art/dreamlike-photoreal-2.0');
-  const input = topic;
-  const { error, output } = await model.run(input);
-  if (error) {
-    console.error('Image generation error:', error);
+  try {
+    const res = await fetch('/api/generate-flashcard-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic })
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Failed to generate image');
+    }
+    const data = await res.json();
+    return data.imageUrl;
+  } catch (err) {
+    console.error('Image generation error:', err);
     return null;
   }
-  return output; // output is the image URL
 }
