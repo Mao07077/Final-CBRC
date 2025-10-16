@@ -3,13 +3,19 @@
 import React, { useState, useMemo, useEffect } from "react";
 import apiClient from "../../../../api/axiosClient";
 // Helper to fetch image from backend Bytez API
-const useFlashcardImage = (topic) => {
-  const [imageUrl, setImageUrl] = useState(null);
+const useFlashcardImage = (topic, cachedImage, setCachedImage) => {
+  const [imageUrl, setImageUrl] = useState(cachedImage || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!topic) return;
+    if (cachedImage) {
+      setImageUrl(cachedImage);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setImageUrl(null);
     setError(null);
     setLoading(true);
@@ -17,6 +23,7 @@ const useFlashcardImage = (topic) => {
       .then(res => {
         console.log("[Flashcard Image] Success:", res);
         setImageUrl(res.data.image_url);
+        setCachedImage && setCachedImage(res.data.image_url);
         setLoading(false);
       })
       .catch(err => {
@@ -25,7 +32,7 @@ const useFlashcardImage = (topic) => {
         setLoading(false);
       });
     // Only run when topic changes
-  }, [topic]);
+  }, [topic, cachedImage, setCachedImage]);
 
   return { imageUrl, loading, error };
 };
@@ -50,9 +57,9 @@ const getRandomColor = (seed) => {
   return CARD_COLORS[Math.abs(hash) % CARD_COLORS.length];
 };
 
-const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portrait = false }) => {
-  // Generate image for the card's question/topic
-  const { imageUrl, loading: imageLoading, error: imageError } = useFlashcardImage(card.question);
+const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portrait = false, cachedImage, setCachedImage }) => {
+  // Generate image for the card's question/topic, use cache if available
+  const { imageUrl, loading: imageLoading, error: imageError } = useFlashcardImage(card.question, cachedImage, setCachedImage);
   const [isFlipped, setIsFlipped] = useState(false);
   const cardColor = useMemo(() => getRandomColor(card.question || ""), [card.question]);
   // For peeking cards, don't allow flipping and reduce brightness

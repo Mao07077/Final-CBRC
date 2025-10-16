@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Flashcard from "../../features/student/flashcards/components/Flashcard";
+import { useRef } from "react";
 import { extractTextFromPDF } from "../../utils/pdfExtract";
 import { generateFlashcardsFromText } from "../../utils/flashcardAI";
 import { FaFilePdf, FaMagic, FaArrowLeft, FaArrowRight } from "react-icons/fa";
@@ -11,6 +12,8 @@ const FlashcardPage = () => {
   const [pdfFile, setPdfFile] = useState(null);
   const [error, setError] = useState(null);
   const [pdfName, setPdfName] = useState("");
+  // Cache for flashcard images (question -> imageUrl)
+  const imageCache = useRef({});
 
   // Handle PDF upload and AI flashcard generation
   const handlePDFUpload = async (e) => {
@@ -100,7 +103,7 @@ const FlashcardPage = () => {
       </div>
       <div className="mb-6">
         {currentCard ? (
-          <Flashcard card={currentCard} />
+          <Flashcard card={currentCard} cachedImage={imageCache.current[currentCard.question]} setCachedImage={url => { imageCache.current[currentCard.question] = url; }} />
         ) : (
           <div className="flex items-center justify-center h-64 bg-gradient-to-br from-blue-100 to-blue-300 rounded-xl shadow-md">
             <p className="text-gray-500 text-lg">Upload a module PDF and generate AI flashcards.</p>
