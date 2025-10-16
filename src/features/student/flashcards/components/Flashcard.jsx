@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo, useEffect } from "react";
-import { generateFlashcardImage } from "../../../../../src/pages/api/generate-flashcard-image";
+import { generateFlashcardImage } from "../../../../utils/flashcardImageGen";
 import "./custom-scrollbar.css";
 
 // Card color palette
