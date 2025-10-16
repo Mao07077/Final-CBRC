@@ -35,7 +35,11 @@ async def generate_flashcard_image(request: FlashcardImageRequest):
 		prompt = f"An image representing: {request.topic}"
 		logger.info(f"Calling Bytez API with prompt: {prompt}")
 		error, output = model.run(prompt)
+		# If error is a valid URL, treat as success (Bytez sometimes returns image URL in error)
 		if error:
+			if isinstance(error, str) and error.startswith("http"):
+				logger.info(f"Bytez returned image URL in error: {error}")
+				return {"image_url": error}
 			logger.error(f"Bytez error: {error}")
 			raise HTTPException(status_code=500, detail=f"Bytez error: {error}")
 		logger.info(f"Bytez output: {output}")
