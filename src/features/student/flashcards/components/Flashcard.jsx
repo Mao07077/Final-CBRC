@@ -1,6 +1,7 @@
 
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { generateFlashcardImage } from "../../../../utils/flashcardImageGen";
 import "./custom-scrollbar.css";
 
 // Card color palette
@@ -22,6 +23,7 @@ const getRandomColor = (seed) => {
   return CARD_COLORS[Math.abs(hash) % CARD_COLORS.length];
 };
 
+
 const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portrait = false }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const cardColor = useMemo(() => getRandomColor(card.question || ""), [card.question]);
@@ -37,6 +39,25 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portra
         pointerEvents: stackIndex > 0 ? "none" : "auto",
       }
     : {};
+
+  // State for AI-generated image
+  const [imageUrl, setImageUrl] = useState(null);
+  const [loadingImage, setLoadingImage] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    setImageUrl(null);
+    if (card && card.question) {
+      setLoadingImage(true);
+      generateFlashcardImage(card.question).then(url => {
+        if (isMounted) {
+          setImageUrl(url);
+          setLoadingImage(false);
+        }
+      });
+    }
+    return () => { isMounted = false; };
+  }, [card && card.question]);
 
   // Flip card only when the card is clicked (not on hover or button)
   const handleCardClick = () => {
@@ -77,6 +98,14 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portra
             style={{ boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.25)" }}
           >
             <span className="uppercase tracking-widest text-[10px] sm:text-xs text-gray-700/80 mb-2">Question</span>
+            {/* AI-generated image */}
+            <div className="w-full flex justify-center items-center mb-2" style={{ minHeight: 120 }}>
+              {loadingImage ? (
+                <span className="text-xs text-gray-400 animate-pulse">Generating image...</span>
+              ) : imageUrl ? (
+                <img src={imageUrl} alt="AI generated" className="rounded-lg max-h-28 object-contain border border-gray-200 shadow" style={{ maxWidth: '90%' }} />
+              ) : null}
+            </div>
             <div className="w-full flex-1 overflow-auto custom-scrollbar">
               <p className="text-lg sm:text-xl md:text-2xl text-center text-gray-900 font-bold drop-shadow-lg mb-2 font-mono break-words whitespace-pre-line">{card.question}</p>
             </div>
