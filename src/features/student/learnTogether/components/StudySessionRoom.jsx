@@ -93,6 +93,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const [showSettings, setShowSettings] = useState(false);
   const [layoutMode, setLayoutMode] = useState("grid");
   const [pinnedParticipantId, setPinnedParticipantId] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
   
   // Speaking indicator state
   const [speakingParticipants, setSpeakingParticipants] = useState(new Set());
@@ -147,6 +148,18 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     };
 
     initializeMedia();
+  }, []);
+
+  // Responsive handling: detect small screens
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      // Consider mobile if width <= 640px (Tailwind 'sm')
+      setIsMobile(w <= 640);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Sync UI state with actual media tracks
@@ -1674,6 +1687,63 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               !isScreenSharing && { id: 'self_camera', name: userName, camera_off: isCameraOff, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true },
               ...participantTiles
             ].filter(Boolean);
+
+            // Mobile: horizontal scroll row or stacked layout
+            if (isMobile) {
+              return (
+                <div className="w-full">
+                  <div className="mb-3">
+                    <div className="grid grid-cols-1 gap-3">
+                      {allTiles.slice(0,1).map(tile => (
+                        <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden" style={{ aspectRatio: '16/9', minHeight: tile.isScreen ? '180px' : '140px' }}>
+                          {!tile.camera_off ? (
+                            <video
+                              ref={tile.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(tile.id, el); }}
+                              autoPlay
+                              muted={tile.self}
+                              playsInline
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                              <div className="text-center">
+                                <VideoOff className={tile.isScreen ? "w-12 h-12 mx-auto mb-2" : "w-8 h-8 mx-auto mb-2"} />
+                                <p className={tile.isScreen ? "text-base" : "text-xs"}>{tile.name}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 overflow-x-auto py-2">
+                    {allTiles.map(tile => (
+                      <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '200px', aspectRatio: '16/9', minHeight: '100px' }}>
+                        {!tile.camera_off ? (
+                          <video
+                            ref={tile.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(tile.id, el); }}
+                            autoPlay
+                            muted={tile.self}
+                            playsInline
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                            <div className="text-center">
+                              <VideoOff className={tile.isScreen ? "w-12 h-12 mx-auto mb-2" : "w-8 h-8 mx-auto mb-2"} />
+                              <p className={tile.isScreen ? "text-base" : "text-xs"}>{tile.name}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            // Desktop/tablet: responsive grid using CSS grid
             return (
               <div className="grid gap-3 justify-center items-start w-full" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(220px, 1fr))` }}>
                 {allTiles.map(tile => (
