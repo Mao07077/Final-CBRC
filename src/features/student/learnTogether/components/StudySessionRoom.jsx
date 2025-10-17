@@ -1448,33 +1448,47 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             </div>
           )}
 
-          {/* Layout controls */}
-          <div className="mb-4 flex gap-4 items-center">
-            <label className="text-white font-semibold">Layout:</label>
-            <select
-              value={layoutMode}
-              onChange={e => setLayoutMode(e.target.value)}
-              className="bg-gray-700 text-white rounded px-2 py-1"
+          {/* Layout controls as settings button */}
+          <div className="mb-4 flex gap-4 items-center relative">
+            <button
+              className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Settings"
+              onClick={() => setShowSettings(v => !v)}
             >
-              {LAYOUT_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-            {layoutMode === "spotlight" && (
-              <>
-                <label className="text-white font-semibold ml-4">Pin:</label>
-                <select
-                  value={pinnedParticipantId || ""}
-                  onChange={e => setPinnedParticipantId(e.target.value)}
-                  className="bg-gray-700 text-white rounded px-2 py-1"
-                >
-                  <option value="">Select...</option>
-                  {participants.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}{p.user_id === userId ? " (You)" : ""}</option>
+              <Settings className="w-6 h-6" />
+            </button>
+            {showSettings && (
+              <div className="absolute z-50 top-12 left-0 bg-white text-gray-900 rounded-lg shadow-lg p-4 min-w-[200px] border border-gray-200 animate-fade-in">
+                <div className="mb-2 font-semibold text-base text-gray-800">Layout Options</div>
+                <div className="flex flex-col gap-2">
+                  {LAYOUT_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      className={`text-left px-3 py-2 rounded hover:bg-blue-100 ${layoutMode === opt.value ? 'bg-blue-200 font-bold' : ''}`}
+                      onClick={() => { setLayoutMode(opt.value); setShowSettings(false); }}
+                    >
+                      {opt.label}
+                    </button>
                   ))}
-                </select>
-              </>
+                </div>
+                {layoutMode === "spotlight" && (
+                  <div className="mt-4">
+                    <div className="font-semibold text-sm mb-1">Pin Participant</div>
+                    <select
+                      value={pinnedParticipantId || ""}
+                      onChange={e => setPinnedParticipantId(e.target.value)}
+                      className="w-full bg-gray-100 text-gray-900 rounded px-2 py-1 border"
+                    >
+                      <option value="">Select...</option>
+                      {participants.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}{p.user_id === userId ? " (You)" : ""}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
             )}
+            <span className="text-white font-semibold ml-2">Layout: {LAYOUT_OPTIONS.find(opt => opt.value === layoutMode)?.label}</span>
           </div>
 
           {/* Participants grid with layout logic */}
@@ -1491,274 +1505,227 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             // All participant tiles (exclude self screen share tile)
             const participantTiles = participants.filter(p => !screenShares.some(s => s.user_id === p.user_id && s.self)).filter(p => p.user_id !== userId);
 
-            // Spotlight mode: show pinned participant large, others small
+            // Spotlight mode: show pinned participant large on the left, others (including self) as normal tiles on the right
             if (layoutMode === "spotlight" && pinnedParticipantId) {
               const pinned = participants.find(p => p.id === pinnedParticipantId);
+              // All others (including self if not pinned)
+              const others = [
+                ...participants.filter(p => p.id !== pinnedParticipantId),
+                // Add self tile if not in participants (for local preview)
+                ...((!participants.some(p => p.user_id === userId) && pinnedParticipantId !== `user_${userId}`) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
+              ];
               return (
-                <div className="flex flex-wrap gap-3 justify-center items-start w-full">
-                  {pinned && (
-                    <div key={pinned.id} className="relative bg-blue-900 rounded-lg overflow-hidden flex-shrink-0 border-4 border-blue-400" style={{ width: '100%', maxWidth: '480px', aspectRatio: '16/9', minHeight: '180px' }}>
-                      {!pinned.camera_off ? (
-                        <video
-                          ref={el => {
-                            if (el) remoteVideosRef.current.set(pinned.id, el);
-                          }}
-                          autoPlay
-                          playsInline
-                          className="w-full h-full object-cover"
-                          style={{ minHeight: '180px' }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                          <div className="text-center">
-                            <VideoOff className="w-12 h-12 mx-auto mb-2" />
-                            <p className="text-base">{pinned.name}</p>
-                          </div>
-                        </div>
-                      )}
-                      <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
-                        <span>Pinned</span>
-                        {pinned.user_id === userId && <span className="ml-2">(You)</span>}
-                      </div>
-                    </div>
-                  )}
-                  {/* Show other participants as small tiles */}
-                  {participantTiles.filter(p => p.id !== pinnedParticipantId).map(participant => (
-                    <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '220px', aspectRatio: '16/9', minHeight: '80px' }}>
-                      {!participant.camera_off ? (
-                        <video
-                          ref={el => {
-                            if (el) remoteVideosRef.current.set(participant.id, el);
-                          }}
-                          autoPlay
-                          playsInline
-                          className="w-full h-full object-cover"
-                          style={{ minHeight: '80px' }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                          <div className="text-center">
-                            <VideoOff className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-xs">{participant.name}</p>
-                          </div>
-                        </div>
-                      )}
-                      <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
-                        <span>
-                          {participant.name}
-                          {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                          {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
-                          {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
-                          {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
-                        </span>
-                        {!participant.muted && (
-                          <SpeakingIndicator 
-                            isActive={speakingParticipants.has(participant.user_id)} 
-                            audioLevel={50} 
+                <div className="flex w-full gap-4">
+                  {/* Large pinned tile on the left */}
+                  <div className="flex-shrink-0" style={{ width: '100%', maxWidth: '480px' }}>
+                    {pinned && (
+                      <div key={pinned.id} className="relative bg-blue-900 rounded-lg overflow-hidden border-4 border-blue-400 aspect-video min-h-[180px]">
+                        {!pinned.camera_off ? (
+                          <video
+                            ref={el => { if (el) remoteVideosRef.current.set(pinned.id, el); }}
+                            autoPlay
+                            playsInline
+                            className="w-full h-full object-cover"
+                            style={{ minHeight: '180px' }}
                           />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                            <div className="text-center">
+                              <VideoOff className="w-12 h-12 mx-auto mb-2" />
+                              <p className="text-base">{pinned.name}</p>
+                            </div>
+                          </div>
                         )}
+                        <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
+                          <span>Pinned</span>
+                          {pinned.user_id === userId && <span className="ml-2">(You)</span>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                  {/* Other tiles in a vertical column on the right */}
+                  <div className="flex flex-col gap-3 flex-1 min-w-0">
+                    {others.map(participant => (
+                      <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px]">
+                        {!participant.camera_off ? (
+                          <video
+                            ref={participant.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
+                            autoPlay
+                            muted={participant.self}
+                            playsInline
+                            className="w-full h-full object-cover"
+                            style={{ minHeight: '80px' }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                            <div className="text-center">
+                              <VideoOff className="w-8 h-8 mx-auto mb-2" />
+                              <p className="text-xs">{participant.self ? 'You' : participant.name}</p>
+                            </div>
+                          </div>
+                        )}
+                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
+                          <span>
+                            {participant.self ? 'You' : participant.name}
+                            {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
+                            {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                            {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
+                            {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
+                          </span>
+                          {!participant.muted && (
+                            <SpeakingIndicator 
+                              isActive={speakingParticipants.has(participant.user_id)} 
+                              audioLevel={participant.self ? localAudioLevel : 50} 
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             }
 
-            // Speaker mode: focus on current speaker
+            // Speaker mode: focus on current speaker (large left tile), others (including self) as normal tiles on the right
             if (layoutMode === "speaker") {
               const speakerId = Array.from(speakingParticipants)[0];
               const speaker = participants.find(p => p.user_id === speakerId);
+              // All others (including self if not speaker)
+              const others = [
+                ...participants.filter(p => p.user_id !== speakerId),
+                // Add self tile if not in participants (for local preview)
+                ...((!participants.some(p => p.user_id === userId) && speakerId !== userId) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
+              ];
               return (
-                <div className="flex flex-wrap gap-3 justify-center items-start w-full">
-                  {speaker && (
-                    <div key={speaker.id} className="relative bg-green-900 rounded-lg overflow-hidden flex-shrink-0 border-4 border-green-400" style={{ width: '100%', maxWidth: '480px', aspectRatio: '16/9', minHeight: '180px' }}>
-                      {!speaker.camera_off ? (
-                        <video
-                          ref={el => {
-                            if (el) remoteVideosRef.current.set(speaker.id, el);
-                          }}
-                          autoPlay
-                          playsInline
-                          className="w-full h-full object-cover"
-                          style={{ minHeight: '180px' }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                          <div className="text-center">
-                            <VideoOff className="w-12 h-12 mx-auto mb-2" />
-                            <p className="text-base">{speaker.name}</p>
-                          </div>
-                        </div>
-                      )}
-                      <div className="absolute top-2 left-2 bg-green-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
-                        <span>Speaking</span>
-                        {speaker.user_id === userId && <span className="ml-2">(You)</span>}
-                      </div>
-                    </div>
-                  )}
-                  {/* Show other participants as small tiles */}
-                  {participantTiles.filter(p => p.user_id !== speakerId).map(participant => (
-                    <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '220px', aspectRatio: '16/9', minHeight: '80px' }}>
-                      {!participant.camera_off ? (
-                        <video
-                          ref={el => {
-                            if (el) remoteVideosRef.current.set(participant.id, el);
-                          }}
-                          autoPlay
-                          playsInline
-                          className="w-full h-full object-cover"
-                          style={{ minHeight: '80px' }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                          <div className="text-center">
-                            <VideoOff className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-xs">{participant.name}</p>
-                          </div>
-                        </div>
-                      )}
-                      <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
-                        <span>
-                          {participant.name}
-                          {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                          {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
-                          {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
-                          {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
-                        </span>
-                        {!participant.muted && (
-                          <SpeakingIndicator 
-                            isActive={speakingParticipants.has(participant.user_id)} 
-                            audioLevel={50} 
+                <div className="flex w-full gap-4">
+                  {/* Large speaker tile on the left */}
+                  <div className="flex-shrink-0" style={{ width: '100%', maxWidth: '480px' }}>
+                    {speaker && (
+                      <div key={speaker.id} className="relative bg-green-900 rounded-lg overflow-hidden border-4 border-green-400 aspect-video min-h-[180px]">
+                        {!speaker.camera_off ? (
+                          <video
+                            ref={el => { if (el) remoteVideosRef.current.set(speaker.id, el); }}
+                            autoPlay
+                            playsInline
+                            className="w-full h-full object-cover"
+                            style={{ minHeight: '180px' }}
                           />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                            <div className="text-center">
+                              <VideoOff className="w-12 h-12 mx-auto mb-2" />
+                              <p className="text-base">{speaker.name}</p>
+                            </div>
+                          </div>
                         )}
+                        <div className="absolute top-2 left-2 bg-green-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
+                          <span>Speaking</span>
+                          {speaker.user_id === userId && <span className="ml-2">(You)</span>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                  {/* Other tiles in a vertical column on the right */}
+                  <div className="flex flex-col gap-3 flex-1 min-w-0">
+                    {others.map(participant => (
+                      <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px]">
+                        {!participant.camera_off ? (
+                          <video
+                            ref={participant.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
+                            autoPlay
+                            muted={participant.self}
+                            playsInline
+                            className="w-full h-full object-cover"
+                            style={{ minHeight: '80px' }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                            <div className="text-center">
+                              <VideoOff className="w-8 h-8 mx-auto mb-2" />
+                              <p className="text-xs">{participant.self ? 'You' : participant.name}</p>
+                            </div>
+                          </div>
+                        )}
+                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
+                          <span>
+                            {participant.self ? 'You' : participant.name}
+                            {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
+                            {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                            {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
+                            {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
+                          </span>
+                          {!participant.muted && (
+                            <SpeakingIndicator 
+                              isActive={speakingParticipants.has(participant.user_id)} 
+                              audioLevel={participant.self ? localAudioLevel : 50} 
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             }
 
-            // Default: grid mode
+            // Default: grid mode (all tiles equal size)
+            const allTiles = [
+              ...screenShares.map(screen => ({ ...screen, isScreen: true })),
+              !isScreenSharing && { id: 'self_camera', name: userName, camera_off: isCameraOff, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true },
+              ...participantTiles
+            ].filter(Boolean);
             return (
-              <div className="flex flex-wrap gap-3 justify-center items-start w-full">
-                {/* Show all screen shares as large tiles */}
-                {screenShares.map(screen => (
-                  <div key={screen.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '480px', aspectRatio: '16/9', minHeight: '180px' }}>
-                    {screen.self ? (
+              <div className="grid gap-3 justify-center items-start w-full" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(220px, 1fr))` }}>
+                {allTiles.map(tile => (
+                  <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ aspectRatio: '16/9', minHeight: tile.isScreen ? '180px' : '120px' }}>
+                    {!tile.camera_off ? (
                       <video
-                        ref={el => {
-                          if (el && localStreamRef.current) {
-                            const screenTrack = localStreamRef.current.getVideoTracks().find(track => track.label.toLowerCase().includes('screen') || track.label.toLowerCase().includes('display'));
-                            if (screenTrack) {
-                              const screenStream = new window.MediaStream([screenTrack]);
-                              el.srcObject = screenStream;
-                            } else {
-                              el.srcObject = localStreamRef.current;
-                            }
-                          }
-                        }}
+                        ref={tile.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(tile.id, el); }}
                         autoPlay
-                        muted
+                        muted={tile.self}
                         playsInline
                         className="w-full h-full object-cover"
-                        style={{ minHeight: '180px' }}
-                      />
-                    ) : !screen.camera_off ? (
-                      <video
-                        ref={el => {
-                          if (el) remoteVideosRef.current.set(screen.id, el);
-                        }}
-                        autoPlay
-                        playsInline
-                        className="w-full h-full object-cover"
-                        style={{ minHeight: '180px' }}
+                        style={{ minHeight: tile.isScreen ? '180px' : '120px' }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
                         <div className="text-center">
-                          <VideoOff className="w-12 h-12 mx-auto mb-2" />
-                          <p className="text-base">{screen.name}</p>
+                          <VideoOff className={tile.isScreen ? "w-12 h-12 mx-auto mb-2" : "w-8 h-8 mx-auto mb-2"} />
+                          <p className={tile.isScreen ? "text-base" : "text-xs"}>{tile.name}</p>
                         </div>
                       </div>
                     )}
-                    <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
-                      <Monitor className="w-4 h-4" />
-                      <span>Screen Sharing</span>
-                      {screen.self && <span className="ml-2">(You)</span>}
-                    </div>
-                  </div>
-                ))}
-                {/* Show your own camera tile (if not sharing screen) */}
-                {!isScreenSharing && (
-                  <div key="self_camera" className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '320px', aspectRatio: '16/9', minHeight: '120px' }}>
-                    {!isCameraOff ? (
-                      <video
-                        ref={localVideoRef}
-                        autoPlay
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                        style={{ minHeight: '120px' }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                        <div className="text-center">
-                          <VideoOff className="w-12 h-12 mx-auto mb-2" />
-                          <p className="text-base">{userName}</p>
-                        </div>
-                      </div>
-                    )}
-                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm flex items-center space-x-2">
-                      <span>You {isMuted && <span className="text-red-400">(Muted)</span>}
-                      {!isCameraOff && <span className="text-green-400 ml-1">(Camera On)</span>}</span>
-                      {!isMuted && (
-                        <SpeakingIndicator 
-                          isActive={speakingParticipants.has(userId)} 
-                          audioLevel={localAudioLevel} 
-                        />
-                      )}
-                    </div>
-                  </div>
-                )}
-                {/* Other participants (smaller tiles) */}
-                {participantTiles.map(participant => (
-                  <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '100%', maxWidth: '220px', aspectRatio: '16/9', minHeight: '80px' }}>
-                    {!participant.camera_off ? (
-                      <video
-                        ref={el => {
-                          if (el) remoteVideosRef.current.set(participant.id, el);
-                        }}
-                        autoPlay
-                        playsInline
-                        className="w-full h-full object-cover"
-                        style={{ minHeight: '80px' }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                        <div className="text-center">
-                          <VideoOff className="w-8 h-8 mx-auto mb-2" />
-                          <p className="text-xs">{participant.name}</p>
-                        </div>
+                    {tile.isScreen && (
+                      <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
+                        <Monitor className="w-4 h-4" />
+                        <span>Screen Sharing</span>
+                        {tile.self && <span className="ml-2">(You)</span>}
                       </div>
                     )}
                     {/* Speaking indicator overlay for remote participants */}
-                    {speakingParticipants.has(participant.user_id) && (
+                    {tile.self && !tile.isScreen && !tile.muted && (
+                      <div className="absolute top-2 right-2 bg-green-500 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
+                        <Volume2 className="w-3 h-3" />
+                        <SpeakingIndicator isActive={speakingParticipants.has(userId)} audioLevel={localAudioLevel} />
+                      </div>
+                    )}
+                    {!tile.self && !tile.isScreen && speakingParticipants.has(tile.user_id) && (
                       <div className="absolute top-2 right-2 bg-green-500 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
                         <Volume2 className="w-3 h-3" />
                         <SpeakingIndicator isActive={true} audioLevel={50} />
                       </div>
                     )}
-                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
+                    <div className={`absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2 ${tile.self ? 'text-sm' : ''}`}>
                       <span>
-                        {participant.name}
-                        {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                        {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
-                        {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
-                        {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
+                        {tile.self ? 'You' : tile.name}
+                        {tile.muted && <span className="text-red-400 ml-1">(Muted)</span>}
+                        {!tile.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                        {tile.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
+                        {tile.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                       </span>
-                      {!participant.muted && (
+                      {!tile.muted && !tile.isScreen && (
                         <SpeakingIndicator 
-                          isActive={speakingParticipants.has(participant.user_id)} 
+                          isActive={speakingParticipants.has(tile.user_id)} 
                           audioLevel={50} 
                         />
                       )}
