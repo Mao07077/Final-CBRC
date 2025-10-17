@@ -80,6 +80,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         muted: isMuted,
         camera_off: isCameraOff,
         is_screen_sharing: isScreenSharing
+        ,
+        self: true
       }]);
     }
   }, [userId, userName, isMuted, isCameraOff, isScreenSharing]);
@@ -825,7 +827,13 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         // Wait for video ref to be available and set stream
         const setVideoStream = () => {
           if (localVideoRef.current) {
-            localVideoRef.current.srcObject = stream;
+            // assign stream to local video element
+            try {
+              localVideoRef.current.srcObject = stream;
+            } catch (err) {
+              console.warn('Failed to set srcObject directly, retrying via assign:', err);
+              localVideoRef.current.src = URL.createObjectURL(stream);
+            }
             console.log("Set local video srcObject");
             console.log("Video element:", localVideoRef.current);
             console.log("Video srcObject:", localVideoRef.current.srcObject);
@@ -951,7 +959,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         }
         
         if (localVideoRef.current) {
-          localVideoRef.current.srcObject = null;
+          try { localVideoRef.current.srcObject = null; } catch(e) { localVideoRef.current.src = ''; }
         }
         setIsCameraOff(true);
         console.log("Camera turned off successfully");
@@ -1562,8 +1570,16 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       <div key={pinned.id} className="relative bg-blue-900 rounded-lg overflow-hidden border-4 border-blue-400 aspect-video min-h-[180px] w-full">
                         {!pinned.camera_off ? (
                           <video
-                            ref={el => { if (el) remoteVideosRef.current.set(pinned.id, el); }}
+                            ref={el => {
+                              if (pinned.user_id === userId) {
+                                // use local video element for self so user always sees their own camera
+                                localVideoRef.current = el;
+                              } else {
+                                if (el) remoteVideosRef.current.set(pinned.id, el);
+                              }
+                            }}
                             autoPlay
+                            muted={pinned.user_id === userId}
                             playsInline
                             className="w-full h-full object-cover"
                             style={{ minHeight: '180px' }}
@@ -1644,8 +1660,15 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       <div key={speaker.id} className="relative bg-green-900 rounded-lg overflow-hidden border-4 border-green-400 aspect-video min-h-[180px] w-full">
                         {!speaker.camera_off ? (
                           <video
-                            ref={el => { if (el) remoteVideosRef.current.set(speaker.id, el); }}
+                            ref={el => {
+                              if (speaker.user_id === userId) {
+                                localVideoRef.current = el;
+                              } else {
+                                if (el) remoteVideosRef.current.set(speaker.id, el);
+                              }
+                            }}
                             autoPlay
+                            muted={speaker.user_id === userId}
                             playsInline
                             className="w-full h-full object-cover"
                             style={{ minHeight: '180px' }}
