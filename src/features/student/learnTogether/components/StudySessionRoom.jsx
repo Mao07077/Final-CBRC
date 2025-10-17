@@ -93,7 +93,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const [showSettings, setShowSettings] = useState(false);
   const [layoutMode, setLayoutMode] = useState("grid");
   const [pinnedParticipantId, setPinnedParticipantId] = useState(null);
-  const [isMobile, setIsMobile] = useState(false);
   
   // Speaking indicator state
   const [speakingParticipants, setSpeakingParticipants] = useState(new Set());
@@ -148,18 +147,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     };
 
     initializeMedia();
-  }, []);
-
-  // Responsive handling: detect small screens
-  useEffect(() => {
-    const handleResize = () => {
-      const w = window.innerWidth;
-      // Consider mobile if width <= 640px (Tailwind 'sm')
-      setIsMobile(w <= 640);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Sync UI state with actual media tracks
@@ -1471,35 +1458,75 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               <Settings className="w-6 h-6" />
             </button>
             {showSettings && (
-              <div className="absolute z-50 top-12 left-0 bg-white text-gray-900 rounded-lg shadow-lg p-4 min-w-[200px] border border-gray-200 animate-fade-in">
-                <div className="mb-2 font-semibold text-base text-gray-800">Layout Options</div>
-                <div className="flex flex-col gap-2">
-                  {LAYOUT_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      className={`text-left px-3 py-2 rounded hover:bg-blue-100 ${layoutMode === opt.value ? 'bg-blue-200 font-bold' : ''}`}
-                      onClick={() => { setLayoutMode(opt.value); setShowSettings(false); }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                {layoutMode === "spotlight" && (
-                  <div className="mt-4">
-                    <div className="font-semibold text-sm mb-1">Pin Participant</div>
-                    <select
-                      value={pinnedParticipantId || ""}
-                      onChange={e => setPinnedParticipantId(e.target.value)}
-                      className="w-full bg-gray-100 text-gray-900 rounded px-2 py-1 border"
-                    >
-                      <option value="">Select...</option>
-                      {participants.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}{p.user_id === userId ? " (You)" : ""}</option>
-                      ))}
-                    </select>
+              <>
+                {/* Desktop popover */}
+                <div className="hidden md:block absolute z-50 top-12 left-0 bg-white text-gray-900 rounded-lg shadow-lg p-4 min-w-[200px] border border-gray-200 animate-fade-in">
+                  <div className="mb-2 font-semibold text-base text-gray-800">Layout Options</div>
+                  <div className="flex flex-col gap-2">
+                    {LAYOUT_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        className={`text-left px-3 py-2 rounded hover:bg-blue-100 ${layoutMode === opt.value ? 'bg-blue-200 font-bold' : ''}`}
+                        onClick={() => { setLayoutMode(opt.value); setShowSettings(false); }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
-                )}
-              </div>
+                  {layoutMode === "spotlight" && (
+                    <div className="mt-4">
+                      <div className="font-semibold text-sm mb-1">Pin Participant</div>
+                      <select
+                        value={pinnedParticipantId || ""}
+                        onChange={e => setPinnedParticipantId(e.target.value)}
+                        className="w-full bg-gray-100 text-gray-900 rounded px-2 py-1 border"
+                      >
+                        <option value="">Select...</option>
+                        {participants.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}{p.user_id === userId ? " (You)" : ""}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mobile modal bottom sheet */}
+                <div className={`md:hidden fixed inset-0 z-50 flex items-end justify-center ${showSettings ? '' : 'pointer-events-none'}`} aria-hidden={!showSettings}>
+                  <div className="absolute inset-0 bg-black bg-opacity-40" onClick={() => setShowSettings(false)} />
+                  <div className="relative w-full max-w-2xl bg-white rounded-t-xl p-4 border-t border-gray-200">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="font-semibold text-base text-gray-800">Layout Options</div>
+                      <button onClick={() => setShowSettings(false)} className="text-gray-600">Close</button>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {LAYOUT_OPTIONS.map(opt => (
+                        <button
+                          key={opt.value}
+                          className={`text-left px-3 py-3 rounded hover:bg-gray-100 ${layoutMode === opt.value ? 'bg-blue-200 font-bold' : ''}`}
+                          onClick={() => { setLayoutMode(opt.value); setShowSettings(false); }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    {layoutMode === "spotlight" && (
+                      <div className="mt-4">
+                        <div className="font-semibold text-sm mb-1">Pin Participant</div>
+                        <select
+                          value={pinnedParticipantId || ""}
+                          onChange={e => setPinnedParticipantId(e.target.value)}
+                          className="w-full bg-gray-100 text-gray-900 rounded px-2 py-2 border"
+                        >
+                          <option value="">Select...</option>
+                          {participants.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}{p.user_id === userId ? " (You)" : ""}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
             <span className="text-white font-semibold ml-2">Layout: {LAYOUT_OPTIONS.find(opt => opt.value === layoutMode)?.label}</span>
           </div>
@@ -1528,11 +1555,11 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 ...((!participants.some(p => p.user_id === userId) && pinnedParticipantId !== `user_${userId}`) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
               ];
               return (
-                <div className="flex w-full gap-4">
+                <div className="flex w-full gap-4 flex-col md:flex-row">
                   {/* Large pinned tile on the left */}
-                  <div className="flex-shrink-0" style={{ width: '100%', maxWidth: '480px' }}>
+                  <div className="flex-shrink-0 w-full md:w-[480px]">
                     {pinned && (
-                      <div key={pinned.id} className="relative bg-blue-900 rounded-lg overflow-hidden border-4 border-blue-400 aspect-video min-h-[180px]">
+                      <div key={pinned.id} className="relative bg-blue-900 rounded-lg overflow-hidden border-4 border-blue-400 aspect-video min-h-[180px] w-full">
                         {!pinned.camera_off ? (
                           <video
                             ref={el => { if (el) remoteVideosRef.current.set(pinned.id, el); }}
@@ -1559,7 +1586,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   {/* Other tiles in a vertical column on the right */}
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
                     {others.map(participant => (
-                      <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px]">
+                      <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
                         {!participant.camera_off ? (
                           <video
                             ref={participant.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
@@ -1610,11 +1637,11 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 ...((!participants.some(p => p.user_id === userId) && speakerId !== userId) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
               ];
               return (
-                <div className="flex w-full gap-4">
+                <div className="flex w-full gap-4 flex-col md:flex-row">
                   {/* Large speaker tile on the left */}
-                  <div className="flex-shrink-0" style={{ width: '100%', maxWidth: '480px' }}>
+                  <div className="flex-shrink-0 w-full md:w-[480px]">
                     {speaker && (
-                      <div key={speaker.id} className="relative bg-green-900 rounded-lg overflow-hidden border-4 border-green-400 aspect-video min-h-[180px]">
+                      <div key={speaker.id} className="relative bg-green-900 rounded-lg overflow-hidden border-4 border-green-400 aspect-video min-h-[180px] w-full">
                         {!speaker.camera_off ? (
                           <video
                             ref={el => { if (el) remoteVideosRef.current.set(speaker.id, el); }}
@@ -1641,7 +1668,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   {/* Other tiles in a vertical column on the right */}
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
                     {others.map(participant => (
-                      <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px]">
+                      <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
                         {!participant.camera_off ? (
                           <video
                             ref={participant.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
@@ -1687,63 +1714,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               !isScreenSharing && { id: 'self_camera', name: userName, camera_off: isCameraOff, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true },
               ...participantTiles
             ].filter(Boolean);
-
-            // Mobile: horizontal scroll row or stacked layout
-            if (isMobile) {
-              return (
-                <div className="w-full">
-                  <div className="mb-3">
-                    <div className="grid grid-cols-1 gap-3">
-                      {allTiles.slice(0,1).map(tile => (
-                        <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden" style={{ aspectRatio: '16/9', minHeight: tile.isScreen ? '180px' : '140px' }}>
-                          {!tile.camera_off ? (
-                            <video
-                              ref={tile.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(tile.id, el); }}
-                              autoPlay
-                              muted={tile.self}
-                              playsInline
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                              <div className="text-center">
-                                <VideoOff className={tile.isScreen ? "w-12 h-12 mx-auto mb-2" : "w-8 h-8 mx-auto mb-2"} />
-                                <p className={tile.isScreen ? "text-base" : "text-xs"}>{tile.name}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 overflow-x-auto py-2">
-                    {allTiles.map(tile => (
-                      <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ width: '200px', aspectRatio: '16/9', minHeight: '100px' }}>
-                        {!tile.camera_off ? (
-                          <video
-                            ref={tile.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(tile.id, el); }}
-                            autoPlay
-                            muted={tile.self}
-                            playsInline
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                            <div className="text-center">
-                              <VideoOff className={tile.isScreen ? "w-12 h-12 mx-auto mb-2" : "w-8 h-8 mx-auto mb-2"} />
-                              <p className={tile.isScreen ? "text-base" : "text-xs"}>{tile.name}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            }
-
-            // Desktop/tablet: responsive grid using CSS grid
             return (
               <div className="grid gap-3 justify-center items-start w-full" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(220px, 1fr))` }}>
                 {allTiles.map(tile => (
