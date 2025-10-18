@@ -64,15 +64,34 @@ const PostForm = () => {
     e.preventDefault();
     // Derive title from content if user didn't explicitly set one
     let derivedTitle = title;
-    if (!derivedTitle) {
+    const extractedFiveW = extractFiveWFromContent(content);
+    // If the editor contains a fiveW.title, prefer it as the post title
+    if (extractedFiveW && extractedFiveW.title && extractedFiveW.title.trim()) {
+      derivedTitle = extractedFiveW.title.slice(0, 120);
+      setTitle(derivedTitle);
+    } else if (!derivedTitle) {
       const stripped = (content || "").replace(/<[^>]+>/g, '').trim();
       const firstLine = (stripped.split(/\r?\n/).find(l => l.trim().length > 0) || '').trim();
       derivedTitle = firstLine.slice(0, 120) || 'Untitled Post';
       setTitle(derivedTitle);
     }
-    const extractedFiveW = extractFiveWFromContent(content);
-    savePost({ title: derivedTitle, content, images, fiveW: extractedFiveW });
+
+    // Remove embedded 5W label spans (but keep the typed values) before saving content
+    const contentToSave = stripFiveWLabelsFromHtml(content);
+
+    savePost({ title: derivedTitle, content: contentToSave, images, fiveW: extractedFiveW });
   };
+
+  // Remove embedded 5W label spans (<span data-5w="...">Label:</span>) but keep the following text
+  function stripFiveWLabelsFromHtml(html) {
+    if (!html) return html;
+    // remove span tags that were used as inline indicators
+    let out = html.replace(/<span[^>]*data-5w=["'](?:title|who|what|when|where|why)["'][^>]*>\s*[^<]*<\/span>\s*/gi, '');
+    // remove empty paragraphs (that may result from label-only lines)
+    out = out.replace(/<p>\s*(?:&nbsp;|&#160;|)\s*<\/p>/gi, '');
+    // trim leading/trailing whitespace
+    return out.trim();
+  }
 
   // Extract Title/Who/What/When/Where/Why from HTML content
   function extractFiveWFromContent(htmlContent) {
