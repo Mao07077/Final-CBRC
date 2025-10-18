@@ -71,9 +71,11 @@ const PostForm = () => {
       setTitle(derivedTitle);
     }
     const extractedFiveW = extractFiveWFromContent(content);
-    // Remove the Title paragraph from content before saving so the content only contains the body (Who/What/When/Where/Why and other text)
-    const cleanedContent = removeTitleFromHtml(content);
-    savePost({ title: derivedTitle, content: cleanedContent, images, fiveW: extractedFiveW });
+    // Remove 5W labeled paragraphs/spans from the saved content so fields remain separate
+    const cleanedContent = removeFiveWFromContent(content);
+    // If fiveW contains a title, prefer it for metadata
+    if (extractedFiveW && extractedFiveW.title) setTitle(extractedFiveW.title.slice(0,120));
+    savePost({ title: extractedFiveW?.title || derivedTitle, content: cleanedContent, images, fiveW: extractedFiveW });
   };
 
   // Extract Title/Who/What/When/Where/Why from HTML content
@@ -100,31 +102,24 @@ const PostForm = () => {
     return Object.keys(result).length ? result : null;
   }
 
-  // Remove the Title paragraph from editor HTML. Prefers a paragraph that contains data-5w="title".
-  function removeTitleFromHtml(html) {
-    if (!html) return html;
-    // 1) Remove paragraph that contains data-5w="title"
-    const pWithData5w = /<p[^>]*>[^<]*<[^>]*data-5w=["']title["'][^>]*>.*?<\/p>/is;
-    if (pWithData5w.test(html)) {
-      return html.replace(pWithData5w, '');
-    }
-    // 2) Remove paragraph that starts with a Title: label (strong or plain)
-    const pWithTitleLabel = /<p[^>]*>\s*(?:<strong[^>]*>\s*Title:\s*<\/strong>|Title:)\s*.*?<\/p>/is;
-    if (pWithTitleLabel.test(html)) {
-      return html.replace(pWithTitleLabel, '');
-    }
-    // 3) Fallback: if the very first non-empty line contains "Title:", remove that line
-    try {
-      const textLines = html.replace(/<br\s*\/?\s*>/gi, '\n').replace(/<[^>]+>/g, '').split(/\r?\n/).map(l => l.trim());
-      if (textLines.length && /^Title:/i.test(textLines[0])) {
-        // remove first line from html by removing the first paragraph tag
-        const firstP = /<p[^>]*>[\s\S]*?<\/p>/i;
-        if (firstP.test(html)) return html.replace(firstP, '');
-      }
-    } catch (e) {
-      // ignore and return original
-    }
-    return html;
+  // Remove paragraphs that contain 5W labels (Title/Who/What/When/Where/Why)
+  function removeFiveWFromContent(htmlContent) {
+    if (!htmlContent) return htmlContent;
+    // Remove any <p>...</p> that contains a 5W label or data-5w span
+    // Case-insensitive
+    const labels = ['Title', 'Who', 'What', 'When', 'Where', 'Why'];
+    // Remove paragraphs with data-5w attributes first
+    let cleaned = htmlContent.replace(/<p[^>]*>\s*<[^>]+data-5w=["'][^"']+["'][^>]*>.*?<\/[^>]+>.*?<\/p>/gi, '');
+    // Remove paragraphs that contain label words like 'Title:' etc.
+    labels.forEach((lab) => {
+      const re = new RegExp(`<p[^>]*>[^<]*${lab}\s*:\s*[^<]*<\\/p>`, 'gi');
+      // more general: remove p tags containing the label anywhere inside
+      const re2 = new RegExp(`<p[^>]*>(?:(?!<\/p>).)*${lab}\s*:\s*(?:(?!<\/p>).)*<\/p>`, 'gi');
+      cleaned = cleaned.replace(re2, '');
+    });
+    // As a last step remove empty paragraphs
+    cleaned = cleaned.replace(/<p>\s*<\/p>/gi, '');
+    return cleaned.trim();
   }
 
   // derive candidate lines from content to let admin pick a title
