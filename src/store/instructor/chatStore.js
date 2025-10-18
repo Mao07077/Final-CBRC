@@ -35,6 +35,60 @@ const useChatStore = create((set, get) => ({
 
   setActiveConversation: (id) => set({ activeConversationId: id }),
 
+  // Create a new conversation entry for a student (or open existing) and load messages
+  createOrOpenConversation: async (student) => {
+    const { conversations } = get();
+    const studentId = student.studentNo || student.studentNo || student.studentNo; // formatted student has studentNo
+    if (!studentId) return;
+
+    // If conversation already exists, just open it
+    if (conversations[studentId]) {
+      set({ activeConversationId: studentId });
+      return;
+    }
+
+    // Otherwise, create a placeholder convo and try to load existing messages
+    const { userData } = useAuthStore.getState();
+    const instructorId = userData?.id_number;
+
+    // optimistic create
+    set((state) => ({
+      conversations: {
+        ...state.conversations,
+        [studentId]: {
+          id: studentId,
+          name: student.name,
+          role: "student",
+          messages: [],
+          lastMessage: null,
+        },
+      },
+      activeConversationId: studentId,
+    }));
+
+    try {
+      // load past messages (if any)
+      if (instructorId) {
+        const messages = await messageService.getMessages(instructorId, studentId);
+        // Normalize messages if wrapper exists
+        const msgs = Array.isArray(messages) ? messages : (messages.messages || []);
+
+        set((state) => ({
+          conversations: {
+            ...state.conversations,
+            [studentId]: {
+              ...state.conversations[studentId],
+              messages: msgs,
+              lastMessage: msgs.length ? msgs[msgs.length - 1] : null,
+            },
+          },
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load messages for new conversation', error);
+    }
+  },
+
   sendMessage: async (text) => {
     const { activeConversationId, conversations } = get();
     const { userData } = useAuthStore.getState();

@@ -1,15 +1,57 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import useChatStore from "../../../../store/instructor/chatStore";
 import { useChat } from "../../../../context/ChatProvider";
+import useStudentStore from "../../../../store/instructor/studentStore";
 
 const ConversationList = () => {
   const { conversations, activeConversationId, setActiveConversation } = useChatStore();
   const { isUserOnline, unread } = useChat();
+  const { students, filteredStudents, fetchStudents, searchStudents } = useStudentStore();
+  const { createOrOpenConversation } = useChatStore();
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    // preload students for search
+    if (students.length === 0) fetchStudents();
+  }, [students, fetchStudents]);
+
+  useEffect(() => {
+    // debounce search
+    const t = setTimeout(() => {
+      searchStudents(query);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [query, searchStudents]);
 
   return (
     <div className="h-full flex flex-col bg-white border-r border-gray-200">
       <div className="p-4 border-b flex-shrink-0">
         <h2 className="text-xl font-bold text-primary-dark">Conversations</h2>
+        <div className="mt-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search students by name or ID"
+            className="w-full px-3 py-2 border rounded-md text-sm"
+          />
+          {query && filteredStudents.length > 0 && (
+            <ul className="mt-2 max-h-40 overflow-y-auto bg-white border rounded">
+              {filteredStudents.map((s) => (
+                <li
+                  key={s.studentNo || s._id}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => {
+                    setQuery("");
+                    createOrOpenConversation(s);
+                  }}
+                >
+                  <div className="text-sm font-medium">{s.name}</div>
+                  <div className="text-xs text-gray-500">{s.studentNo}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
       <ul className="overflow-y-auto flex-grow">
         {Object.entries(conversations).map(([id, convo]) => {
