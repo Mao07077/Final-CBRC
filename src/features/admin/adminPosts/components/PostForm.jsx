@@ -19,14 +19,16 @@ const PostForm = () => {
       setContent(editingPost.content || "");
     } else {
       setTitle("");
-      // Prefill editor with a 5W template so fields stay inside the editor
+      // Prefill editor with a 5W template so fields stay inside the editor.
+      // Each label is an inline span with a data-5w attribute so clicks inside the editor
+      // can focus the caret at that section.
       const template = `
-        <p><strong>Title:</strong> </p>
-        <p><strong>Who:</strong> </p>
-        <p><strong>What:</strong> </p>
-        <p><strong>When:</strong> </p>
-        <p><strong>Where:</strong> </p>
-        <p><strong>Why:</strong> </p>
+        <p><span data-5w="title" style="background:#FEF3C7;padding:2px 6px;border-radius:4px;font-weight:600;">Title:</span>&nbsp;</p>
+        <p><span data-5w="who" style="background:#FEF3C7;padding:2px 6px;border-radius:4px;font-weight:600;">Who:</span>&nbsp;</p>
+        <p><span data-5w="what" style="background:#FEF3C7;padding:2px 6px;border-radius:4px;font-weight:600;">What:</span>&nbsp;</p>
+        <p><span data-5w="when" style="background:#FEF3C7;padding:2px 6px;border-radius:4px;font-weight:600;">When:</span>&nbsp;</p>
+        <p><span data-5w="where" style="background:#FEF3C7;padding:2px 6px;border-radius:4px;font-weight:600;">Where:</span>&nbsp;</p>
+        <p><span data-5w="why" style="background:#FEF3C7;padding:2px 6px;border-radius:4px;font-weight:600;">Why:</span>&nbsp;</p>
       `;
       setContent(template);
     }
