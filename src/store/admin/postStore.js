@@ -28,9 +28,17 @@ const usePostStore = create((set, get) => ({
       const formData = new FormData();
       formData.append("title", postData.title || "");
       formData.append("content", postData.content || "");
-      // support multiple images
+      // support multiple images (frontend) and also append a single `image` for backend compatibility
       if (postData.images && Array.isArray(postData.images) && postData.images.length > 0) {
-        postData.images.forEach((img, i) => formData.append('images', img));
+        // postData.images may be array of File objects or objects { file, url }
+        postData.images.forEach((img) => {
+          const file = img && img.file ? img.file : img;
+          if (file) formData.append('images', file);
+        });
+        // also append the first file as 'image' (backend expects single 'image' UploadFile)
+        const first = postData.images[0];
+        const firstFile = first && first.file ? first.file : first;
+        if (firstFile) formData.append('image', firstFile);
       }
       if (editingPost) {
         // Update

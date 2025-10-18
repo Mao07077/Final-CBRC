@@ -21,10 +21,19 @@ const PostForm = () => {
       setContent("");
     }
     // If editingPost has image URLs, convert them to preview objects
-    if (editingPost && editingPost.images && Array.isArray(editingPost.images) && editingPost.images.length > 0) {
-      const mapped = editingPost.images.map((url) => ({ url, file: null }));
-      setImages(mapped);
-      setCurrentIdx(0);
+    if (editingPost) {
+      if (editingPost.images && Array.isArray(editingPost.images) && editingPost.images.length > 0) {
+        const mapped = editingPost.images.map((url) => ({ url, file: null }));
+        setImages(mapped);
+        setCurrentIdx(0);
+      } else if (editingPost.image) {
+        // backward-compat: single image field
+        setImages([{ url: editingPost.image, file: null }]);
+        setCurrentIdx(0);
+      } else {
+        setImages([]);
+        setCurrentIdx(0);
+      }
     } else {
       setImages([]);
       setCurrentIdx(0);
