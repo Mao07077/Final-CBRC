@@ -28,20 +28,45 @@ from typing import Optional
 async def create_admin_post(
     title: Optional[str] = Form("") ,
     content: Optional[str] = Form("") ,
-    image: Optional[UploadFile] = File(None)
+    image: Optional[UploadFile] = File(None),
+    images: Optional[list] = File(None)
 ):
-    print(f"DEBUG POST /api/admin/posts: title={title!r}, content={content!r}, image={image}")
+    # Accept either a single 'image' file or multiple 'images' files
+    print(f"DEBUG POST /api/admin/posts: title={title!r}, content={content!r}, image={image}, images={images}")
     image_url = ""
+    images_urls = []
+    import cloudinary.uploader, io
+    # handle single image file
     if image:
-        import cloudinary.uploader, io
         image_bytes = await image.read()
         result = cloudinary.uploader.upload(io.BytesIO(image_bytes), folder="post_images")
         image_url = result["secure_url"]
+        images_urls.append(image_url)
+    # handle multiple images (if provided)
+    if images:
+        # FastAPI may provide a list of UploadFile objects here
+        try:
+            for f in images:
+                if f is None:
+                    continue
+                img_bytes = await f.read()
+                r = cloudinary.uploader.upload(io.BytesIO(img_bytes), folder="post_images")
+                images_urls.append(r.get("secure_url"))
+        except Exception:
+            # if 'images' is not iterable (e.g., a single UploadFile), handle it
+            if hasattr(images, 'file') or hasattr(images, 'filename'):
+                img_bytes = await images.read()
+                r = cloudinary.uploader.upload(io.BytesIO(img_bytes), folder="post_images")
+                images_urls.append(r.get("secure_url"))
+
     post_data = {
         "title": title or "",
         "content": content or "",
         "createdAt": None,
-        "image": image_url,
+        # keep legacy single 'image' field for backward compatibility
+        "image": images_urls[0] if images_urls else image_url,
+        # store all images in an array
+        "images": images_urls if images_urls else ([] if not image_url else [image_url]),
     }
     from datetime import datetime
     post_data["createdAt"] = datetime.utcnow()
@@ -56,15 +81,49 @@ async def update_admin_post(
     post_id: str,
     title: str = Form(None),
     content: str = Form(None),
-    image: str = Form(None)
+    image_url: str = Form(None),
+    image_file: Optional[UploadFile] = File(None),
+    images: Optional[list] = File(None)
 ):
     update_data = {}
+    import cloudinary.uploader, io
+    images_urls = []
+
+    # upload new image_file if present
+    if image_file:
+        img_bytes = await image_file.read()
+        r = cloudinary.uploader.upload(io.BytesIO(img_bytes), folder="post_images")
+        images_urls.append(r.get("secure_url"))
+
+    # upload multiple images if present
+    if images:
+        try:
+            for f in images:
+                if f is None:
+                    continue
+                img_bytes = await f.read()
+                r = cloudinary.uploader.upload(io.BytesIO(img_bytes), folder="post_images")
+                images_urls.append(r.get("secure_url"))
+        except Exception:
+            if hasattr(images, 'file') or hasattr(images, 'filename'):
+                img_bytes = await images.read()
+                r = cloudinary.uploader.upload(io.BytesIO(img_bytes), folder="post_images")
+                images_urls.append(r.get("secure_url"))
+
     if title is not None:
         update_data["title"] = title
     if content is not None:
         update_data["content"] = content
-    if image is not None:
-        update_data["image"] = image
+    # if explicit image_url provided as form string, use it
+    if image_url is not None:
+        update_data["image"] = image_url
+        # also set images array if missing
+        update_data.setdefault("images", [image_url])
+    # if we uploaded files, save them
+    if images_urls:
+        update_data["images"] = images_urls
+        update_data["image"] = images_urls[0]
+
     if not update_data:
         return {"success": False, "error": "No fields to update"}
     result = posts_collection.update_one({"_id": ObjectId(post_id)}, {"$set": update_data})
