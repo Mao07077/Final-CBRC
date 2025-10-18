@@ -71,7 +71,9 @@ const PostForm = () => {
       setTitle(derivedTitle);
     }
     const extractedFiveW = extractFiveWFromContent(content);
-    savePost({ title: derivedTitle, content, images, fiveW: extractedFiveW });
+    // Remove the Title paragraph from content before saving so the content only contains the body (Who/What/When/Where/Why and other text)
+    const cleanedContent = removeTitleFromHtml(content);
+    savePost({ title: derivedTitle, content: cleanedContent, images, fiveW: extractedFiveW });
   };
 
   // Extract Title/Who/What/When/Where/Why from HTML content
@@ -96,6 +98,33 @@ const PostForm = () => {
       result[key] = raw;
     });
     return Object.keys(result).length ? result : null;
+  }
+
+  // Remove the Title paragraph from editor HTML. Prefers a paragraph that contains data-5w="title".
+  function removeTitleFromHtml(html) {
+    if (!html) return html;
+    // 1) Remove paragraph that contains data-5w="title"
+    const pWithData5w = /<p[^>]*>[^<]*<[^>]*data-5w=["']title["'][^>]*>.*?<\/p>/is;
+    if (pWithData5w.test(html)) {
+      return html.replace(pWithData5w, '');
+    }
+    // 2) Remove paragraph that starts with a Title: label (strong or plain)
+    const pWithTitleLabel = /<p[^>]*>\s*(?:<strong[^>]*>\s*Title:\s*<\/strong>|Title:)\s*.*?<\/p>/is;
+    if (pWithTitleLabel.test(html)) {
+      return html.replace(pWithTitleLabel, '');
+    }
+    // 3) Fallback: if the very first non-empty line contains "Title:", remove that line
+    try {
+      const textLines = html.replace(/<br\s*\/?\s*>/gi, '\n').replace(/<[^>]+>/g, '').split(/\r?\n/).map(l => l.trim());
+      if (textLines.length && /^Title:/i.test(textLines[0])) {
+        // remove first line from html by removing the first paragraph tag
+        const firstP = /<p[^>]*>[\s\S]*?<\/p>/i;
+        if (firstP.test(html)) return html.replace(firstP, '');
+      }
+    } catch (e) {
+      // ignore and return original
+    }
+    return html;
   }
 
   // derive candidate lines from content to let admin pick a title
