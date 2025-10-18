@@ -24,14 +24,14 @@ const PostsTable = ({ posts }) => {
 
   return (
     <div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {posts.map(post => (
           <div key={post._id} className="relative bg-white rounded-lg shadow-md overflow-hidden group">
             {/* Support post.images array (URLs) or post.image single URL */}
             {post.images && post.images.length > 0 ? (
               <ImageCarousel images={post.images} />
             ) : post.image ? (
-              <img src={post.image} alt={post.title} className="w-full h-40 object-cover" />
+              <img src={post.image} alt={post.title} className="w-full h-40 object-contain bg-white" />
             ) : null}
 
             <div className="p-4">

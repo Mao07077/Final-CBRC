@@ -20,7 +20,7 @@ const PostForm = () => {
       setTitle("");
       setContent("");
     }
-    // If editingPost has image URLs, convert them to preview objects
+  // If editingPost has image URLs, convert them to preview objects
     if (editingPost) {
       if (editingPost.images && Array.isArray(editingPost.images) && editingPost.images.length > 0) {
         const mapped = editingPost.images.map((url) => ({ url, file: null }));
@@ -50,7 +50,15 @@ const PostForm = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    savePost({ title, content, images });
+    // Derive title from content if user didn't explicitly set one
+    let derivedTitle = title;
+    if (!derivedTitle) {
+      const stripped = (content || "").replace(/<[^>]+>/g, '').trim();
+      const firstLine = (stripped.split(/\r?\n/).find(l => l.trim().length > 0) || '').trim();
+      derivedTitle = firstLine.slice(0, 120) || 'Untitled Post';
+      setTitle(derivedTitle);
+    }
+    savePost({ title: derivedTitle, content, images });
   };
 
   const handleFilesChange = (e) => {
@@ -95,75 +103,66 @@ const PostForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 space-y-6">
-      <div>
-        <label htmlFor="post-title" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-        <input
-          id="post-title"
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Post Title"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition"
-          required
-        />
-      </div>
-      <div>
-        <label htmlFor="post-images" className="block text-sm font-medium text-gray-700 mb-1">
-          Images (you can upload multiple) — images will appear in the main preview below and can be reordered or removed
-        </label>
-        <input
-          id="post-images"
-          type="file"
-          onChange={handleFilesChange}
-          className="w-full text-sm text-gray-500"
-          accept="image/*"
-          multiple
-        />
+    <div className="max-h-[75vh] overflow-auto p-2">
+      <form onSubmit={handleSubmit} className="mt-4 space-y-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Post (use the editor below — the first non-empty line will be used as the Title)</label>
+          <ReactQuill
+            theme="snow"
+            value={content}
+            onChange={setContent}
+            className="bg-white border border-gray-300 rounded-md min-h-[160px]"
+          />
+          <div className="mt-2 text-xs text-gray-600">Derived title preview: <span className="font-semibold">{(title) || ((content || '').replace(/<[^>]+>/g,'').split(/\r?\n/).find(l => l.trim().length>0) || 'Untitled Post').slice(0,120)}</span></div>
+        </div>
 
-        {/* Main image preview / carousel */}
-        {images && images.length > 0 && (
-          <div className="mt-4">
-            <div className="relative bg-gray-100 rounded-md overflow-hidden h-64 flex items-center justify-center">
-              <button type="button" onClick={() => setCurrentIdx((i) => (i - 1 + images.length) % images.length)} className="absolute left-2 bg-white/90 p-2 rounded-full shadow">
-                <FiChevronLeft />
-              </button>
-              <div className="w-full h-full flex items-center justify-center">
-                <img src={images[currentIdx].url} alt={`current-${currentIdx}`} className="max-h-full object-contain" />
-              </div>
-              <button type="button" onClick={() => setCurrentIdx((i) => (i + 1) % images.length)} className="absolute right-2 bg-white/90 p-2 rounded-full shadow">
-                <FiChevronRight />
-              </button>
-            </div>
+        <div>
+          <label htmlFor="post-images" className="block text-sm font-medium text-gray-700 mb-1">
+            Images (you can upload multiple) — images will appear in the main preview below and can be reordered or removed
+          </label>
+          <input
+            id="post-images"
+            type="file"
+            onChange={handleFilesChange}
+            className="w-full text-sm text-gray-500"
+            accept="image/*"
+            multiple
+          />
 
-            {/* Controls */}
-            <div className="mt-2 flex items-center gap-2">
-              <button type="button" onClick={() => moveImage(currentIdx, currentIdx - 1)} disabled={currentIdx === 0} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Move Left</button>
-              <button type="button" onClick={() => moveImage(currentIdx, currentIdx + 1)} disabled={currentIdx === images.length - 1} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Move Right</button>
-              <button type="button" onClick={() => removeImageAt(currentIdx)} className="px-3 py-1 bg-red-100 text-red-700 rounded">Remove</button>
-              <div className="ml-auto text-sm text-gray-600">Image {currentIdx + 1} of {images.length}</div>
-            </div>
-
-            {/* Thumbnails */}
-            <div className="mt-3 flex gap-2 overflow-x-auto">
-              {images.map((img, idx) => (
-                <button key={idx} type="button" onClick={() => setCurrentIdx(idx)} className={`w-20 h-14 rounded overflow-hidden border ${idx === currentIdx ? 'ring-2 ring-indigo-400' : ''}`}>
-                  <img src={img.url} alt={`thumb-${idx}`} className="w-full h-full object-cover" />
+          {/* Main image preview / carousel */}
+          {images && images.length > 0 && (
+            <div className="mt-4">
+              <div className="relative bg-gray-100 rounded-md overflow-hidden h-64 sm:h-72 md:h-64 flex items-center justify-center">
+                <button type="button" onClick={() => setCurrentIdx((i) => (i - 1 + images.length) % images.length)} className="absolute left-2 bg-white/90 p-2 rounded-full shadow">
+                  <FiChevronLeft />
                 </button>
-              ))}
+                <div className="w-full h-full flex items-center justify-center">
+                  <img src={images[currentIdx].url} alt={`current-${currentIdx}`} className="max-h-full object-contain bg-white" />
+                </div>
+                <button type="button" onClick={() => setCurrentIdx((i) => (i + 1) % images.length)} className="absolute right-2 bg-white/90 p-2 rounded-full shadow">
+                  <FiChevronRight />
+                </button>
+              </div>
+
+              {/* Controls */}
+              <div className="mt-2 flex items-center gap-2">
+                <button type="button" onClick={() => moveImage(currentIdx, currentIdx - 1)} disabled={currentIdx === 0} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Move Left</button>
+                <button type="button" onClick={() => moveImage(currentIdx, currentIdx + 1)} disabled={currentIdx === images.length - 1} className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Move Right</button>
+                <button type="button" onClick={() => removeImageAt(currentIdx)} className="px-3 py-1 bg-red-100 text-red-700 rounded">Remove</button>
+                <div className="ml-auto text-sm text-gray-600">Image {currentIdx + 1} of {images.length}</div>
+              </div>
+
+              {/* Thumbnails */}
+              <div className="mt-3 flex gap-2 overflow-x-auto">
+                {images.map((img, idx) => (
+                  <button key={idx} type="button" onClick={() => setCurrentIdx(idx)} className={`w-20 h-14 rounded overflow-hidden border ${idx === currentIdx ? 'ring-2 ring-indigo-400' : ''}`}>
+                    <img src={img.url} alt={`thumb-${idx}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
-        <ReactQuill
-          theme="snow"
-          value={content}
-          onChange={setContent}
-          className="bg-white border border-gray-300 rounded-md"
-        />
-      </div>
+          )}
+        </div>
       <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
         <button
           type="button"
@@ -181,6 +180,7 @@ const PostForm = () => {
         </button>
       </div>
     </form>
+    </div>
   );
 };
 
