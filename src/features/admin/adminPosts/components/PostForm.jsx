@@ -8,7 +8,6 @@ const PostForm = () => {
   const { savePost, editingPost, closeModal, isLoading } = usePostStore();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [fiveW, setFiveW] = useState({ who: "", what: "", when: "", where: "", why: "" });
   const [images, setImages] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const objectUrlsRef = useRef([]);
@@ -19,7 +18,16 @@ const PostForm = () => {
       setContent(editingPost.content || "");
     } else {
       setTitle("");
-      setContent("");
+      // Prefill editor with a 5W template so fields stay inside the editor
+      const template = `
+        <p><strong>Title:</strong> </p>
+        <p><strong>Who:</strong> </p>
+        <p><strong>What:</strong> </p>
+        <p><strong>When:</strong> </p>
+        <p><strong>Where:</strong> </p>
+        <p><strong>Why:</strong> </p>
+      `;
+      setContent(template);
     }
   // If editingPost has image URLs, convert them to preview objects
     if (editingPost) {
@@ -59,8 +67,33 @@ const PostForm = () => {
       derivedTitle = firstLine.slice(0, 120) || 'Untitled Post';
       setTitle(derivedTitle);
     }
-    savePost({ title: derivedTitle, content, images, fiveW });
+    const extractedFiveW = extractFiveWFromContent(content);
+    savePost({ title: derivedTitle, content, images, fiveW: extractedFiveW });
   };
+
+  // Extract Title/Who/What/When/Where/Why from HTML content
+  function extractFiveWFromContent(htmlContent) {
+    if (!htmlContent) return null;
+    const text = (htmlContent || '').replace(/<br\s*\/?\s*>/gi, '\n').replace(/<[^>]+>/g, '');
+    const labels = ['Title', 'Who', 'What', 'When', 'Where', 'Why'];
+    const result = {};
+    const lower = text.toLowerCase();
+    labels.forEach((label) => {
+      const key = label.toLowerCase();
+      const idx = lower.indexOf((label + ':').toLowerCase());
+      if (idx === -1) return;
+      const start = idx + label.length + 1;
+      // find next label position
+      let end = text.length;
+      for (const l of labels) {
+        const otherIdx = lower.indexOf((l + ':').toLowerCase(), start);
+        if (otherIdx !== -1) end = Math.min(end, otherIdx);
+      }
+      const raw = text.substring(start, end).trim();
+      result[key] = raw;
+    });
+    return Object.keys(result).length ? result : null;
+  }
 
   // derive candidate lines from content to let admin pick a title
   const getCandidateLines = () => {
