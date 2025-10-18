@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import useModuleStore from "../../../store/instructor/moduleStore";
 import PreTestManager from "./components/PreTestManager";
 import usePostTestStore from "../../../store/instructor/postTestStore";
+import Modal from "../../../components/common/Modal";
+import TestBuilderForm from "./components/TestBuilderForm";
 
 const PreTestManagementPage = () => {
   const { modules, fetchModules, isLoading: modulesLoading } = useModuleStore();
-  const { newTest } = usePostTestStore();
+  const { newTest, isModalOpen, closeModal } = usePostTestStore();
   const [selectedModuleId, setSelectedModuleId] = useState("");
 
   useEffect(() => {
@@ -42,6 +44,14 @@ const PreTestManagementPage = () => {
         </>
       )}
       {selectedModuleId && <PreTestManager moduleId={selectedModuleId} />}
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={usePostTestStore.getState().editingTest?._id?.toString?.().startsWith('new_') ? 'Create New Test' : 'Edit Test'}
+      >
+        <TestBuilderForm moduleId={selectedModuleId} />
+      </Modal>
     </div>
   );
 };
