@@ -3,7 +3,7 @@ import Modal from "../components/common/Modal";
 import { useLocation, Link as RouterLink } from "react-router-dom";
 import { Element, scroller } from 'react-scroll';
 import apiClient from "../api/axiosClient";
-import { FiBookOpen, FiEdit, FiUsers, FiTrendingUp, FiAward, FiMessageCircle } from 'react-icons/fi';
+import { FiBookOpen, FiEdit, FiUsers, FiTrendingUp, FiAward, FiMessageCircle, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import HeroBg from '../assets/images/hero_landing_page_bg.jpg';
 import useLandingStore from "../store/landingStore";
 
@@ -119,12 +119,18 @@ const HomePage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {adminPosts.map((post) => {
                     // Get preview: first 120 chars, strip HTML tags
-                    const preview = post.content.replace(/<[^>]+>/g, "").slice(0, 120) + (post.content.replace(/<[^>]+>/g, "").length > 120 ? "..." : "");
+                    const plain = (post.content || '').replace(/<[^>]+>/g, "");
+                    const preview = plain.slice(0, 120) + (plain.length > 120 ? "..." : "");
                     return (
                       <div key={post._id} className="bg-white rounded-lg shadow-md p-4 border cursor-pointer" onClick={() => setSelectedPost(post)}>
-                        {post.image && (
+                        {/* Show carousel when multiple images exist */}
+                        {post.images && post.images.length > 0 ? (
+                          <div className="mb-3">
+                            <ImageCarousel images={post.images} />
+                          </div>
+                        ) : post.image ? (
                           <img src={post.image} alt={post.title} className="w-full h-40 object-cover rounded mb-3" />
-                        )}
+                        ) : null}
                         <h3 className="text-lg font-semibold mb-2">{post.title}</h3>
                         <p className="text-gray-700 mb-2">{preview}</p>
                         <div className="text-xs text-gray-500">{post.createdAt ? new Date(post.createdAt).toLocaleString() : "No date"}</div>
@@ -135,9 +141,12 @@ const HomePage = () => {
       <Modal isOpen={!!selectedPost} onClose={() => setSelectedPost(null)} title={selectedPost?.title || ""}>
         {selectedPost && (
           <div>
-            {selectedPost.image && (
+            {/* Modal: show carousel if multiple images exist */}
+            {selectedPost.images && selectedPost.images.length > 0 ? (
+              <ImageCarousel images={selectedPost.images} />
+            ) : selectedPost.image ? (
               <img src={selectedPost.image} alt={selectedPost.title} className="w-full h-40 object-cover rounded mb-3" />
-            )}
+            ) : null}
             <div className="mb-2 text-xs text-gray-500">{selectedPost.createdAt ? new Date(selectedPost.createdAt).toLocaleString() : "No date"}</div>
             <div className="text-gray-700" dangerouslySetInnerHTML={{ __html: selectedPost.content }} />
           </div>
@@ -198,3 +207,21 @@ const HomePage = () => {
 }
 
 export default HomePage;
+
+// Small reusable carousel used on landing page for posts with multiple images
+function ImageCarousel({ images = [] }) {
+  const [idx, setIdx] = useState(0);
+  if (!images || images.length === 0) return null;
+  const src = typeof images[idx] === 'string' ? images[idx] : (images[idx].url || images[idx]);
+  return (
+    <div className="relative bg-gray-100 h-40 flex items-center justify-center overflow-hidden rounded">
+      <button type="button" onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)} className="absolute left-2 bg-white/90 p-2 rounded-full shadow">
+        <FiChevronLeft />
+      </button>
+      <img src={src} alt={`carousel-${idx}`} className="w-full h-full object-cover" />
+      <button type="button" onClick={() => setIdx((i) => (i + 1) % images.length)} className="absolute right-2 bg-white/90 p-2 rounded-full shadow">
+        <FiChevronRight />
+      </button>
+    </div>
+  );
+}
