@@ -71,8 +71,7 @@ const PostForm = () => {
       setTitle(derivedTitle);
     }
     const extractedFiveW = extractFiveWFromContent(content);
-    const cleanedContent = stripFiveWFromContent(content);
-    savePost({ title: derivedTitle, content: cleanedContent, images, fiveW: extractedFiveW });
+    savePost({ title: derivedTitle, content, images, fiveW: extractedFiveW });
   };
 
   // Extract Title/Who/What/When/Where/Why from HTML content
@@ -97,30 +96,6 @@ const PostForm = () => {
       result[key] = raw;
     });
     return Object.keys(result).length ? result : null;
-  }
-
-  // Remove paragraphs that contain only 5W labels (Title:/Who:/What:/When:/Where:/Why:)
-  function stripFiveWFromContent(htmlContent) {
-    if (!htmlContent) return htmlContent;
-    try {
-      const container = document.createElement('div');
-      container.innerHTML = htmlContent;
-      const labels = ['title', 'who', 'what', 'when', 'where', 'why'];
-      const paragraphs = Array.from(container.querySelectorAll('p'));
-      paragraphs.forEach(p => {
-        const text = (p.textContent || '').trim().toLowerCase();
-        for (const l of labels) {
-          if (text.startsWith(l + ':')) {
-            p.remove();
-            break;
-          }
-        }
-      });
-      return container.innerHTML;
-    } catch (err) {
-      // fallback to regex-based removal
-      return htmlContent.replace(/<p[^>]*>\s*(?:<[^>]+>)*\s*(?:Title|Who|What|When|Where|Why)\s*:\s*(?:<[^>]+>)*\s*<\/p>/gi, '');
-    }
   }
 
   // derive candidate lines from content to let admin pick a title
