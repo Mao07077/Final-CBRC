@@ -174,29 +174,7 @@ const PostForm = () => {
           <div className="mt-2 text-xs text-gray-600">Selected Title: <span className="font-semibold">{title || '— not set —'}</span></div>
         </div>
 
-        {/* 5W fields */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Who</label>
-            <input value={fiveW.who} onChange={(e) => setFiveW((p) => ({ ...p, who: e.target.value }))} className="w-full px-3 py-2 border rounded" placeholder="Who is involved?" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">What</label>
-            <input value={fiveW.what} onChange={(e) => setFiveW((p) => ({ ...p, what: e.target.value }))} className="w-full px-3 py-2 border rounded" placeholder="What happened?" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">When</label>
-            <input value={fiveW.when} onChange={(e) => setFiveW((p) => ({ ...p, when: e.target.value }))} className="w-full px-3 py-2 border rounded" placeholder="When did it happen?" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Where</label>
-            <input value={fiveW.where} onChange={(e) => setFiveW((p) => ({ ...p, where: e.target.value }))} className="w-full px-3 py-2 border rounded" placeholder="Where did it happen?" />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Why</label>
-            <textarea value={fiveW.why} onChange={(e) => setFiveW((p) => ({ ...p, why: e.target.value }))} className="w-full px-3 py-2 border rounded" placeholder="Why did it happen?" rows={3} />
-          </div>
-        </div>
+        {/* fiveW is now stored inside the editor content; explicit fields removed */}
 
         <div>
           <label htmlFor="post-images" className="block text-sm font-medium text-gray-700 mb-1">
