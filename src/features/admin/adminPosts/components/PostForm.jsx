@@ -8,6 +8,7 @@ const PostForm = () => {
   const { savePost, editingPost, closeModal, isLoading } = usePostStore();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [fiveW, setFiveW] = useState({ who: "", what: "", when: "", where: "", why: "" });
   const [images, setImages] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const objectUrlsRef = useRef([]);
@@ -58,8 +59,22 @@ const PostForm = () => {
       derivedTitle = firstLine.slice(0, 120) || 'Untitled Post';
       setTitle(derivedTitle);
     }
-    savePost({ title: derivedTitle, content, images });
+    savePost({ title: derivedTitle, content, images, fiveW });
   };
+
+  // derive candidate lines from content to let admin pick a title
+  const getCandidateLines = () => {
+    const stripped = (content || "").replace(/<[^>]+>/g, '').trim();
+    if (!stripped) return [];
+    // split by newlines first, then sentences as fallback
+    let lines = stripped.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) {
+      lines = stripped.split(/\.\s+/).map(l => l.trim()).filter(Boolean);
+    }
+    return lines.slice(0, 6);
+  };
+
+  const candidateLines = getCandidateLines();
 
   const handleFilesChange = (e) => {
     const files = Array.from(e.target.files || []);
@@ -106,14 +121,48 @@ const PostForm = () => {
     <div className="max-h-[75vh] overflow-auto p-2">
       <form onSubmit={handleSubmit} className="mt-4 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Post (use the editor below — the first non-empty line will be used as the Title)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Post (use the editor — pick a line below to set the Title)</label>
           <ReactQuill
             theme="snow"
             value={content}
             onChange={setContent}
             className="bg-white border border-gray-300 rounded-md min-h-[160px]"
           />
-          <div className="mt-2 text-xs text-gray-600">Derived title preview: <span className="font-semibold">{(title) || ((content || '').replace(/<[^>]+>/g,'').split(/\r?\n/).find(l => l.trim().length>0) || 'Untitled Post').slice(0,120)}</span></div>
+          <div className="mt-2 text-xs text-gray-600">Click a candidate to set the Title:</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {candidateLines.length === 0 ? (
+              <div className="text-xs text-gray-500">No candidate lines found. Type in the editor and press enter between lines.</div>
+            ) : (
+              candidateLines.map((line, i) => (
+                <button key={i} type="button" onClick={() => setTitle(line.slice(0,120))} className="px-2 py-1 text-sm bg-gray-100 rounded border hover:bg-gray-200">{line.slice(0,80)}</button>
+              ))
+            )}
+          </div>
+          <div className="mt-2 text-xs text-gray-600">Selected Title: <span className="font-semibold">{title || '— not set —'}</span></div>
+        </div>
+
+        {/* 5W fields */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Who</label>
+            <input value={fiveW.who} onChange={(e) => setFiveW((p) => ({ ...p, who: e.target.value }))} className="w-full px-3 py-2 border rounded" placeholder="Who is involved?" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">What</label>
+            <input value={fiveW.what} onChange={(e) => setFiveW((p) => ({ ...p, what: e.target.value }))} className="w-full px-3 py-2 border rounded" placeholder="What happened?" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">When</label>
+            <input value={fiveW.when} onChange={(e) => setFiveW((p) => ({ ...p, when: e.target.value }))} className="w-full px-3 py-2 border rounded" placeholder="When did it happen?" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Where</label>
+            <input value={fiveW.where} onChange={(e) => setFiveW((p) => ({ ...p, where: e.target.value }))} className="w-full px-3 py-2 border rounded" placeholder="Where did it happen?" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Why</label>
+            <textarea value={fiveW.why} onChange={(e) => setFiveW((p) => ({ ...p, why: e.target.value }))} className="w-full px-3 py-2 border rounded" placeholder="Why did it happen?" rows={3} />
+          </div>
         </div>
 
         <div>

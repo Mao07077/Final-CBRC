@@ -28,6 +28,14 @@ const usePostStore = create((set, get) => ({
       const formData = new FormData();
       formData.append("title", postData.title || "");
       formData.append("content", postData.content || "");
+      // attach 5W metadata if present
+      if (postData.fiveW) {
+        try {
+          formData.append('fiveW', JSON.stringify(postData.fiveW));
+        } catch (err) {
+          // ignore
+        }
+      }
       // support multiple images (frontend) and also append a single `image` for backend compatibility
       if (postData.images && Array.isArray(postData.images) && postData.images.length > 0) {
         // postData.images may be array of File objects or objects { file, url }
