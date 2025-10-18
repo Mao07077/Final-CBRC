@@ -19,8 +19,8 @@ const InstructorDashboardPage = () => {
 
   return (
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">
-        Instructor Dashboard
+      <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-6">
+        Instructor Dashboard — Overview
       </h1>
 
       {/* Top Row: Stats & Actions */}
@@ -35,21 +35,27 @@ const InstructorDashboardPage = () => {
           value={`${stats.engagementRate}%`}
           isLoading={isLoading}
         />
-        <div className="md:col-span-2 lg:col-span-1 flex flex-col justify-center p-4 bg-white rounded-lg shadow-md">
-          <div className="flex flex-col sm:flex-row gap-4 w-full">
+        <div className="md:col-span-2 lg:col-span-1 p-6 bg-white rounded-lg shadow-md">
+          <div className="mb-3">
+            <h2 className="text-lg font-medium text-gray-800">Actions</h2>
+            <p className="text-sm text-gray-600">Create new learning modules or post-tests for your program.</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full mt-4">
             <Link
               to="/instructor/modules"
-              className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="w-full flex items-center justify-center px-4 py-2 border border-indigo-600 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              aria-label="Create New Module"
             >
               <FiPlusCircle className="mr-2" />
-              Create Module
+              Create New Module
             </Link>
             <Link
               to="/instructor/post-tests"
-              className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              aria-label="Create New Post-Test"
             >
               <FiPlusCircle className="mr-2" />
-              Create Post-Test
+              Create New Post-Test
             </Link>
           </div>
         </div>
