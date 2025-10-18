@@ -71,11 +71,8 @@ const PostForm = () => {
       setTitle(derivedTitle);
     }
     const extractedFiveW = extractFiveWFromContent(content);
-    // Remove 5W labeled paragraphs/spans from the saved content so fields remain separate
-    const cleanedContent = removeFiveWFromContent(content);
-    // If fiveW contains a title, prefer it for metadata
-    if (extractedFiveW && extractedFiveW.title) setTitle(extractedFiveW.title.slice(0,120));
-    savePost({ title: extractedFiveW?.title || derivedTitle, content: cleanedContent, images, fiveW: extractedFiveW });
+    const cleanedContent = stripFiveWFromContent(content);
+    savePost({ title: derivedTitle, content: cleanedContent, images, fiveW: extractedFiveW });
   };
 
   // Extract Title/Who/What/When/Where/Why from HTML content
@@ -102,24 +99,28 @@ const PostForm = () => {
     return Object.keys(result).length ? result : null;
   }
 
-  // Remove paragraphs that contain 5W labels (Title/Who/What/When/Where/Why)
-  function removeFiveWFromContent(htmlContent) {
+  // Remove paragraphs that contain only 5W labels (Title:/Who:/What:/When:/Where:/Why:)
+  function stripFiveWFromContent(htmlContent) {
     if (!htmlContent) return htmlContent;
-    // Remove any <p>...</p> that contains a 5W label or data-5w span
-    // Case-insensitive
-    const labels = ['Title', 'Who', 'What', 'When', 'Where', 'Why'];
-    // Remove paragraphs with data-5w attributes first
-    let cleaned = htmlContent.replace(/<p[^>]*>\s*<[^>]+data-5w=["'][^"']+["'][^>]*>.*?<\/[^>]+>.*?<\/p>/gi, '');
-    // Remove paragraphs that contain label words like 'Title:' etc.
-    labels.forEach((lab) => {
-      const re = new RegExp(`<p[^>]*>[^<]*${lab}\s*:\s*[^<]*<\\/p>`, 'gi');
-      // more general: remove p tags containing the label anywhere inside
-      const re2 = new RegExp(`<p[^>]*>(?:(?!<\/p>).)*${lab}\s*:\s*(?:(?!<\/p>).)*<\/p>`, 'gi');
-      cleaned = cleaned.replace(re2, '');
-    });
-    // As a last step remove empty paragraphs
-    cleaned = cleaned.replace(/<p>\s*<\/p>/gi, '');
-    return cleaned.trim();
+    try {
+      const container = document.createElement('div');
+      container.innerHTML = htmlContent;
+      const labels = ['title', 'who', 'what', 'when', 'where', 'why'];
+      const paragraphs = Array.from(container.querySelectorAll('p'));
+      paragraphs.forEach(p => {
+        const text = (p.textContent || '').trim().toLowerCase();
+        for (const l of labels) {
+          if (text.startsWith(l + ':')) {
+            p.remove();
+            break;
+          }
+        }
+      });
+      return container.innerHTML;
+    } catch (err) {
+      // fallback to regex-based removal
+      return htmlContent.replace(/<p[^>]*>\s*(?:<[^>]+>)*\s*(?:Title|Who|What|When|Where|Why)\s*:\s*(?:<[^>]+>)*\s*<\/p>/gi, '');
+    }
   }
 
   // derive candidate lines from content to let admin pick a title
