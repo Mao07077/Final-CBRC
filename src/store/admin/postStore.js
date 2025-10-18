@@ -28,8 +28,9 @@ const usePostStore = create((set, get) => ({
       const formData = new FormData();
       formData.append("title", postData.title || "");
       formData.append("content", postData.content || "");
-      if (postData.image) {
-        formData.append("image", postData.image);
+      // support multiple images
+      if (postData.images && Array.isArray(postData.images) && postData.images.length > 0) {
+        postData.images.forEach((img, i) => formData.append('images', img));
       }
       if (editingPost) {
         // Update

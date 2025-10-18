@@ -5,54 +5,22 @@ const PostsTable = ({ posts }) => {
   const { openModal, deletePost } = usePostStore();
 
   return (
-    <div className="bg-white shadow-md rounded-lg overflow-hidden">
-      {/* Table for medium and larger screens */}
-      <div className="hidden md:block">
-        <table className="w-full text-sm text-left text-gray-500">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3">Title</th>
-              <th scope="col" className="px-6 py-3">Created At</th>
-              <th scope="col" className="px-6 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {posts.map((post) => (
-              <tr key={post._id} className="bg-white border-b hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium text-gray-900">{post.title}</td>
-                <td className="px-6 py-4">{new Date(post.createdAt).toLocaleDateString()}</td>
-                <td className="px-6 py-4 flex items-center justify-end gap-2">
-                  <button onClick={() => openModal(post)} className="p-2 text-gray-500 hover:text-indigo-600">
-                    <FiEdit />
-                  </button>
-                  <button onClick={() => deletePost(post._id)} className="p-2 text-gray-500 hover:text-red-600">
-                    <FiTrash2 />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Cards for small screens */}
-      <div className="md:hidden">
-        {posts.map((post) => (
-          <div key={post._id} className="border-b p-4">
-            <div className="flex justify-between items-start mb-2">
-              <p className="font-bold text-gray-900">{post.title}</p>
-              <div className="flex items-center gap-2">
-                <button onClick={() => openModal(post)} className="p-2 text-gray-500 hover:text-indigo-600">
-                  <FiEdit />
-                </button>
-                <button onClick={() => deletePost(post._id)} className="p-2 text-gray-500 hover:text-red-600">
-                  <FiTrash2 />
-                </button>
-              </div>
+    <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {posts.map(post => (
+          <div key={post._id} className="relative bg-white rounded-lg shadow-md overflow-hidden group">
+            {post.image && (
+              <img src={post.image} alt={post.title} className="w-full h-40 object-cover" />
+            )}
+            <div className="p-4">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900">{post.title}</h3>
+              <p className="text-sm text-gray-700 mb-3">{(post.content || '').replace(/<[^>]+>/g, '').slice(0, 140)}{(post.content || '').replace(/<[^>]+>/g, '').length > 140 ? '...' : ''}</p>
+              <div className="text-xs text-gray-500">{post.createdAt ? new Date(post.createdAt).toLocaleString() : 'No date'}</div>
             </div>
-            <p className="text-sm text-gray-600">
-              Created: {new Date(post.createdAt).toLocaleDateString()}
-            </p>
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => openModal(post)} className="p-2 bg-white rounded-full shadow text-indigo-600 mr-2"><FiEdit /></button>
+              <button onClick={() => deletePost(post._id)} className="p-2 bg-white rounded-full shadow text-red-600"><FiTrash2 /></button>
+            </div>
           </div>
         ))}
       </div>
