@@ -35,8 +35,18 @@ const PostsTable = ({ posts }) => {
             ) : null}
 
             <div className="p-4">
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">{post.title}</h3>
-              <p className="text-sm text-gray-700 mb-3">{(post.content || '').replace(/<[^>]+>/g, '').slice(0, 140)}{(post.content || '').replace(/<[^>]+>/g, '').length > 140 ? '...' : ''}</p>
+              <h3 className="text-lg font-semibold mb-2 text-gray-900">{post.fiveW && post.fiveW.title ? post.fiveW.title : post.title}</h3>
+              {post.fiveW ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700 mb-3">
+                  <div><span className="font-semibold">Who:</span> {post.fiveW.who || '—'}</div>
+                  <div><span className="font-semibold">What:</span> {post.fiveW.what || '—'}</div>
+                  <div><span className="font-semibold">When:</span> {post.fiveW.when || '—'}</div>
+                  <div><span className="font-semibold">Where:</span> {post.fiveW.where || '—'}</div>
+                  <div className="sm:col-span-2"><span className="font-semibold">Why:</span> {post.fiveW.why || '—'}</div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-700 mb-3">{(post.content || '').replace(/<[^>]+>/g, '').slice(0, 140)}{(post.content || '').replace(/<[^>]+>/g, '').length > 140 ? '...' : ''}</p>
+              )}
               <div className="text-xs text-gray-500">{post.createdAt ? new Date(post.createdAt).toLocaleString() : 'No date'}</div>
             </div>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">

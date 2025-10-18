@@ -121,6 +121,7 @@ const HomePage = () => {
                     // Get preview: first 120 chars, strip HTML tags
                     const plain = (post.content || '').replace(/<[^>]+>/g, "");
                     const preview = plain.slice(0, 120) + (plain.length > 120 ? "..." : "");
+                    const displayTitle = (post.fiveW && post.fiveW.title) ? post.fiveW.title : post.title;
                     return (
                       <div key={post._id} className="bg-white rounded-lg shadow-md p-4 border cursor-pointer" onClick={() => setSelectedPost(post)}>
                         {/* Show carousel when multiple images exist */}
@@ -131,8 +132,22 @@ const HomePage = () => {
                         ) : post.image ? (
                           <img src={post.image} alt={post.title} className="w-full h-40 object-contain bg-white rounded mb-3" />
                         ) : null}
-                        <h3 className="text-lg font-semibold mb-2">{post.title}</h3>
-                        <p className="text-gray-700 mb-2">{preview}</p>
+
+                        <h3 className="text-lg font-semibold mb-2">{displayTitle}</h3>
+
+                        {/* If fiveW exists, show structured fields in a two-column grid */}
+                        {post.fiveW ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700 mb-3">
+                            <div><span className="font-semibold">Who:</span> {post.fiveW.who || '—'}</div>
+                            <div><span className="font-semibold">What:</span> {post.fiveW.what || '—'}</div>
+                            <div><span className="font-semibold">When:</span> {post.fiveW.when || '—'}</div>
+                            <div><span className="font-semibold">Where:</span> {post.fiveW.where || '—'}</div>
+                            <div className="sm:col-span-2"><span className="font-semibold">Why:</span> {post.fiveW.why || '—'}</div>
+                          </div>
+                        ) : (
+                          <p className="text-gray-700 mb-2">{preview}</p>
+                        )}
+
                         <div className="text-xs text-gray-500">{post.createdAt ? new Date(post.createdAt).toLocaleString() : "No date"}</div>
                       </div>
                     );
