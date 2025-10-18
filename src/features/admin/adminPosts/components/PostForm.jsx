@@ -11,6 +11,7 @@ const PostForm = () => {
   const [images, setImages] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const objectUrlsRef = useRef([]);
+  const quillRef = useRef(null);
 
   useEffect(() => {
     if (editingPost) {
@@ -150,28 +151,55 @@ const PostForm = () => {
     else if (from > currentIdx && to <= currentIdx) setCurrentIdx((i) => i + 1);
   };
 
+  // Move caret to label position inside the editor. If label not found, append it.
+  function focusSection(label) {
+    try {
+      const quill = quillRef.current && quillRef.current.getEditor && quillRef.current.getEditor();
+      if (!quill) return;
+      const plain = quill.getText();
+      const lower = plain.toLowerCase();
+      const needle = (label + ':').toLowerCase();
+      let pos = lower.indexOf(needle);
+      if (pos === -1) {
+        // append label at end
+        const insertAt = quill.getLength() - 1;
+        quill.insertText(insertAt, `\n${label}: `, 'user');
+        pos = insertAt + 1; // position after newline
+      } else {
+        pos = pos + label.length + 1; // after 'Label:'
+      }
+      // set caret at the end of the label's separator (after the space)
+      quill.setSelection(pos + 1, 0);
+      quill.focus();
+      // If label is Title, update title preview from that section
+      if (label.toLowerCase() === 'title') {
+        const five = extractFiveWFromContent(quill.root.innerHTML);
+        if (five && five.title) setTitle(five.title.slice(0,120));
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+
   return (
     <div className="max-h-[75vh] overflow-auto p-2">
       <form onSubmit={handleSubmit} className="mt-4 space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Post (use the editor — pick a line below to set the Title)</label>
           <ReactQuill
+            ref={quillRef}
             theme="snow"
             value={content}
             onChange={setContent}
             className="bg-white border border-gray-300 rounded-md min-h-[160px]"
           />
-          <div className="mt-2 text-xs text-gray-600">Click a candidate to set the Title:</div>
+          <div className="mt-2 text-xs text-gray-600">Click an indicator to move the editor caret to that section:</div>
           <div className="mt-2 flex flex-wrap gap-2">
-            {candidateLines.length === 0 ? (
-              <div className="text-xs text-gray-500">No candidate lines found. Type in the editor and press enter between lines.</div>
-            ) : (
-              candidateLines.map((line, i) => (
-                <button key={i} type="button" onClick={() => setTitle(line.slice(0,120))} className="px-2 py-1 text-sm bg-gray-100 rounded border hover:bg-gray-200">{line.slice(0,80)}</button>
-              ))
-            )}
+            {['Title','Who','What','When','Where','Why'].map((lbl) => (
+              <button key={lbl} type="button" onClick={() => focusSection(lbl)} className="px-2 py-1 text-sm bg-gray-100 rounded border hover:bg-gray-200">{lbl}</button>
+            ))}
           </div>
-          <div className="mt-2 text-xs text-gray-600">Selected Title: <span className="font-semibold">{title || '— not set —'}</span></div>
+          <div className="mt-2 text-xs text-gray-600">Selected Title: <span className="font-semibold">{title || (extractFiveWFromContent(content)?.title) || '— not set —'}</span></div>
         </div>
 
         {/* fiveW is now stored inside the editor content; explicit fields removed */}
