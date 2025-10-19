@@ -61,13 +61,18 @@ const StudentDataPrintingPage = () => {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0);
           const dataUrl = canvas.toDataURL('image/png');
-          doc.addImage(dataUrl, 'PNG', left, top, 70, 70);
+          // enlarge height by 20% (70 -> 84) and center horizontally
+          const logoH = 84; // 20% taller than 70
+          const logoW = (img.width / img.height) * logoH;
+          const centerX = (pageWidth - logoW) / 2;
+          doc.addImage(dataUrl, 'PNG', centerX, top, logoW, logoH);
         }
 
         // Title and meta
-        doc.setFontSize(18);
-        doc.setFont(undefined, 'bold');
-        doc.text('Student Performance Report', pageWidth / 2, top + 28, { align: 'center' });
+  doc.setFontSize(18);
+  doc.setFont(undefined, 'bold');
+  // move title slightly down since logo is taller and centered
+  doc.text('Student Performance Report', pageWidth / 2, top + 84 + 18 / 2, { align: 'center' });
         doc.setFontSize(10);
         doc.setFont(undefined, 'normal');
         doc.text(`ID: ${id_number}`, left + 80, top + 90);

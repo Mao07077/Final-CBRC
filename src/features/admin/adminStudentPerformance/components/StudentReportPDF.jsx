@@ -27,9 +27,9 @@ const normalizePerformance = (student) => {
 // Define styles for the PDF
 const styles = StyleSheet.create({
   page: { padding: 30, fontSize: 11, fontFamily: "Helvetica" },
-  header: { display: "flex", flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  logo: { width: 70, height: 70, marginRight: 12 },
-  reportTitle: { flex: 1, textAlign: "center", fontSize: 18, fontWeight: "bold" },
+  header: { display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  logo: { width: 84, height: 84, marginRight: 12 }, // 20% taller than before
+  reportTitle: { flex: 1, textAlign: "center", fontSize: 18, fontWeight: "bold", marginTop: 8 },
   reportMeta: { fontSize: 9, color: "#555" },
   section: { marginBottom: 14 },
   sectionTitle: { fontSize: 14, marginBottom: 6, fontWeight: "bold", textDecoration: "underline" },
