@@ -8,6 +8,7 @@ const StudentDataPrintingPage = () => {
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     async function fetchActivity() {
@@ -29,20 +30,122 @@ const StudentDataPrintingPage = () => {
 
   // PDF download handler using jsPDF
   const handleDownloadPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("Student Report", 20, 20);
-    doc.setFontSize(12);
-    doc.text(`ID Number: ${id_number}`, 20, 35);
-    doc.text("Academic Performance Report", 20, 50);
-    doc.text("Overall performance across all modules", 20, 60);
-    doc.text("Test Results Summary", 20, 75);
-    doc.text("Pre-test and post-test results", 20, 85);
-    doc.text("Study Activity Report", 20, 100);
-    doc.text(`Notes: ${activity?.notes_count ?? 0}`, 20, 110);
-    doc.text(`Flashcards: ${activity?.flashcards_count ?? 0}`, 20, 120);
-    doc.text(`Study Sessions: ${activity?.sessions_count ?? 0}`, 20, 130);
-    doc.save(`Student_${id_number}_report.pdf`);
+    // formal PDF with header + bar chart
+    try {
+      setGenerating(true);
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+
+      // Draw header (logo + title)
+      const left = 40;
+      const top = 40;
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Try to load logo from public folder
+      const logoUrl = '/cbrc_logo.png';
+      const loadImage = (url) =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = url;
+        });
+
+      (async () => {
+        const img = await loadImage(logoUrl);
+        if (img) {
+          // convert to dataURL via canvas
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const dataUrl = canvas.toDataURL('image/png');
+          doc.addImage(dataUrl, 'PNG', left, top, 70, 70);
+        }
+
+        // Title and meta
+        doc.setFontSize(18);
+        doc.setFont(undefined, 'bold');
+        doc.text('Student Performance Report', pageWidth / 2, top + 28, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`ID: ${id_number}`, left + 80, top + 90);
+        doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - left, top + 90, { align: 'right' });
+
+        // Draw a horizontal rule
+        doc.setLineWidth(0.5);
+        doc.line(left, top + 105, pageWidth - left, top + 105);
+
+        // Student summary
+        let cursorY = top + 125;
+        doc.setFontSize(12);
+        doc.text(`Name: ${activity?.name || 'N/A'}`, left, cursorY);
+        cursorY += 18;
+        doc.text(`Program: ${activity?.program || 'N/A'}`, left, cursorY);
+        cursorY += 28;
+
+        // Bar chart for Notes / Flashcards / Sessions
+        const labels = ['Notes', 'Flashcards', 'Sessions'];
+        const values = [activity?.notes_count ?? 0, activity?.flashcards_count ?? 0, activity?.sessions_count ?? 0];
+        const maxVal = Math.max(...values, 1);
+
+        doc.setFontSize(11);
+        doc.text('Study Activity Overview', left, cursorY);
+        cursorY += 12;
+
+        const chartX = left;
+        const chartY = cursorY + 6;
+        const chartWidth = pageWidth - left * 2;
+        const barHeight = 18;
+        const gap = 12;
+
+        for (let i = 0; i < labels.length; i++) {
+          const label = labels[i];
+          const val = values[i];
+          const pct = val / maxVal;
+          const w = Math.max(4, Math.round(chartWidth * pct));
+
+          // label
+          doc.text(label, chartX, chartY + i * (barHeight + gap) + 12);
+
+          // bar background
+          doc.setDrawColor(200);
+          doc.setFillColor(245, 245, 245);
+          doc.rect(chartX + 80, chartY + i * (barHeight + gap), chartWidth - 80, barHeight, 'F');
+
+          // bar fill
+          doc.setFillColor(43, 108, 176);
+          doc.rect(chartX + 80, chartY + i * (barHeight + gap), w, barHeight, 'F');
+
+          // value
+          doc.setFontSize(10);
+          doc.text(String(val), chartX + 80 + Math.min(w + 6, chartWidth - 80 - 18), chartY + i * (barHeight + gap) + 12);
+        }
+
+        cursorY = chartY + labels.length * (barHeight + gap) + 18;
+
+        // Detailed list
+        doc.setFontSize(12);
+        doc.text('Summary Details', left, cursorY);
+        cursorY += 12;
+        doc.setFontSize(10);
+        doc.text(`Notes: ${activity?.notes_count ?? 0}`, left, cursorY);
+        cursorY += 12;
+        doc.text(`Flashcards: ${activity?.flashcards_count ?? 0}`, left, cursorY);
+        cursorY += 12;
+        doc.text(`Study Sessions: ${activity?.sessions_count ?? 0}`, left, cursorY);
+
+        doc.setFontSize(9);
+        doc.text('This report is system generated. For questions, contact support.', left, pageWidth - 780 + 720);
+
+        doc.save(`Student_${id_number}_report.pdf`);
+        setGenerating(false);
+      })();
+    } catch (err) {
+      console.error('PDF generation failed', err);
+      setGenerating(false);
+    }
   };
 
   const handlePrint = () => {
@@ -62,7 +165,7 @@ const StudentDataPrintingPage = () => {
             <div className="flex space-x-3">
               <button onClick={handleDownloadPDF} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                 <FiDownload className="mr-2" />
-                Download My Report
+                {generating ? 'Preparing PDF...' : 'Download My Report'}
               </button>
               <button onClick={handlePrint} className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
                 <FiPrinter className="mr-2" />
