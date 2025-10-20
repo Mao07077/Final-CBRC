@@ -31,14 +31,14 @@ const PerformanceDetailView = () => {
         {selectedPreview.length > 0 ? (
           <div className="mb-4">
             <h3 className="text-lg font-semibold mb-2">Selected Students Preview</h3>
-            <div className="flex gap-3 overflow-x-auto pb-2">
+            <div className="flex flex-col gap-3">
               {selectedPreview.map((s) => (
-                <div key={s.id_number} className="min-w-[220px] bg-white p-3 rounded shadow-sm border">
+                <div key={s.id_number} className="w-full bg-white p-4 rounded shadow-sm border" style={{ minHeight: 120 }}>
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="font-semibold">{s.name || `${s.firstname} ${s.lastname}`}</div>
-                      <div className="text-xs text-gray-500">{s.id_number}</div>
-                      <div className="text-xs text-gray-400">{s.program}</div>
+                      <div className="font-semibold text-lg">{s.name || `${s.firstname} ${s.lastname}`}</div>
+                      <div className="text-sm text-gray-500">{s.id_number}</div>
+                      <div className="text-sm text-gray-400">{s.program}</div>
                     </div>
                     <div>
                       <button
