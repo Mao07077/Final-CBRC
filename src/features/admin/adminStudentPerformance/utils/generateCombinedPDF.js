@@ -1,3 +1,4 @@
+import React from "react";
 import { pdf } from "@react-pdf/renderer";
 import apiClient from "../../../../api/axiosClient";
 import CombinedStudentReportPDF from "../components/CombinedStudentReportPDF";
@@ -13,7 +14,7 @@ export default async function generateCombinedPDF(students) {
 
   const enriched = results.map(({ student, details }) => ({ ...student, studentDetails: details, testHistory: details?.testHistory || details?.tests || [] }));
 
-  const doc = <CombinedStudentReportPDF students={enriched} />;
+  const doc = React.createElement(CombinedStudentReportPDF, { students: enriched });
   const asPdf = pdf();
   asPdf.updateContainer(doc);
   const blob = await asPdf.toBlob();
