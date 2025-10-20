@@ -1,5 +1,7 @@
 import React from "react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
+import generateCombinedPDF from "../utils/generateCombinedPDF";
+import { useState } from "react";
 import useStudentPerformanceStore from "../../../../store/admin/studentPerformanceStore";
 import StudentReportPDF from "./StudentReportPDF";
 import { FiArrowLeft, FiDownload } from "react-icons/fi";
@@ -20,6 +22,28 @@ const PerformanceDetailView = () => {
 
   // Build selected students preview data from filteredStudents
   const selectedPreview = filteredStudents.filter((s) => selectedStudents.includes(s.id_number));
+  const [preparingCombined, setPreparingCombined] = useState(false);
+
+  const handleCombinedFromPreview = async () => {
+    if (selectedPreview.length === 0) return;
+    setPreparingCombined(true);
+    try {
+      const blob = await generateCombinedPDF(selectedPreview);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Students_Performance_Combined.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to prepare combined PDF from preview');
+    } finally {
+      setPreparingCombined(false);
+    }
+  };
 
   if (isLoadingDetails) {
     return <div className="p-8 text-center">Loading details...</div>;
@@ -30,7 +54,18 @@ const PerformanceDetailView = () => {
       <div className="h-full flex flex-col justify-start items-stretch bg-gray-50 p-4 overflow-y-auto">
         {selectedPreview.length > 0 ? (
           <div className="mb-4">
-            <h3 className="text-lg font-semibold mb-2">Selected Students Preview</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold mb-2">Selected Students Preview</h3>
+              <div>
+                <button
+                  className="px-3 py-1 bg-green-600 text-white rounded text-sm mr-2"
+                  onClick={handleCombinedFromPreview}
+                  disabled={preparingCombined}
+                >
+                  {preparingCombined ? 'Preparing...' : `Download Combined (${selectedPreview.length})`}
+                </button>
+              </div>
+            </div>
             <div className="flex flex-col gap-3">
               {selectedPreview.map((s) => (
                 <div key={s.id_number} className="w-full bg-white p-4 rounded shadow-sm border" style={{ minHeight: 120 }}>
