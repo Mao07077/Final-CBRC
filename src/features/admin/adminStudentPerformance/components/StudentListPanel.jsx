@@ -9,12 +9,14 @@ const StudentListPanel = () => {
     isLoadingList,
     selectedStudent,
     selectAllStudents,
+    selectedStudents,
+    toggleSelectStudent,
   } = useStudentPerformanceStore();
   const [search, setSearch] = useState("");
   const [sortProgram, setSortProgram] = useState(false);
 
   return (
-    <div className="border-r border-gray-200 h-full flex flex-col bg-white shadow-sm">
+  <div className="border-r border-gray-200 h-full flex flex-col bg-white shadow-sm overflow-hidden">
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Students</h2>
         <input
@@ -38,36 +40,46 @@ const StudentListPanel = () => {
             Sort by Program
           </button>
           <button
-            className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm"
+            className={`px-2 py-1 rounded text-sm ${
+              (filteredStudents.length > 0 && filteredStudents.every(s => selectedStudents.includes(s.id_number)))
+                ? 'bg-red-100 text-red-700'
+                : 'bg-gray-100 text-gray-700'
+            }`}
             onClick={selectAllStudents}
           >
-            Select All
+            {filteredStudents.length > 0 && filteredStudents.every(s => selectedStudents.includes(s.id_number))
+              ? 'Unselect All'
+              : 'Select All'}
           </button>
         </div>
       </div>
-      <div className="overflow-y-auto flex-1">
+  <div className="overflow-y-auto flex-1 p-0" style={{ maxHeight: 'calc(100vh - 140px)' }}>
         {isLoadingList ? (
           <p className="p-4 text-center text-gray-500">Loading students...</p>
         ) : (
           <ul className="divide-y divide-gray-200">
             {filteredStudents.map((student) => (
               <li key={student._id}>
-                <button
-                  onClick={() => selectStudent(student)}
-                  className={`w-full text-left p-4 transition-colors duration-150 ${
+                <div className={`w-full p-4 transition-colors duration-150 ${
                     selectedStudent?._id === student._id
                       ? "bg-indigo-50 border-r-4 border-indigo-500"
                       : "hover:bg-gray-50"
-                  }`}
-                >
-                  <div>
-                    <p className="font-semibold text-gray-900">
-                      {student.name || `${student.firstname} ${student.lastname}`}
-                    </p>
-                    <p className="text-sm text-gray-600">{student.id_number}</p>
-                    <p className="text-xs text-gray-500">{student.program || ""}</p>
-                  </div>
-                </button>
+                  }`}> 
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedStudents.includes(student.id_number)}
+                      onChange={() => toggleSelectStudent(student.id_number)}
+                    />
+                    <div className="flex-1 text-left" onClick={() => selectStudent(student)}>
+                      <p className="font-semibold text-gray-900">
+                        {student.name || `${student.firstname} ${student.lastname}`}
+                      </p>
+                      <p className="text-sm text-gray-600">{student.id_number}</p>
+                      <p className="text-xs text-gray-500">{student.program || ""}</p>
+                    </div>
+                  </label>
+                </div>
               </li>
             ))}
           </ul>
