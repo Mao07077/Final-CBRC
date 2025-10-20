@@ -141,6 +141,37 @@ const StudentDataPrintingPage = () => {
       }
       cursorY += 28;
 
+      // Small weekly progress bar chart (from dashboard.weeklyProgress)
+      const weekly = activity?.dashboard?.weeklyProgress || activity?.dashboard?.weekly_progress || [];
+      if (weekly && Array.isArray(weekly) && weekly.length > 0) {
+        doc.setFontSize(12);
+        doc.text('Weekly Progress (hours)', left, cursorY);
+        cursorY += 12;
+        const weekX = left;
+        const weekY = cursorY + 6;
+        const weekWidth = pageWidth - left * 2;
+        const weekBarWidth = Math.max(28, Math.floor(weekWidth / weekly.length) - 8);
+        const maxHours = Math.max(...weekly.map((d) => d.hours || 0), 1);
+        for (let i = 0; i < weekly.length; i++) {
+          const item = weekly[i];
+          const hrs = item.hours || 0;
+          const hPct = hrs / maxHours;
+          const hH = Math.max(4, Math.round(60 * hPct));
+          const x = weekX + i * (weekBarWidth + 8);
+          // draw bar background
+          doc.setFillColor(245, 245, 245);
+          doc.rect(x, weekY + (60 - hH), weekBarWidth, hH, 'F');
+          // fill
+          doc.setFillColor(43, 108, 176);
+          doc.rect(x, weekY + (60 - hH), weekBarWidth, hH, 'F');
+          // label day (short)
+          doc.setFontSize(8);
+          const dayLabel = (item.day || '').slice(5); // MM-DD
+          doc.text(dayLabel, x + weekBarWidth / 2, weekY + 72, { align: 'center' });
+        }
+        cursorY = weekY + 86;
+      }
+
       // Bar chart for Notes / Flashcards / Sessions
       const labels = ['Notes', 'Flashcards', 'Sessions'];
       const values = [activity?.notes_count ?? 0, activity?.flashcards_count ?? 0, activity?.sessions_count ?? 0];
