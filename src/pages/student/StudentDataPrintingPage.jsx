@@ -14,20 +14,24 @@ const StudentDataPrintingPage = () => {
     async function fetchActivity() {
       setLoading(true);
       try {
-        // Fetch study activity and profile in parallel; profile route returns firstname/lastname/program
-        const [actRes, profileRes] = await Promise.allSettled([
+        // Fetch study activity, profile and dashboard in parallel; dashboard has summary stats
+        const [actRes, profileRes, dashRes] = await Promise.allSettled([
           apiClient.get(`/api/student/${id_number}/study-activity-report`),
-          apiClient.get(`/api/profile/${id_number}`)
+          apiClient.get(`/api/profile/${id_number}`),
+          apiClient.get(`/api/dashboard/${id_number}`)
         ]);
 
         const actData = actRes.status === 'fulfilled' ? actRes.value.data : null;
-        const profileData = profileRes.status === 'fulfilled' ? profileRes.value.data : null;
+  const profileData = profileRes.status === 'fulfilled' ? profileRes.value.data : null;
+  const dashboardData = dashRes.status === 'fulfilled' ? dashRes.value.data : null;
 
         // Merge profile fields into activity so UI and PDF can access name/program
         const merged = {
           ...(actData || {}),
           name: (profileData && (profileData.firstname || profileData.lastname)) ? `${profileData.firstname || ''} ${profileData.lastname || ''}`.trim() : (actData && (actData.name || actData.fullname)) || null,
-          program: (profileData && profileData.program) || (actData && actData.program) || null
+          program: (profileData && profileData.program) || (actData && actData.program) || null,
+          // Dashboard summary fields (if available)
+          dashboard: dashboardData || null
         };
 
         setActivity(merged);
@@ -115,6 +119,26 @@ const StudentDataPrintingPage = () => {
       doc.text(`Name: ${activity?.name || 'N/A'}`, left, cursorY);
       cursorY += 18;
       doc.text(`Program: ${activity?.program || 'N/A'}`, left, cursorY);
+      cursorY += 18;
+
+      // Dashboard summary (if available)
+      const dash = activity?.dashboard || {};
+      if (dash && Object.keys(dash).length > 0) {
+        cursorY += 6;
+        doc.setFontSize(12);
+        doc.text('Dashboard Summary', left, cursorY);
+        cursorY += 14;
+        doc.setFontSize(10);
+        doc.text(`Modules Completed: ${dash.completedModules ?? dash.completedModules ?? 'N/A'}`, left, cursorY);
+        doc.text(`Total Modules: ${dash.totalModules ?? dash.totalModules ?? 'N/A'}`, pageWidth - left, cursorY, { align: 'right' });
+        cursorY += 12;
+        doc.text(`Study Hours: ${dash.studyHours ?? 'N/A'}`, left, cursorY);
+        doc.text(`Learning Streak: ${dash.learningStreak ?? 'N/A'}`, pageWidth - left, cursorY, { align: 'right' });
+        cursorY += 12;
+        doc.text(`Accuracy: ${dash.accuracy ?? 'N/A'}%`, left, cursorY);
+        doc.text(`Pre/Post Tests: ${dash.preTestCount ?? 0}/${dash.postTestCount ?? 0}`, pageWidth - left, cursorY, { align: 'right' });
+        cursorY += 18;
+      }
       cursorY += 28;
 
       // Bar chart for Notes / Flashcards / Sessions
