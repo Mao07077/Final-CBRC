@@ -12,15 +12,39 @@ const StudentDataPrintingPage = () => {
 
   useEffect(() => {
     async function fetchActivity() {
+      setLoading(true);
       try {
-        const res = await apiClient.get(`/api/student/${id_number}/study-activity-report`);
-        setActivity(res.data);
-      } catch (err) {
-        if (err.response && err.response.data) {
-          setError(err.response.data.error || JSON.stringify(err.response.data));
+        // Fetch study activity and profile in parallel; profile route returns firstname/lastname/program
+        const [actRes, profileRes] = await Promise.allSettled([
+          apiClient.get(`/api/student/${id_number}/study-activity-report`),
+          apiClient.get(`/api/profile/${id_number}`)
+        ]);
+
+        const actData = actRes.status === 'fulfilled' ? actRes.value.data : null;
+        const profileData = profileRes.status === 'fulfilled' ? profileRes.value.data : null;
+
+        // Merge profile fields into activity so UI and PDF can access name/program
+        const merged = {
+          ...(actData || {}),
+          name: (profileData && (profileData.firstname || profileData.lastname)) ? `${profileData.firstname || ''} ${profileData.lastname || ''}`.trim() : (actData && (actData.name || actData.fullname)) || null,
+          program: (profileData && profileData.program) || (actData && actData.program) || null
+        };
+
+        setActivity(merged);
+
+        // If either call failed, surface a compact error message
+        if (actRes.status === 'rejected' && profileRes.status === 'rejected') {
+          setError('Failed to fetch study activity and profile.');
+        } else if (actRes.status === 'rejected') {
+          setError('Failed to fetch study activity report.');
+        } else if (profileRes.status === 'rejected') {
+          // Not fatal: profile missing means we still have activity
+          setError(null);
         } else {
-          setError("Failed to fetch study activity report.");
+          setError(null);
         }
+      } catch (err) {
+        setError('Failed to fetch study activity report.');
       } finally {
         setLoading(false);
       }
