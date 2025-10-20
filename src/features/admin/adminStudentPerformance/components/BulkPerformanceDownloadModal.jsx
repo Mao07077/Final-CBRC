@@ -1,9 +1,10 @@
-import React from "react";
-import { PDFDownloadLink } from "@react-pdf/renderer";
+import React, { useState } from "react";
+import { PDFDownloadLink, pdf } from "@react-pdf/renderer";
 import StudentReportPDF from "../../../../features/admin/adminStudentPerformance/components/StudentReportPDF";
 import CombinedStudentReportPDF from "../../../../features/admin/adminStudentPerformance/components/CombinedStudentReportPDF";
 import Modal from "../.././../../components/common/Modal";
 import useStudentPerformanceStore from "../../../../store/admin/studentPerformanceStore";
+import apiClient from "../../../../api/axiosClient";
 
 const BulkPerformanceDownloadModal = ({ students, isOpen, onClose }) => {
   const { selectedStudents, toggleSelectStudent, selectAllStudents } = useStudentPerformanceStore();
@@ -42,6 +43,43 @@ const BulkPerformanceDownloadModal = ({ students, isOpen, onClose }) => {
     });
 
   const selectedStudentsList = filteredStudents.filter((s) => selectedStudents.includes(s.id_number));
+  const [preparingCombined, setPreparingCombined] = useState(false);
+
+  const prepareCombinedAndDownload = async () => {
+    if (selectedStudentsList.length === 0) return;
+    setPreparingCombined(true);
+
+    try {
+      // Fetch details for each selected student in parallel
+      const promises = selectedStudentsList.map((s) =>
+        apiClient.get(`/api/admin/student-performance/${s.id_number}`).then((res) => ({ student: s, details: res.data.details || res.data }))
+      );
+      const results = await Promise.all(promises);
+
+      // Merge details into student objects
+      const enriched = results.map(({ student, details }) => ({ ...student, studentDetails: details, testHistory: details?.testHistory || details?.tests || [] }));
+
+      // Build document and convert to blob, then trigger file download
+      const doc = <CombinedStudentReportPDF students={enriched} />;
+      const asPdf = pdf();
+      asPdf.updateContainer(doc);
+      const blob = await asPdf.toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Students_Performance_Combined.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed preparing combined PDF', err);
+      alert('Failed to prepare combined PDF. See console for details.');
+    } finally {
+      setPreparingCombined(false);
+    }
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Bulk Download Student Performance PDFs">
@@ -123,14 +161,14 @@ const BulkPerformanceDownloadModal = ({ students, isOpen, onClose }) => {
                   {({ loading }) => (loading ? `Preparing ${student.name}...` : `Download ${student.name}`)}
                 </PDFDownloadLink>
               ))}
-              {/* Combined single PDF for all selected */}
-              <PDFDownloadLink
-                document={<CombinedStudentReportPDF students={selectedStudentsList} />}
-                fileName={`Students_Performance_Combined.pdf`}
+              {/* Combined single PDF for all selected (fetches details and generates one file) */}
+              <button
+                onClick={prepareCombinedAndDownload}
                 className="px-3 py-1 bg-green-600 text-white rounded shadow hover:bg-green-700 text-sm ml-2"
+                disabled={preparingCombined}
               >
-                {({ loading }) => (loading ? `Preparing combined PDF...` : `Download Combined PDF (${selectedStudentsList.length})`)}
-              </PDFDownloadLink>
+                {preparingCombined ? `Preparing combined PDF...` : `Download Combined PDF (${selectedStudentsList.length})`}
+              </button>
             </div>
           </div>
         )}
