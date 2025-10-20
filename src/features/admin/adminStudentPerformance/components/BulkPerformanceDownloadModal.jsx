@@ -1,26 +1,21 @@
-import React, { useState } from "react";
+import React from "react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import StudentReportPDF from "../../../../features/admin/adminStudentPerformance/components/StudentReportPDF";
 import Modal from "../.././../../components/common/Modal";
+import useStudentPerformanceStore from "../../../../store/admin/studentPerformanceStore";
 
 const BulkPerformanceDownloadModal = ({ students, isOpen, onClose }) => {
-  const [selected, setSelected] = useState([]);
-  const [sortKey, setSortKey] = useState("name");
-  const [sortOrder, setSortOrder] = useState("asc");
-  const [filter, setFilter] = useState("");
+  const { selectedStudents, toggleSelectStudent, selectAllStudents } = useStudentPerformanceStore();
+  const [sortKey, setSortKey] = React.useState("name");
+  const [sortOrder, setSortOrder] = React.useState("asc");
+  const [filter, setFilter] = React.useState("");
 
   const handleSelect = (id) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
-    );
+    toggleSelectStudent(id);
   };
 
   const handleSelectAll = () => {
-    if (selected.length === filteredStudents.length) {
-      setSelected([]);
-    } else {
-      setSelected(filteredStudents.map((s) => s.id_number));
-    }
+    selectAllStudents();
   };
 
   const handleSort = (key) => {
@@ -45,7 +40,7 @@ const BulkPerformanceDownloadModal = ({ students, isOpen, onClose }) => {
       return 0;
     });
 
-  const selectedStudents = filteredStudents.filter((s) => selected.includes(s.id_number));
+  const selectedStudentsList = filteredStudents.filter((s) => selectedStudents.includes(s.id_number));
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Bulk Download Student Performance PDFs">
@@ -63,7 +58,7 @@ const BulkPerformanceDownloadModal = ({ students, isOpen, onClose }) => {
             className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
             onClick={handleSelectAll}
           >
-            {selected.length === filteredStudents.length ? "Unselect All" : "Select All"}
+            {filteredStudents.length > 0 && filteredStudents.every(s => selectedStudents.includes(s.id_number)) ? "Unselect All" : "Select All"}
           </button>
           <button
             className="px-3 py-1 bg-gray-300 text-gray-800 rounded"
@@ -89,16 +84,16 @@ const BulkPerformanceDownloadModal = ({ students, isOpen, onClose }) => {
             <label key={student.id_number} className="flex items-center gap-2 mb-2">
               <input
                 type="checkbox"
-                checked={selected.includes(student.id_number)}
+                checked={selectedStudents.includes(student.id_number)}
                 onChange={() => handleSelect(student.id_number)}
               />
               {student.name} ({student.id_number}) - {student.program}
             </label>
           ))}
         </div>
-        {selectedStudents.length > 0 && (
+        {selectedStudentsList.length > 0 && (
           <div className="flex flex-col gap-2 mt-4">
-            {selectedStudents.map((student) => (
+            {selectedStudentsList.map((student) => (
               <PDFDownloadLink
                 key={student.id_number}
                 document={<StudentReportPDF student={student} />}

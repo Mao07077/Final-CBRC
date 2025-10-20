@@ -68,22 +68,26 @@ const StudentDataPrintingPage = () => {
           doc.addImage(dataUrl, 'PNG', centerX, top, logoW, logoH);
         }
 
-        // Title and meta
+    // Title
   doc.setFontSize(18);
   doc.setFont(undefined, 'bold');
-  // move title slightly down since logo is taller and centered
-  doc.text('Student Performance Report', pageWidth / 2, top + 84 + 18 / 2, { align: 'center' });
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
-        doc.text(`ID: ${id_number}`, left + 80, top + 90);
-        doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - left, top + 90, { align: 'right' });
+  const titleY = top + 84 + 18 / 2; // centered under the logo
+  doc.text('Student Performance Report', pageWidth / 2, titleY, { align: 'center' });
 
-        // Draw a horizontal rule
-        doc.setLineWidth(0.5);
-        doc.line(left, top + 105, pageWidth - left, top + 105);
+    // Draw a horizontal rule under the title
+    doc.setLineWidth(0.5);
+    const hrY = titleY + 12;
+    doc.line(left, hrY, pageWidth - left, hrY);
 
-        // Student summary
-        let cursorY = top + 125;
+    // Meta (moved below the rule)
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    const metaY = hrY + 16;
+    doc.text(`ID: ${id_number}`, left, metaY);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - left, metaY, { align: 'right' });
+
+    // Student summary (start lower)
+    let cursorY = metaY + 20;
         doc.setFontSize(12);
         doc.text(`Name: ${activity?.name || 'N/A'}`, left, cursorY);
         cursorY += 18;

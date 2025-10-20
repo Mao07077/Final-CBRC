@@ -40,6 +40,7 @@ const useStudentPerformanceStore = create((set, get) => ({
     },
   ],
   selectedStudent: null,
+  selectedStudents: [], // array of id_number for bulk selection
   studentDetails: null, // Will hold performance data
   isLoadingList: false,
   isLoadingDetails: false,
@@ -76,8 +77,25 @@ const useStudentPerformanceStore = create((set, get) => ({
     });
   },
   selectAllStudents: () => {
-    set({ selectedStudent: null, studentDetails: null });
-    // This can be used for bulk actions in the UI
+    const { filteredStudents } = get();
+    // toggle: if all selected, clear; otherwise select all filtered
+    const allIds = (filteredStudents || []).map((s) => s.id_number);
+    const { selectedStudents } = get();
+    const isAllSelected = allIds.length > 0 && allIds.every((id) => selectedStudents.includes(id));
+    set({
+      selectedStudent: null,
+      studentDetails: null,
+      selectedStudents: isAllSelected ? [] : allIds,
+    });
+  },
+
+  toggleSelectStudent: (id_number) => {
+    const { selectedStudents } = get();
+    if (selectedStudents.includes(id_number)) {
+      set({ selectedStudents: selectedStudents.filter((id) => id !== id_number) });
+    } else {
+      set({ selectedStudents: [...selectedStudents, id_number] });
+    }
   },
 
   selectStudent: async (student) => {
