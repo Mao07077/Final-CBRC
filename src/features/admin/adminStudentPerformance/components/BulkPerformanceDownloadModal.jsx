@@ -1,6 +1,7 @@
 import React from "react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import StudentReportPDF from "../../../../features/admin/adminStudentPerformance/components/StudentReportPDF";
+import CombinedStudentReportPDF from "../../../../features/admin/adminStudentPerformance/components/CombinedStudentReportPDF";
 import Modal from "../.././../../components/common/Modal";
 import useStudentPerformanceStore from "../../../../store/admin/studentPerformanceStore";
 
@@ -92,19 +93,45 @@ const BulkPerformanceDownloadModal = ({ students, isOpen, onClose }) => {
           ))}
         </div>
         {selectedStudentsList.length > 0 && (
-          <div className="flex flex-col gap-2 mt-4">
-            {selectedStudentsList.map((student) => (
+          <div className="flex flex-col gap-3 mt-4">
+            <div className="flex gap-2 flex-wrap">
+              {selectedStudentsList.map((student) => (
+                <div key={student.id_number} className="border rounded p-2 bg-white shadow-sm w-60">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-semibold">{student.name}</div>
+                      <div className="text-xs text-gray-500">{student.id_number}</div>
+                      <div className="text-xs text-gray-400">{student.program}</div>
+                    </div>
+                    <div>
+                      <input type="checkbox" checked onChange={() => handleSelect(student.id_number)} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2 mt-2">
+              {/* Individual downloads */}
+              {selectedStudentsList.map((student) => (
+                <PDFDownloadLink
+                  key={student.id_number}
+                  document={<StudentReportPDF student={student} />}
+                  fileName={`Student_Performance_${student.id_number}.pdf`}
+                  className="px-3 py-1 bg-indigo-600 text-white rounded shadow hover:bg-indigo-700 text-sm"
+                >
+                  {({ loading }) => (loading ? `Preparing ${student.name}...` : `Download ${student.name}`)}
+                </PDFDownloadLink>
+              ))}
+              {/* Combined single PDF for all selected */}
               <PDFDownloadLink
-                key={student.id_number}
-                document={<StudentReportPDF student={student} />}
-                fileName={`Student_Performance_${student.id_number}.pdf`}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700"
+                document={<CombinedStudentReportPDF students={selectedStudentsList} />}
+                fileName={`Students_Performance_Combined.pdf`}
+                className="px-3 py-1 bg-green-600 text-white rounded shadow hover:bg-green-700 text-sm ml-2"
               >
-                {({ loading }) =>
-                  loading ? `Preparing PDF for ${student.name}...` : `Download PDF for ${student.name}`
-                }
+                {({ loading }) => (loading ? `Preparing combined PDF...` : `Download Combined PDF (${selectedStudentsList.length})`)}
               </PDFDownloadLink>
-            ))}
+            </div>
           </div>
         )}
       </div>

@@ -15,8 +15,11 @@ import {
 } from "recharts";
 
 const PerformanceDetailView = () => {
-  const { selectedStudent, studentDetails, isLoadingDetails, selectStudent } =
+  const { selectedStudent, studentDetails, isLoadingDetails, selectStudent, selectedStudents, filteredStudents } =
     useStudentPerformanceStore();
+
+  // Build selected students preview data from filteredStudents
+  const selectedPreview = filteredStudents.filter((s) => selectedStudents.includes(s.id_number));
 
   if (isLoadingDetails) {
     return <div className="p-8 text-center">Loading details...</div>;
@@ -24,14 +27,39 @@ const PerformanceDetailView = () => {
 
   if (!selectedStudent) {
     return (
-      <div className="h-full flex flex-col justify-center items-center bg-gray-50 p-4">
-        <div className="text-center">
-          <FiArrowLeft className="mx-auto text-4xl text-gray-400 mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700">Select a Student</h3>
-          <p className="text-gray-500 mt-1">
-            Choose a student from the list to see their performance details.
-          </p>
-        </div>
+      <div className="h-full flex flex-col justify-start items-stretch bg-gray-50 p-4 overflow-y-auto">
+        {selectedPreview.length > 0 ? (
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold mb-2">Selected Students Preview</h3>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {selectedPreview.map((s) => (
+                <div key={s.id_number} className="min-w-[220px] bg-white p-3 rounded shadow-sm border">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-semibold">{s.name || `${s.firstname} ${s.lastname}`}</div>
+                      <div className="text-xs text-gray-500">{s.id_number}</div>
+                      <div className="text-xs text-gray-400">{s.program}</div>
+                    </div>
+                    <div>
+                      <button
+                        className="text-sm text-indigo-600 font-semibold"
+                        onClick={() => selectStudent(s)}
+                      >
+                        Open
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <FiArrowLeft className="mx-auto text-4xl text-gray-400 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-700">Select a Student</h3>
+            <p className="text-gray-500 mt-1">Choose a student from the list to see their performance details.</p>
+          </div>
+        )}
       </div>
     );
   }
