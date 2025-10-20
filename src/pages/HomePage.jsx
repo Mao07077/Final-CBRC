@@ -172,13 +172,15 @@ const HomePage = () => {
             </section>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {features.map((feature, index) => (
-              <div key={index} className="text-center p-8 bg-gray-50 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
-                <div className="flex justify-center items-center mb-4 bg-primary-light w-20 h-20 rounded-full mx-auto">
-                  {feature.icon}
+              <RouterLink key={index} to="/login" className="group">
+                <div className="text-center p-8 bg-gray-50 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group-hover:ring-2 group-hover:ring-primary">
+                  <div className="flex justify-center items-center mb-4 bg-primary-light w-20 h-20 rounded-full mx-auto">
+                    {feature.icon}
+                  </div>
+                  <h3 className="text-xl font-bold mb-2 text-gray-900">{feature.title}</h3>
+                  <p className="text-gray-600">{feature.description}</p>
                 </div>
-                <h3 className="text-xl font-bold mb-2 text-gray-900">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
-              </div>
+              </RouterLink>
             ))}
           </div>
         </div>
@@ -199,21 +201,37 @@ const HomePage = () => {
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Featured Courses</h2>
-            <p className="mt-4 text-lg text-gray-600">Explore our most popular review programs.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            {featuredCourses.map((course, index) => (
-              <div key={index} className="bg-gray-50 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 overflow-hidden">
-                <img src={course.image} alt={course.title} className="w-full h-48 object-cover"/>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-2 text-gray-900">{course.title}</h3>
-                  <span className="inline-block bg-accent-light text-accent-dark text-xs font-semibold px-2 py-1 rounded-full">
-                    {course.label}
-                  </span>
-                </div>
+
+          {/* Static list of popular review programs as cards with logo/placeholders */}
+          {/**
+           * The list below was requested to replace the subtitle and be shown as boxed cards.
+           */}
+          {(() => {
+            const coursesList = [
+              { key: 'upcat', title: 'University of the Philippines College Admission Test (UPCAT)' },
+              { key: 'cse', title: 'Civil Service (CSE)' },
+              { key: 'let', title: "Teachers Board Exam (LET)" },
+              { key: 'oet', title: 'Occupational English Test (OET)' },
+              { key: 'nle', title: 'Nursing Licensure Examination (NLE)' },
+              { key: 'cle', title: 'Criminologist Licensure Examination (CLE)' },
+            ];
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                {coursesList.map((course) => (
+                  <div key={course.key} className="bg-gray-50 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 overflow-hidden">
+                    <div className="w-full h-48 flex items-center justify-center bg-white">
+                      <div className="text-sm text-gray-400">Logo Here</div>
+                    </div>
+                    <div className="p-6 text-center">
+                      <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       </Element>
 
