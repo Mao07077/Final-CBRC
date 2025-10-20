@@ -220,14 +220,21 @@ const HomePage = () => {
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
                 {coursesList.map((course) => (
-                  <div key={course.key} className="bg-gray-50 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 overflow-hidden">
-                    <div className="w-full h-48 flex items-center justify-center bg-white">
-                      <div className="text-sm text-gray-400">Logo Here</div>
+                  <RouterLink key={course.key} to={`/login?redirect=/courses/${course.key}`} className="block">
+                    <div className="bg-gray-50 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 overflow-hidden">
+                      <div className="w-full h-48 flex items-center justify-center bg-white">
+                        <img
+                          src={`/assets/logos/${course.key}.png`}
+                          alt={`${course.title} logo`}
+                          onError={(e) => { e.target.onerror = null; e.target.src = '/cbrc_logo.png'; }}
+                          className="max-h-36 object-contain"
+                        />
+                      </div>
+                      <div className="p-6 text-center">
+                        <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
+                      </div>
                     </div>
-                    <div className="p-6 text-center">
-                      <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
-                    </div>
-                  </div>
+                  </RouterLink>
                 ))}
               </div>
             );
