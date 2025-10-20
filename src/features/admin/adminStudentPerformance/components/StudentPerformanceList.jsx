@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import PerformanceDownloadModal from "../../../../features/admin/adminStudentPerformance/components/PerformanceDownloadModal2";
 import BulkPerformanceDownloadModal from "../../../../features/admin/adminStudentPerformance/components/BulkPerformanceDownloadModal";
+import useStudentPerformanceStore from "../../../../store/admin/studentPerformanceStore";
+import generateCombinedPDF from "../../../../features/admin/adminStudentPerformance/utils/generateCombinedPDF";
+import { useState } from "react";
 
 const StudentPerformanceList = ({ students }) => {
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -10,6 +13,31 @@ const StudentPerformanceList = ({ students }) => {
   const handleDownloadClick = (student) => {
     setSelectedStudent(student);
     setModalOpen(true);
+  };
+
+  const { selectedStudents, filteredStudents } = useStudentPerformanceStore();
+  const [preparing, setPreparing] = useState(false);
+
+  const handleCombinedFromList = async () => {
+    const selectedList = filteredStudents.filter((s) => selectedStudents.includes(s.id_number));
+    if (selectedList.length === 0) return alert('No students selected');
+    setPreparing(true);
+    try {
+      const blob = await generateCombinedPDF(selectedList);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Students_Performance_Combined.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to prepare combined PDF');
+    } finally {
+      setPreparing(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -26,6 +54,15 @@ const StudentPerformanceList = ({ students }) => {
       >
         Bulk Download PDFs
       </button>
+      {selectedStudents && selectedStudents.length > 0 && (
+        <button
+          className="mb-4 ml-3 px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+          onClick={handleCombinedFromList}
+          disabled={preparing}
+        >
+          {preparing ? 'Preparing...' : `Download Combined PDF (${selectedStudents.length})`}
+        </button>
+      )}
       <table className="w-full text-sm text-left text-gray-700 mb-6">
         <thead>
           <tr>

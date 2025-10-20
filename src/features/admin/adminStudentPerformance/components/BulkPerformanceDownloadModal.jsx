@@ -5,6 +5,7 @@ import CombinedStudentReportPDF from "../../../../features/admin/adminStudentPer
 import Modal from "../.././../../components/common/Modal";
 import useStudentPerformanceStore from "../../../../store/admin/studentPerformanceStore";
 import apiClient from "../../../../api/axiosClient";
+import generateCombinedPDF from "../utils/generateCombinedPDF";
 
 const BulkPerformanceDownloadModal = ({ students, isOpen, onClose }) => {
   const { selectedStudents, toggleSelectStudent, selectAllStudents } = useStudentPerformanceStore();
@@ -48,23 +49,8 @@ const BulkPerformanceDownloadModal = ({ students, isOpen, onClose }) => {
   const prepareCombinedAndDownload = async () => {
     if (selectedStudentsList.length === 0) return;
     setPreparingCombined(true);
-
     try {
-      // Fetch details for each selected student in parallel
-      const promises = selectedStudentsList.map((s) =>
-        apiClient.get(`/api/admin/student-performance/${s.id_number}`).then((res) => ({ student: s, details: res.data.details || res.data }))
-      );
-      const results = await Promise.all(promises);
-
-      // Merge details into student objects
-      const enriched = results.map(({ student, details }) => ({ ...student, studentDetails: details, testHistory: details?.testHistory || details?.tests || [] }));
-
-      // Build document and convert to blob, then trigger file download
-      const doc = <CombinedStudentReportPDF students={enriched} />;
-      const asPdf = pdf();
-      asPdf.updateContainer(doc);
-      const blob = await asPdf.toBlob();
-
+      const blob = await generateCombinedPDF(selectedStudentsList);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
