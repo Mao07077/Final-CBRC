@@ -29,10 +29,10 @@ const StudentDataPrintingPage = () => {
   }, [id_number]);
 
   // PDF download handler using jsPDF
-  const handleDownloadPDF = () => {
-    // formal PDF with header + bar chart
+  const handleDownloadPDF = async () => {
+    setGenerating(true);
     try {
-      setGenerating(true);
+      // formal PDF with header + bar chart
       const doc = new jsPDF({ unit: "pt", format: "a4" });
 
       // Draw header (logo + title)
@@ -51,108 +51,110 @@ const StudentDataPrintingPage = () => {
           img.src = url;
         });
 
-      (async () => {
-        const img = await loadImage(logoUrl);
-        if (img) {
-          // convert to dataURL via canvas
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          const dataUrl = canvas.toDataURL('image/png');
-          // enlarge height by 20% (70 -> 84) and center horizontally
-          const logoH = 84; // 20% taller than 70
-          const logoW = (img.width / img.height) * logoH;
-          const centerX = (pageWidth - logoW) / 2;
-          doc.addImage(dataUrl, 'PNG', centerX, top, logoW, logoH);
-        }
+      const img = await loadImage(logoUrl);
+      if (img) {
+        // convert to dataURL via canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/png');
+        // enlarge height by 20% and center horizontally
+        const logoH = 84;
+        const logoW = (img.width / img.height) * logoH;
+        const centerX = (pageWidth - logoW) / 2;
+        doc.addImage(dataUrl, 'PNG', centerX, top, logoW, logoH);
+      }
 
-    // Title
-  doc.setFontSize(18);
-  doc.setFont(undefined, 'bold');
-  const titleY = top + 84 + 18 / 2; // centered under the logo
-  doc.text('Student Performance Report', pageWidth / 2, titleY, { align: 'center' });
+      // Title
+      doc.setFontSize(18);
+      doc.setFont(undefined, 'bold');
+      const titleY = top + 84 + 18 / 2; // centered under the logo
+      doc.text('Student Performance Report', pageWidth / 2, titleY, { align: 'center' });
 
-    // Draw a horizontal rule under the title
-    doc.setLineWidth(0.5);
-    const hrY = titleY + 12;
-    doc.line(left, hrY, pageWidth - left, hrY);
+      // Draw a horizontal rule under the title
+      doc.setLineWidth(0.5);
+      const hrY = titleY + 12;
+      doc.line(left, hrY, pageWidth - left, hrY);
 
-    // Meta (moved below the rule)
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    const metaY = hrY + 16;
-    doc.text(`ID: ${id_number}`, left, metaY);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - left, metaY, { align: 'right' });
+      // Meta (moved below the rule)
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      const metaY = hrY + 16;
+      doc.text(`ID: ${id_number}`, left, metaY);
+      doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - left, metaY, { align: 'right' });
 
-    // Student summary (start lower)
-    let cursorY = metaY + 20;
-        doc.setFontSize(12);
-        doc.text(`Name: ${activity?.name || 'N/A'}`, left, cursorY);
-        cursorY += 18;
-        doc.text(`Program: ${activity?.program || 'N/A'}`, left, cursorY);
-        cursorY += 28;
+      // Student summary (start lower)
+      let cursorY = metaY + 20;
+      doc.setFontSize(12);
+      doc.text(`Name: ${activity?.name || 'N/A'}`, left, cursorY);
+      cursorY += 18;
+      doc.text(`Program: ${activity?.program || 'N/A'}`, left, cursorY);
+      cursorY += 28;
 
-        // Bar chart for Notes / Flashcards / Sessions
-        const labels = ['Notes', 'Flashcards', 'Sessions'];
-        const values = [activity?.notes_count ?? 0, activity?.flashcards_count ?? 0, activity?.sessions_count ?? 0];
-        const maxVal = Math.max(...values, 1);
+      // Bar chart for Notes / Flashcards / Sessions
+      const labels = ['Notes', 'Flashcards', 'Sessions'];
+      const values = [activity?.notes_count ?? 0, activity?.flashcards_count ?? 0, activity?.sessions_count ?? 0];
+      const maxVal = Math.max(...values, 1);
 
-        doc.setFontSize(11);
-        doc.text('Study Activity Overview', left, cursorY);
-        cursorY += 12;
+      doc.setFontSize(11);
+      doc.text('Study Activity Overview', left, cursorY);
+      cursorY += 12;
 
-        const chartX = left;
-        const chartY = cursorY + 6;
-        const chartWidth = pageWidth - left * 2;
-        const barHeight = 18;
-        const gap = 12;
+      const chartX = left;
+      const chartY = cursorY + 6;
+      const chartWidth = pageWidth - left * 2;
+      const barHeight = 18;
+      const gap = 12;
 
-        for (let i = 0; i < labels.length; i++) {
-          const label = labels[i];
-          const val = values[i];
-          const pct = val / maxVal;
-          const w = Math.max(4, Math.round(chartWidth * pct));
+      for (let i = 0; i < labels.length; i++) {
+        const label = labels[i];
+        const val = values[i];
+        const pct = val / maxVal;
+        const w = Math.max(4, Math.round(chartWidth * pct));
 
-          // label
-          doc.text(label, chartX, chartY + i * (barHeight + gap) + 12);
+        // label
+        doc.text(label, chartX, chartY + i * (barHeight + gap) + 12);
 
-          // bar background
-          doc.setDrawColor(200);
-          doc.setFillColor(245, 245, 245);
-          doc.rect(chartX + 80, chartY + i * (barHeight + gap), chartWidth - 80, barHeight, 'F');
+        // bar background
+        doc.setDrawColor(200);
+        doc.setFillColor(245, 245, 245);
+        doc.rect(chartX + 80, chartY + i * (barHeight + gap), chartWidth - 80, barHeight, 'F');
 
-          // bar fill
-          doc.setFillColor(43, 108, 176);
-          doc.rect(chartX + 80, chartY + i * (barHeight + gap), w, barHeight, 'F');
+        // bar fill
+        doc.setFillColor(43, 108, 176);
+        doc.rect(chartX + 80, chartY + i * (barHeight + gap), w, barHeight, 'F');
 
-          // value
-          doc.setFontSize(10);
-          doc.text(String(val), chartX + 80 + Math.min(w + 6, chartWidth - 80 - 18), chartY + i * (barHeight + gap) + 12);
-        }
-
-        cursorY = chartY + labels.length * (barHeight + gap) + 18;
-
-        // Detailed list
-        doc.setFontSize(12);
-        doc.text('Summary Details', left, cursorY);
-        cursorY += 12;
+        // value
         doc.setFontSize(10);
-        doc.text(`Notes: ${activity?.notes_count ?? 0}`, left, cursorY);
-        cursorY += 12;
-        doc.text(`Flashcards: ${activity?.flashcards_count ?? 0}`, left, cursorY);
-        cursorY += 12;
-        doc.text(`Study Sessions: ${activity?.sessions_count ?? 0}`, left, cursorY);
+        doc.text(String(val), chartX + 80 + Math.min(w + 6, chartWidth - 80 - 18), chartY + i * (barHeight + gap) + 12);
+      }
 
-        doc.setFontSize(9);
-        doc.text('This report is system generated. For questions, contact support.', left, pageWidth - 780 + 720);
+      cursorY = chartY + labels.length * (barHeight + gap) + 18;
 
-        doc.save(`Student_${id_number}_report.pdf`);
-        setGenerating(false);
-      })();
+      // Detailed list
+      doc.setFontSize(12);
+      doc.text('Summary Details', left, cursorY);
+      cursorY += 12;
+      doc.setFontSize(10);
+      doc.text(`Notes: ${activity?.notes_count ?? 0}`, left, cursorY);
+      cursorY += 12;
+      doc.text(`Flashcards: ${activity?.flashcards_count ?? 0}`, left, cursorY);
+      cursorY += 12;
+      doc.text(`Study Sessions: ${activity?.sessions_count ?? 0}`, left, cursorY);
+
+      doc.setFontSize(9);
+      // place footer near bottom of page
+      const footerY = doc.internal.pageSize.getHeight() - 40;
+      doc.text('This report is system generated. For questions, contact support.', left, footerY);
+
+      // Build filename with name or id
+      const safeName = (activity?.name || id_number).toString().replace(/[^a-z0-9_\- ]/gi, '_');
+      doc.save(`Student_${safeName}_report.pdf`);
     } catch (err) {
       console.error('PDF generation failed', err);
+    } finally {
       setGenerating(false);
     }
   };

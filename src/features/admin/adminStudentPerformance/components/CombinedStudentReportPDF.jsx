@@ -41,8 +41,58 @@ const CombinedStudentReportPDF = ({ students = [] }) => {
   return (
     <Document>
       {students.map((student, idx) => {
-        const performance = normalizePerformance(student);
+        // Try to normalize using helper first
+        let performance = normalizePerformance(student);
+
+        // If nothing found, try to derive from studentDetails (counts or test scores)
+        const sd = student.studentDetails || {};
+        if ((!performance || performance.length === 0) && sd) {
+          // First check for simple counts
+          const notes = sd.notes_count ?? sd.notes ?? student.notes_count ?? 0;
+          const flash = sd.flashcards_count ?? sd.flashcards ?? student.flashcards_count ?? 0;
+          const sessions = sd.sessions_count ?? sd.sessions ?? student.sessions_count ?? 0;
+          if ((notes || flash || sessions) && (notes > 0 || flash > 0 || sessions > 0)) {
+            performance = [
+              { label: 'Notes', value: notes },
+              { label: 'Flashcards', value: flash },
+              { label: 'Sessions', value: sessions },
+            ];
+          } else {
+            // Try to build from tests (preTests/postTests)
+            const tests = [ ...(sd.postTests || []), ...(sd.preTests || []) ];
+            if (tests.length > 0) {
+              performance = tests.map((t) => ({ label: t.post_test_title || t.pre_test_title || t.title || 'Test', value: Math.round(((t.correct || 0) / (t.total_questions || 1)) * 100) }));
+            }
+          }
+        }
+
         const maxVal = performance.length ? Math.max(...performance.map((s) => s.value || 0)) : 0;
+
+        // Build test history from available shapes
+        const history = (student.testHistory && student.testHistory.length > 0)
+          ? student.testHistory
+          : (sd.postTests || []).map((t) => ({ name: t.post_test_title || t.post_test_name || 'Post Test', score: Math.round(((t.correct || 0) / (t.total_questions || 1)) * 100), remark: t.remark }))
+            .concat((sd.preTests || []).map((t) => ({ name: t.pre_test_title || t.pre_test_name || 'Pre Test', score: Math.round(((t.correct || 0) / (t.total_questions || 1)) * 100), remark: t.remark })));
+
+        let detailsContent;
+        if (history && history.length > 0) {
+          detailsContent = (
+            <View>
+              <View style={styles.tableHeader}>
+                <Text style={styles.colLeft}>Test</Text>
+                <Text style={styles.colRight}>Score / Remarks</Text>
+              </View>
+              {history.map((t, idx) => (
+                <View style={styles.tableRow} key={idx}>
+                  <Text style={styles.colLeft}>{t.name}</Text>
+                  <Text style={styles.colRight}>{t.score}% {t.remark ? `- ${t.remark}` : ''}</Text>
+                </View>
+              ))}
+            </View>
+          );
+        } else {
+          detailsContent = <Text>No detailed test history available.</Text>;
+        }
 
         return (
           <Page key={student.id_number || idx} size="A4" style={styles.page}>
@@ -92,22 +142,7 @@ const CombinedStudentReportPDF = ({ students = [] }) => {
 
             <View>
               <Text style={styles.sectionTitle}>Details</Text>
-              {student?.testHistory && student.testHistory.length > 0 ? (
-                <View>
-                  <View style={styles.tableHeader}>
-                    <Text style={styles.colLeft}>Test</Text>
-                    <Text style={styles.colRight}>Score / Remarks</Text>
-                  </View>
-                  {student.testHistory.map((t, idx) => (
-                    <View style={styles.tableRow} key={idx}>
-                      <Text style={styles.colLeft}>{t.name}</Text>
-                      <Text style={styles.colRight}>{t.score} {t.remark ? `- ${t.remark}` : ''}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Text>No detailed test history available.</Text>
-              )}
+              {detailsContent}
             </View>
 
             <Text style={styles.footerNote}>
