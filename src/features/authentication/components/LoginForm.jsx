@@ -42,11 +42,8 @@ const LoginForm = () => {
   return (
     <div className="w-full">
       <div className="flex justify-center mb-6">
-        <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-16 w-16" />
+        <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-16 w-auto max-w-[200px] object-contain" />
       </div>
-      <h2 className="text-2xl font-bold text-center text-primary-dark mb-6">
-        Welcome Back
-      </h2>
       {error && (
         <p className="bg-danger-light text-danger-dark p-3 rounded-md mb-4 text-center">
           {error}
