@@ -118,35 +118,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const logStream = (msg, data) => console.log(`[STREAM] ${msg}`, data);
   const logPeer = (msg, data) => console.log(`[PEER] ${msg}`, data);
 
-  // Helper to attach the active local stream to a newly mounted local video element
-  const attachLocalStreamToVideo = useCallback((el) => {
-    try {
-      localVideoRef.current = el;
-      if (el) {
-        // If we have a local stream and camera is on, attach it to the element
-        if (localStreamRef.current && !isCameraOff) {
-          try {
-            el.srcObject = localStreamRef.current;
-          } catch (err) {
-            // Fallback for older browsers
-            el.src = URL.createObjectURL(localStreamRef.current);
-          }
-          el.muted = true; // always mute local playback to avoid echo
-          el.playsInline = true;
-          // Try to play; ignore promise rejection (autoplay policies)
-          el.play().catch(() => {});
-          el.style.display = 'block';
-          el.style.opacity = '1';
-        } else {
-          // No camera active: ensure element doesn't show a previous stream
-          try { el.srcObject = null; } catch (e) { el.src = ''; }
-        }
-      }
-    } catch (error) {
-      console.warn('attachLocalStreamToVideo error:', error);
-    }
-  }, [isCameraOff]);
-
   // Initialize media on component mount
   useEffect(() => {
     const initializeMedia = async () => {
@@ -1601,8 +1572,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                           <video
                             ref={el => {
                               if (pinned.user_id === userId) {
-                                // attach the active local stream to the element
-                                attachLocalStreamToVideo(el);
+                                // use local video element for self so user always sees their own camera
+                                localVideoRef.current = el;
                               } else {
                                 if (el) remoteVideosRef.current.set(pinned.id, el);
                               }
@@ -1634,7 +1605,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
                         {!participant.camera_off ? (
                           <video
-                            ref={participant.self ? el => attachLocalStreamToVideo(el) : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
+                            ref={participant.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
                             autoPlay
                             muted={participant.self}
                             playsInline
@@ -1691,7 +1662,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                           <video
                             ref={el => {
                               if (speaker.user_id === userId) {
-                                attachLocalStreamToVideo(el);
+                                localVideoRef.current = el;
                               } else {
                                 if (el) remoteVideosRef.current.set(speaker.id, el);
                               }
@@ -1723,7 +1694,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
                         {!participant.camera_off ? (
                           <video
-                            ref={participant.self ? el => attachLocalStreamToVideo(el) : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
+                            ref={participant.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
                             autoPlay
                             muted={participant.self}
                             playsInline
@@ -1770,9 +1741,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               <div className="grid gap-3 justify-center items-start w-full" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(220px, 1fr))` }}>
                 {allTiles.map(tile => (
                   <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ aspectRatio: '16/9', minHeight: tile.isScreen ? '180px' : '120px' }}>
-                      {!tile.camera_off ? (
+                    {!tile.camera_off ? (
                       <video
-                        ref={tile.self ? el => attachLocalStreamToVideo(el) : el => { if (el) remoteVideosRef.current.set(tile.id, el); }}
+                        ref={tile.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(tile.id, el); }}
                         autoPlay
                         muted={tile.self}
                         playsInline
