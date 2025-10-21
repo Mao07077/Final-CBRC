@@ -209,26 +209,23 @@ const HomePage = () => {
            */}
           {(() => {
             const coursesList = [
-              { key: 'upcat', title: 'University of the Philippines College Admission Test (UPCAT)' },
-              { key: 'cse', title: 'Civil Service (CSE)' },
-              { key: 'let', title: "Teachers Board Exam (LET)" },
-              { key: 'oet', title: 'Occupational English Test (OET)' },
-              { key: 'nle', title: 'Nursing Licensure Examination (NLE)' },
-              { key: 'cle', title: 'Criminologist Licensure Examination (CLE)' },
+              { key: 'upcat', title: 'University of the Philippines College Admission Test (UPCAT)', icon: <FiBookOpen /> },
+              { key: 'cse', title: 'Civil Service (CSE)', icon: <FiAward /> },
+              { key: 'let', title: "Teachers Board Exam (LET)", icon: <FiEdit /> },
+              { key: 'oet', title: 'Occupational English Test (OET)', icon: <FiUsers /> },
+              { key: 'nle', title: 'Nursing Licensure Examination (NLE)', icon: <FiTrendingUp /> },
+              { key: 'cle', title: 'Criminologist Licensure Examination (CLE)', icon: <FiMessageCircle /> },
             ];
 
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
                 {coursesList.map((course) => (
-                  <RouterLink key={course.key} to={`/login?redirect=/courses/${course.key}`} className="block">
+                  <RouterLink key={course.key} to={`/courses/${course.key}`} className="block">
                     <div className="bg-gray-50 rounded-xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 overflow-hidden">
                       <div className="w-full h-48 flex items-center justify-center bg-white">
-                        <img
-                          src={`/assets/logos/${course.key}.png`}
-                          alt={`${course.title} logo`}
-                          onError={(e) => { e.target.onerror = null; e.target.src = '/cbrc_logo.png'; }}
-                          className="max-h-36 object-contain"
-                        />
+                        <div className="text-primary text-6xl">
+                          {course.icon}
+                        </div>
                       </div>
                       <div className="p-6 text-center">
                         <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
