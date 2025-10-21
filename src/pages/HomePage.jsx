@@ -4,6 +4,7 @@ import { useLocation, Link as RouterLink } from "react-router-dom";
 import { Element, scroller } from 'react-scroll';
 import apiClient from "../api/axiosClient";
 import { FiBookOpen, FiEdit, FiUsers, FiTrendingUp, FiAward, FiMessageCircle, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FaClipboardList, FaGlobe, FaHeartbeat, FaShieldAlt } from 'react-icons/fa';
 import HeroBg from '../assets/images/hero_landing_page_bg.jpg';
 import useLandingStore from "../store/landingStore";
 
@@ -210,11 +211,11 @@ const HomePage = () => {
           {(() => {
             const coursesList = [
               { key: 'upcat', title: 'University of the Philippines College Admission Test (UPCAT)', icon: <FiBookOpen /> },
-              { key: 'cse', title: 'Civil Service (CSE)', icon: <FiAward /> },
+              { key: 'cse', title: 'Civil Service (CSE)', icon: <FaClipboardList /> },
               { key: 'let', title: "Teachers Board Exam (LET)", icon: <FiEdit /> },
-              { key: 'oet', title: 'Occupational English Test (OET)', icon: <FiUsers /> },
-              { key: 'nle', title: 'Nursing Licensure Examination (NLE)', icon: <FiTrendingUp /> },
-              { key: 'cle', title: 'Criminologist Licensure Examination (CLE)', icon: <FiMessageCircle /> },
+              { key: 'oet', title: 'Occupational English Test (OET)', icon: <FaGlobe /> },
+              { key: 'nle', title: 'Nursing Licensure Examination (NLE)', icon: <FaHeartbeat /> },
+              { key: 'cle', title: 'Criminologist Licensure Examination (CLE)', icon: <FaShieldAlt /> },
             ];
 
             return (
