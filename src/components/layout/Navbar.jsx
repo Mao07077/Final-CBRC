@@ -44,9 +44,9 @@ const Navbar = () => {
     <nav className="bg-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-6 py-3">
         <div className="flex justify-between items-center">
-          <RouterLink to="/" className="flex items-center space-x-2">
-            <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-10" />
-            <span className="text-xl font-bold text-primary-dark">CBRCS</span>
+          <RouterLink to="/" className="flex items-center">
+            {/* responsive logo: keep height, allow width to auto-scale but cap with max-w */}
+            <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-auto max-w-[160px] object-contain" />
           </RouterLink>
 
           {!isAuthenticated && (
@@ -54,7 +54,8 @@ const Navbar = () => {
               {/* Desktop Menu */}
               <div className="hidden md:flex items-center space-x-6">
                 {renderNavLinks()}
-                <RouterLink to="/login" className="py-2 px-5 bg-primary-dark text-white rounded-full hover:bg-accent-medium transition duration-300">Login</RouterLink>
+                {/* reduce vertical padding and increase horizontal padding so button looks longer and less 'fat' */}
+                <RouterLink to="/login" className="py-1 px-6 bg-primary-dark text-white rounded-full hover:bg-accent-medium transition duration-300">Login</RouterLink>
               </div>
 
               {/* Mobile Menu Button */}
@@ -73,7 +74,7 @@ const Navbar = () => {
         {isMenuOpen && !isAuthenticated && (
           <div className="md:hidden mt-4">
             {renderNavLinks(true)}
-            <RouterLink to="/login" className="block mt-2 py-2 px-4 text-sm bg-primary-dark text-white rounded-full text-center hover:bg-accent-medium" onClick={() => setIsMenuOpen(false)}>Login</RouterLink>
+            <RouterLink to="/login" className="block mt-2 py-1 px-6 text-sm bg-primary-dark text-white rounded-full text-center hover:bg-accent-medium" onClick={() => setIsMenuOpen(false)}>Login</RouterLink>
           </div>
         )}
       </div>

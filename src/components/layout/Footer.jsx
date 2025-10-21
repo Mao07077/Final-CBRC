@@ -5,7 +5,7 @@ const Footer = () => {
         <img
           src="/cbrc_logo.png"
           alt="CBRCS Logo"
-          className="h-12 w-12 mx-auto mb-4"
+          className="h-12 w-auto max-w-[220px] mx-auto mb-4 object-contain"
         />
         <p>
           &copy; {new Date().getFullYear()} Dr. Carl Balita Review Center. All
