@@ -42,15 +42,11 @@ const Navbar = () => {
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
-      <div className="container mx-auto px-6 py-3">
+      <div className="relative container mx-auto px-6 py-3">
         <div className="flex justify-between items-center">
-          {/* Reserve a fixed-width logo slot so the logo doesn't shift on very large viewports (TVs). */}
-          <RouterLink to="/" className="flex items-center w-28 md:w-36 lg:w-44 xl:w-52 flex-shrink-0">
-            <img
-              src="/cbrc_logo.png"
-              alt="CBRCS Logo"
-              className="h-10 w-auto mx-auto object-contain"
-            />
+          <RouterLink to="/" className="flex items-center">
+            {/* reserve left space so center logo doesn't overlap nav items */}
+            <div className="w-36" />
           </RouterLink>
 
           {!isAuthenticated && (
@@ -73,6 +69,11 @@ const Navbar = () => {
             </>
           )}
         </div>
+
+        {/* absolutely center the logo so it stays fixed middle across screen sizes */}
+        <RouterLink to="/" className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none md:pointer-events-auto">
+          <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-auto max-w-[160px] object-contain" />
+        </RouterLink>
 
         {/* Mobile Menu */}
         {isMenuOpen && !isAuthenticated && (
