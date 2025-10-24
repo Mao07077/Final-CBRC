@@ -44,9 +44,13 @@ const Navbar = () => {
     <nav className="bg-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-6 py-3">
         <div className="flex justify-between items-center">
-          <RouterLink to="/" className="flex items-center">
-            {/* responsive logo: keep height, allow width to auto-scale but cap with max-w */}
-            <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-auto max-w-[160px] object-contain" />
+          {/* Reserve a fixed-width logo slot so the logo doesn't shift on very large viewports (TVs). */}
+          <RouterLink to="/" className="flex items-center w-28 md:w-36 lg:w-44 xl:w-52 flex-shrink-0">
+            <img
+              src="/cbrc_logo.png"
+              alt="CBRCS Logo"
+              className="h-10 w-auto mx-auto object-contain"
+            />
           </RouterLink>
 
           {!isAuthenticated && (
