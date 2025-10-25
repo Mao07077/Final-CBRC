@@ -42,9 +42,9 @@ const Navbar = () => {
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
-      <div className="container mx-auto px-6 py-3">
-        <div className="flex items-center justify-start">
-          <div className="flex-shrink-0">
+      <div className="px-6 py-3">
+        <div className="flex items-center">
+          <div className="flex-shrink-0 mr-6">
             <RouterLink to="/" className="flex items-center">
               <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-auto max-w-[160px] object-contain" />
             </RouterLink>
@@ -53,7 +53,7 @@ const Navbar = () => {
           {!isAuthenticated && (
             <>
               {/* Desktop Menu */}
-              <div className="hidden md:flex items-center space-x-6 ml-auto">
+              <div className="hidden md:flex items-center space-x-6 flex-grow">
                 {renderNavLinks()}
                 <RouterLink to="/login" className="py-1 px-6 bg-primary-dark text-white rounded-full hover:bg-accent-medium transition duration-300">Login</RouterLink>
               </div>
