@@ -51,36 +51,25 @@ const SpeakingIndicator = ({ isActive, audioLevel = 0 }) => {
 const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => {
   const { leaveSession } = useLearnTogetherStore();
 
-  // Add notification state
+  // State definitions
   const [showEndNotification, setShowEndNotification] = useState(false);
   const [endNotificationMessage, setEndNotificationMessage] = useState("");
   const [endNotificationType, setEndNotificationType] = useState("success");
-  // WebSocket connection
   const [socket, setSocket] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("connecting");
-
-  // Local media state
   const [isMuted, setIsMuted] = useState(true);
   const [isCameraOff, setIsCameraOff] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [mediaError, setMediaError] = useState(null);
-
-  // Room state
   const [participants, setParticipants] = useState([]);
   const [roomInfo, setRoomInfo] = useState(null);
-
-  // Chat state
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [showChat, setShowChat] = useState(false);
-
-  // UI state
   const [showSettings, setShowSettings] = useState(false);
   const [layoutMode, setLayoutMode] = useState("grid");
   const [pinnedParticipantId, setPinnedParticipantId] = useState(null);
-
-  // Speaking indicator state
   const [speakingParticipants, setSpeakingParticipants] = useState(new Set());
   const [localAudioLevel, setLocalAudioLevel] = useState(0);
 
@@ -101,6 +90,60 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const logStream = (msg, data) => console.log(`[STREAM] ${msg}`, data);
   const logPeer = (msg, data) => console.log(`[PEER] ${msg}`, data);
 
+  // Enhanced layout mode handler with debugging
+  const setLayoutModeWithLog = useCallback(
+    (newMode) => {
+      console.log("🔧 [LAYOUT] Before changing layout mode:", {
+        newMode,
+        isMuted,
+        isCameraOff,
+        currentLayout: layoutMode,
+        pinnedParticipantId,
+        participantsCount: participants.length,
+      });
+      setLayoutMode(newMode);
+      setTimeout(() => {
+        const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+        const videoTrack = localStreamRef.current?.getVideoTracks()[0];
+        console.log("🔧 [LAYOUT] After changing layout mode:", {
+          newMode,
+          isMuted,
+          isCameraOff,
+          audioTrackEnabled: audioTrack?.enabled,
+          videoTrackExists: !!videoTrack,
+          localVideoSrcObject: !!localVideoRef.current?.srcObject,
+        });
+      }, 100);
+    },
+    [isMuted, isCameraOff, layoutMode, pinnedParticipantId, participants.length]
+  );
+
+  // Enhanced pinned participant handler with debugging
+  const setPinnedParticipantWithLog = useCallback(
+    (participantId) => {
+      console.log("🔧 [PIN] Before setting pinned participant:", {
+        participantId,
+        isMuted,
+        isCameraOff,
+        currentPinned: pinnedParticipantId,
+      });
+      setPinnedParticipantId(participantId);
+      setTimeout(() => {
+        const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+        const videoTrack = localStreamRef.current?.getVideoTracks()[0];
+        console.log("🔧 [PIN] After setting pinned participant:", {
+          participantId,
+          isMuted,
+          isCameraOff,
+          audioTrackEnabled: audioTrack?.enabled,
+          videoTrackExists: !!videoTrack,
+          localVideoSrcObject: !!localVideoRef.current?.srcObject,
+        });
+      }, 100);
+    },
+    [isMuted, isCameraOff, pinnedParticipantId]
+  );
+
   // Initialize media on component mount
   useEffect(() => {
     const initializeMedia = async () => {
@@ -109,98 +152,102 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           video: false,
           audio: true,
         });
-
         localStreamRef.current = stream;
-
         const audioTrack = stream.getAudioTracks()[0];
         if (audioTrack) {
           audioTrack.enabled = false; // Muted by default
         }
-
         setupAudioLevelMonitoring(stream);
-
-        console.log("Media permissions granted");
-        console.log("Initial stream - Audio tracks:", stream.getAudioTracks().length, "Video tracks:", stream.getVideoTracks().length);
+        console.log("✅ Media permissions granted");
         setMediaError(null);
       } catch (error) {
-        console.error("Failed to get media permissions:", error);
+        console.error("❌ Failed to get media permissions:", error);
         setMediaError("Unable to access camera/microphone. Please check your permissions.");
       }
     };
-
     initializeMedia();
   }, []);
 
-  // NEW: Sync media tracks with UI state
+  // Force media state sync after layout changes
   useEffect(() => {
     const syncMediaState = () => {
-      if (localStreamRef.current) {
-        const audioTrack = localStreamRef.current.getAudioTracks()[0];
-        const videoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (!localStreamRef.current) return;
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
+      console.log("🔧 [SYNC] Syncing media state after layout change:", {
+        layoutMode,
+        isMuted,
+        isCameraOff,
+        audioTrackEnabled: audioTrack?.enabled,
+        videoTrackExists: !!videoTrack,
+      });
 
-        console.log("Syncing media state - Audio enabled:", audioTrack?.enabled, "Video exists:", !!videoTrack);
-        console.log("UI state - isMuted:", isMuted, "isCameraOff:", isCameraOff);
+      // Force audio track to match UI state
+      if (audioTrack && audioTrack.enabled !== !isMuted) {
+        console.warn("🔧 [SYNC] Audio track mismatch, correcting to:", !isMuted);
+        audioTrack.enabled = !isMuted;
+      }
 
-        // Ensure audio track matches isMuted
-        if (audioTrack && audioTrack.enabled === isMuted) {
-          audioTrack.enabled = !isMuted;
-          console.log("Corrected audio track enabled to:", !isMuted);
+      // Force video track to match UI state
+      if (isCameraOff && videoTrack) {
+        console.warn("🔧 [SYNC] Video track present when camera off, stopping...");
+        videoTrack.stop();
+        localStreamRef.current.getVideoTracks().forEach((track) => track.stop());
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = localStreamRef.current;
         }
-
-        // Ensure video track matches isCameraOff
-        if (isCameraOff && videoTrack) {
-          videoTrack.stop();
-          localStreamRef.current.removeTrack(videoTrack);
-          console.log("Removed video track to match isCameraOff");
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = localStreamRef.current;
-          }
-        } else if (!isCameraOff && !videoTrack) {
-          navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .then((stream) => {
-              localStreamRef.current = stream;
-              stream.getAudioTracks()[0].enabled = !isMuted;
-              if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-                localVideoRef.current.play().catch((err) => console.log("Video play error:", err));
+      } else if (!isCameraOff && !videoTrack) {
+        console.log("🔧 [SYNC] Adding video track as camera is on...");
+        navigator.mediaDevices
+          .getUserMedia({ video: true, audio: true })
+          .then((newStream) => {
+            localStreamRef.current = newStream;
+            newStream.getAudioTracks()[0].enabled = !isMuted;
+            if (localVideoRef.current) {
+              localVideoRef.current.srcObject = newStream;
+              localVideoRef.current.play().catch((err) => console.log("Video play error:", err));
+            }
+            peerConnectionsRef.current.forEach((pc, participantId) => {
+              const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+              if (sender) {
+                sender.replaceTrack(newStream.getVideoTracks()[0]);
+              } else {
+                pc.addTrack(newStream.getVideoTracks()[0], newStream);
               }
-              peerConnectionsRef.current.forEach((pc, participantId) => {
-                const sender = pc.getSenders().find((s) => s.track?.kind === "video");
-                if (sender) {
-                  sender.replaceTrack(stream.getVideoTracks()[0]);
-                } else {
-                  pc.addTrack(stream.getVideoTracks()[0], stream);
-                }
-                // Trigger renegotiation
-                if (pc.signalingState === "stable") {
-                  pc.createOffer()
-                    .then((offer) => {
-                      pc.setLocalDescription(offer);
-                      if (socketRef.current?.readyState === WebSocket.OPEN) {
-                        socketRef.current.send(
-                          JSON.stringify({
-                            type: "webrtc_offer",
-                            target_participant_id: participantId,
-                            data: { offer },
-                          })
-                        );
-                      }
-                    })
-                    .catch((err) => console.error(`Renegotiation error for ${participantId}:`, err));
-                }
-              });
-            })
-            .catch((err) => console.error("Failed to re-add video stream:", err));
-        }
+              // Trigger renegotiation
+              if (pc.signalingState === "stable") {
+                pc.createOffer()
+                  .then((offer) => {
+                    pc.setLocalDescription(offer);
+                    if (socketRef.current?.readyState === WebSocket.OPEN) {
+                      socketRef.current.send(
+                        JSON.stringify({
+                          type: "webrtc_offer",
+                          target_participant_id: participantId,
+                          data: { offer },
+                        })
+                      );
+                    }
+                  })
+                  .catch((err) => console.error(`Renegotiation error for ${participantId}:`, err));
+              }
+            });
+          })
+          .catch((err) => console.error("Failed to add video track:", err));
       }
     };
     syncMediaState();
-  }, [isMuted, isCameraOff]);
+  }, [isMuted, isCameraOff, layoutMode, pinnedParticipantId]);
 
-  // NEW: Propagate state changes to peers
+  // Propagate state changes to peers
   useEffect(() => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
-      console.log("Sending status update - muted:", isMuted, "camera_off:", isCameraOff, "is_screen_sharing:", isScreenSharing);
+      console.log("📡 [STATUS] Sending status update to peers:", {
+        userId,
+        muted: isMuted,
+        camera_off: isCameraOff,
+        is_screen_sharing: isScreenSharing,
+      });
       socketRef.current.send(
         JSON.stringify({
           type: "status_update",
@@ -213,24 +260,23 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     }
   }, [isMuted, isCameraOff, isScreenSharing, userId]);
 
-  // NEW: Sync local participant state in participants array
+  // Always keep local participant state in sync
   useEffect(() => {
     if (userId && userName) {
       setParticipants((prev) => {
         const others = prev.filter((p) => p.user_id !== userId);
-        return [
-          {
-            id: `user_${userId}`,
-            user_id: userId,
-            name: userName,
-            muted: isMuted,
-            camera_off: isCameraOff,
-            is_screen_sharing: isScreenSharing,
-            hand_raised: handRaised,
-            self: true,
-          },
-          ...others,
-        ];
+        const localParticipant = {
+          id: `user_${userId}`,
+          user_id: userId,
+          name: userName,
+          muted: isMuted,
+          camera_off: isCameraOff,
+          is_screen_sharing: isScreenSharing,
+          hand_raised: handRaised,
+          self: true,
+        };
+        console.log("🔧 [PARTICIPANTS] Updated local participant state:", localParticipant);
+        return [localParticipant, ...others];
       });
     }
   }, [userId, userName, isMuted, isCameraOff, isScreenSharing, handRaised]);
@@ -257,7 +303,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         socketRef.current = ws;
 
         ws.onopen = () => {
-          console.log("WebSocket connected");
+          console.log("✅ WebSocket connected");
           setConnectionStatus("connected");
           ws.send(
             JSON.stringify({
@@ -336,17 +382,17 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   // Track last speaking state
   const lastSpeakingStateRef = useRef(new Map());
 
-  // NEW: Modified WebSocket message handler
+  // WebSocket message handler
   const handleWebSocketMessage = useCallback(
     (data) => {
       switch (data.type) {
         case "connection_established":
-          console.log("Connection established:", data);
+          console.log("✅ Connection established:", data);
           setRoomInfo(data.room_info);
           break;
 
         case "participants_update":
-          console.log("Participants update:", data.participants);
+          console.log("👥 Participants update:", data.participants);
           setParticipants((prev) => {
             const currentUser = {
               id: `user_${userId}`,
@@ -383,11 +429,14 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           break;
 
         case "status_update":
-          console.log("Received status update:", data);
+          console.log("📡 Received status update:", data);
           setParticipants((prev) =>
             prev.map((participant) => {
-              if (participant.user_id === data.from_user_id) {
-                console.log(`Updating participant ${data.from_user_id}: muted=${data.muted}, camera_off=${data.camera_off}`);
+              if (participant.user_id === data.from_user_id && participant.user_id !== userId) {
+                console.log(`👤 Updating REMOTE participant ${data.from_user_id}:`, {
+                  muted: data.muted,
+                  camera_off: data.camera_off,
+                });
                 return {
                   ...participant,
                   muted: data.muted,
@@ -403,7 +452,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         case "speaking_update": {
           const lastState = lastSpeakingStateRef.current.get(data.from_user_id);
           if (lastState !== data.is_speaking) {
-            console.log("Speaking update received:", data);
+            console.log("🗣️ Speaking update received:", data);
             lastSpeakingStateRef.current.set(data.from_user_id, data.is_speaking);
           }
           if (data.is_speaking) {
@@ -719,238 +768,117 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
   // Media controls
   const toggleMute = useCallback(async () => {
+    console.log("🔇 Toggling mute - current isMuted:", isMuted);
     const newMutedState = !isMuted;
-
     try {
       if (isMuted) {
-        console.log("Turning microphone on (unmuting)...");
+        console.log("✅ Turning microphone on (unmuting)...");
         if (!localStreamRef.current || !localStreamRef.current.getAudioTracks().length) {
           const stream = await navigator.mediaDevices.getUserMedia({
             audio: true,
             video: !isCameraOff,
           });
-
-          console.log("Got audio stream:", stream.getAudioTracks().length > 0);
-
           if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach((track) => track.stop());
           }
-
           localStreamRef.current = stream;
           if (localVideoRef.current && !isCameraOff) {
             localVideoRef.current.srcObject = stream;
           }
-
           setupAudioLevelMonitoring(stream);
-
           peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
             try {
               const senders = peerConnection.getSenders();
               const audioSender = senders.find((sender) => sender.track?.kind === "audio");
               if (audioSender) {
                 await audioSender.replaceTrack(stream.getAudioTracks()[0]);
-                console.log(`Replaced audio track for participant ${participantId}`);
               } else {
                 peerConnection.addTrack(stream.getAudioTracks()[0], stream);
-                console.log(`Added audio track for participant ${participantId}`);
-              }
-
-              if (peerConnection.signalingState === "stable") {
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                if (socketRef.current?.readyState === WebSocket.OPEN) {
-                  socketRef.current.send(
-                    JSON.stringify({
-                      type: "webrtc_offer",
-                      target_participant_id: participantId,
-                      data: { offer },
-                    })
-                  );
-                }
-                console.log(`Sent renegotiation offer to participant ${participantId} for audio track change`);
               }
             } catch (error) {
-              console.error(`Error updating audio track for participant ${participantId}:`, error);
+              console.error(`Error updating audio track for ${participantId}:`, error);
             }
           });
         } else {
           const audioTrack = localStreamRef.current.getAudioTracks()[0];
           if (audioTrack) {
             audioTrack.enabled = true;
-            console.log("Enabled existing audio track");
+            console.log("✅ Enabled existing audio track");
           }
         }
         setIsMuted(false);
-        console.log("Microphone turned on (unmuted) successfully");
       } else {
-        console.log("Turning microphone off (muting)...");
+        console.log("🔇 Turning microphone off (muting)...");
         if (localStreamRef.current) {
           const audioTrack = localStreamRef.current.getAudioTracks()[0];
           if (audioTrack) {
             audioTrack.enabled = false;
-            console.log("Disabled audio track");
+            console.log("✅ Disabled audio track");
           }
         }
         setIsMuted(true);
-        console.log("Microphone turned off (muted) successfully");
       }
     } catch (error) {
-      console.error("Microphone toggle error:", error);
+      console.error("❌ Microphone toggle error:", error);
       setMediaError("Failed to access microphone. Please check permissions.");
     }
   }, [isMuted, isCameraOff]);
 
   const toggleCamera = useCallback(async () => {
+    console.log("📹 Toggling camera - current isCameraOff:", isCameraOff);
     const newCameraState = !isCameraOff;
-
     try {
       if (isCameraOff) {
-        console.log("Turning camera on...");
+        console.log("✅ Turning camera on...");
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
         });
-
-        console.log("Got video stream:", stream.getVideoTracks().length > 0);
-        console.log("Got audio stream:", stream.getAudioTracks().length > 0);
-
         const audioTrack = stream.getAudioTracks()[0];
         if (audioTrack) {
           audioTrack.enabled = !isMuted;
-          console.log("Set audio track enabled to:", !isMuted);
         }
-
         if (localStreamRef.current) {
           localStreamRef.current.getTracks().forEach((track) => track.stop());
         }
-
         localStreamRef.current = stream;
-
-        const setVideoStream = () => {
-          if (localVideoRef.current) {
-            try {
-              localVideoRef.current.srcObject = stream;
-            } catch (err) {
-              console.warn("Failed to set srcObject directly, retrying via assign:", err);
-              localVideoRef.current.src = URL.createObjectURL(stream);
-            }
-            console.log("Set local video srcObject");
-            localVideoRef.current.play().then(() => {
-              console.log("Video play started successfully");
-              localVideoRef.current.style.display = "block";
-              localVideoRef.current.style.opacity = "1";
-            }).catch((playError) => {
-              console.log("Video play promise rejected (this is normal):", playError);
-            });
-
-            localVideoRef.current.onloadedmetadata = () => {
-              console.log("Video metadata loaded - dimensions:", localVideoRef.current.videoWidth, "x", localVideoRef.current.videoHeight);
-            };
-            localVideoRef.current.oncanplay = () => {
-              console.log("Video can play");
-            };
-            localVideoRef.current.onplaying = () => {
-              console.log("Video is playing");
-            };
-          } else {
-            console.error("Local video ref is null! Retrying in 100ms...");
-            setTimeout(setVideoStream, 100);
-          }
-        };
-
-        setVideoStream();
-
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+          localVideoRef.current.play().catch((err) => console.log("Video play error:", err));
+        }
         peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
           try {
             const senders = peerConnection.getSenders();
             const videoSender = senders.find((sender) => sender.track?.kind === "video");
             if (videoSender) {
               await videoSender.replaceTrack(stream.getVideoTracks()[0]);
-              console.log(`Replaced video track for participant ${participantId}`);
             } else {
               peerConnection.addTrack(stream.getVideoTracks()[0], stream);
-              console.log(`Added video track for participant ${participantId}`);
             }
-
             const audioSender = senders.find((sender) => sender.track?.kind === "audio");
             if (audioSender) {
               await audioSender.replaceTrack(stream.getAudioTracks()[0]);
-              console.log(`Replaced audio track for participant ${participantId}`);
             } else {
               peerConnection.addTrack(stream.getAudioTracks()[0], stream);
-              console.log(`Added audio track for participant ${participantId}`);
-            }
-
-            if (peerConnection.signalingState === "stable") {
-              const offer = await peerConnection.createOffer();
-              await peerConnection.setLocalDescription(offer);
-              if (socketRef.current?.readyState === WebSocket.OPEN) {
-                socketRef.current.send(
-                  JSON.stringify({
-                    type: "webrtc_offer",
-                    target_participant_id: participantId,
-                    data: { offer },
-                  })
-                );
-              }
-              console.log(`Sent renegotiation offer to participant ${participantId} for video track change`);
             }
           } catch (error) {
-            console.error(`Error updating video track for participant ${participantId}:`, error);
+            console.error(`Error updating tracks for ${participantId}:`, error);
           }
         });
-
         setIsCameraOff(false);
-        console.log("Camera turned on successfully");
       } else {
-        console.log("Turning camera off...");
+        console.log("📴 Turning camera off...");
         if (localStreamRef.current) {
-          const videoTracks = localStreamRef.current.getVideoTracks();
-          videoTracks.forEach((track) => {
-            track.stop();
-          });
-
-          peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
-            try {
-              const senders = peerConnection.getSenders();
-              const videoSender = senders.find((sender) => sender.track?.kind === "video");
-              if (videoSender) {
-                await videoSender.replaceTrack(null);
-                console.log(`Removed video track for participant ${participantId}`);
-                if (peerConnection.signalingState === "stable") {
-                  const offer = await peerConnection.createOffer();
-                  await peerConnection.setLocalDescription(offer);
-                  if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.send(
-                      JSON.stringify({
-                        type: "webrtc_offer",
-                        target_participant_id: participantId,
-                        data: { offer },
-                      })
-                    );
-                  }
-                  console.log(`Sent renegotiation offer to participant ${participantId} for video removal`);
-                }
-              }
-            } catch (error) {
-              console.error(`Error removing video track for participant ${participantId}:`, error);
-            }
-          });
+          localStreamRef.current.getVideoTracks().forEach((track) => track.stop());
         }
-
         if (localVideoRef.current) {
-          try {
-            localVideoRef.current.srcObject = null;
-          } catch (e) {
-            localVideoRef.current.src = "";
-          }
+          localVideoRef.current.srcObject = localStreamRef.current;
         }
         setIsCameraOff(true);
-        console.log("Camera turned off successfully");
       }
     } catch (error) {
-      console.error("Camera toggle error:", error);
-      setMediaError("Failed to access camera. Please check permissions and ensure your camera isn't being used by another application.");
+      console.error("❌ Camera toggle error:", error);
+      setMediaError("Failed to access camera. Please check permissions.");
     }
   }, [isCameraOff, isMuted]);
 
@@ -961,88 +889,43 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           video: true,
           audio: true,
         });
-
         localStreamRef.current = screenStream;
-
         peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
           try {
             const senders = peerConnection.getSenders();
             const videoSender = senders.find((sender) => sender.track?.kind === "video");
             if (videoSender) {
               await videoSender.replaceTrack(screenStream.getVideoTracks()[0]);
-              console.log(`Replaced video track with screen share for participant ${participantId}`);
             } else {
               peerConnection.addTrack(screenStream.getVideoTracks()[0], screenStream);
-              console.log(`Added screen share track for participant ${participantId}`);
-            }
-
-            if (peerConnection.signalingState === "stable") {
-              const offer = await peerConnection.createOffer();
-              await peerConnection.setLocalDescription(offer);
-              if (socketRef.current?.readyState === WebSocket.OPEN) {
-                socketRef.current.send(
-                  JSON.stringify({
-                    type: "webrtc_offer",
-                    target_participant_id: participantId,
-                    data: { offer },
-                  })
-                );
-              }
-              console.log(`Sent renegotiation offer to participant ${participantId} for screen share`);
             }
           } catch (error) {
-            console.error(`Error starting screen share for participant ${participantId}:`, error);
+            console.error(`Error starting screen share for ${participantId}:`, error);
           }
         });
-
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = screenStream;
-          localVideoRef.current.muted = true;
-          localVideoRef.current.playsInline = true;
-          localVideoRef.current.style.display = "block";
-          localVideoRef.current.style.opacity = "1";
-          localVideoRef.current.play().catch((err) => {
-            console.log("Screen share video play error:", err);
-          });
+          localVideoRef.current.play().catch((err) => console.log("Screen share video play error:", err));
         }
-
         screenStream.getVideoTracks()[0].addEventListener("ended", async () => {
           setIsScreenSharing(false);
-
           if (!isCameraOff) {
             try {
               const cameraStream = await navigator.mediaDevices.getUserMedia({
                 video: true,
                 audio: !isMuted,
               });
-
               peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
                 try {
                   const senders = peerConnection.getSenders();
                   const videoSender = senders.find((sender) => sender.track?.kind === "video");
                   if (videoSender) {
                     await videoSender.replaceTrack(cameraStream.getVideoTracks()[0]);
-                    console.log(`Switched back to camera for participant ${participantId}`);
-                    if (peerConnection.signalingState === "stable") {
-                      const offer = await peerConnection.createOffer();
-                      await peerConnection.setLocalDescription(offer);
-                      if (socketRef.current?.readyState === WebSocket.OPEN) {
-                        socketRef.current.send(
-                          JSON.stringify({
-                            type: "webrtc_offer",
-                            target_participant_id: participantId,
-                            data: { offer },
-                          })
-                        );
-                      }
-                      console.log(`Sent renegotiation offer to participant ${participantId} for camera switch`);
-                    }
                   }
                 } catch (error) {
-                  console.error(`Error switching back to camera for participant ${participantId}:`, error);
+                  console.error(`Error switching back to camera for ${participantId}:`, error);
                 }
               });
-
               if (localVideoRef.current) {
                 localVideoRef.current.srcObject = cameraStream;
               }
@@ -1050,39 +933,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             } catch (error) {
               console.error("Error switching back to camera:", error);
             }
-          } else {
-            peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
-              try {
-                const senders = peerConnection.getSenders();
-                const videoSender = senders.find((sender) => sender.track?.kind === "video");
-                if (videoSender) {
-                  await videoSender.replaceTrack(null);
-                  console.log(`Removed video track for participant ${participantId}`);
-                  if (peerConnection.signalingState === "stable") {
-                    const offer = await peerConnection.createOffer();
-                    await peerConnection.setLocalDescription(offer);
-                    if (socketRef.current?.readyState === WebSocket.OPEN) {
-                      socketRef.current.send(
-                        JSON.stringify({
-                          type: "webrtc_offer",
-                          target_participant_id: participantId,
-                          data: { offer },
-                        })
-                      );
-                    }
-                    console.log(`Sent renegotiation offer to participant ${participantId} for video removal`);
-                  }
-                }
-              } catch (error) {
-                console.error(`Error removing video track for participant ${participantId}:`, error);
-              }
-            });
-
-            if (localVideoRef.current) {
-              localVideoRef.current.srcObject = null;
-            }
           }
-
           if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current.send(
               JSON.stringify({
@@ -1095,82 +946,38 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             );
           }
         });
-
         setIsScreenSharing(true);
       } else {
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach((track) => track.stop());
+        }
         if (!isCameraOff) {
           const cameraStream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: !isMuted,
           });
-
           peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
             try {
               const senders = peerConnection.getSenders();
               const videoSender = senders.find((sender) => sender.track?.kind === "video");
               if (videoSender) {
                 await videoSender.replaceTrack(cameraStream.getVideoTracks()[0]);
-                console.log(`Manual switch back to camera for participant ${participantId}`);
-                if (peerConnection.signalingState === "stable") {
-                  const offer = await peerConnection.createOffer();
-                  await peerConnection.setLocalDescription(offer);
-                  if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.send(
-                      JSON.stringify({
-                        type: "webrtc_offer",
-                        target_participant_id: participantId,
-                        data: { offer },
-                      })
-                    );
-                  }
-                  console.log(`Sent renegotiation offer to participant ${participantId} for manual camera switch`);
-                }
               }
             } catch (error) {
-              console.error(`Error manually switching back to camera for participant ${participantId}:`, error);
+              console.error(`Error switching back to camera for ${participantId}:`, error);
             }
           });
-
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = cameraStream;
           }
           localStreamRef.current = cameraStream;
         } else {
-          peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
-            try {
-              const senders = peerConnection.getSenders();
-              const videoSender = senders.find((sender) => sender.track?.kind === "video");
-              if (videoSender) {
-                await videoSender.replaceTrack(null);
-                console.log(`Manual video track removal for participant ${participantId}`);
-                if (peerConnection.signalingState === "stable") {
-                  const offer = await peerConnection.createOffer();
-                  await peerConnection.setLocalDescription(offer);
-                  if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.send(
-                      JSON.stringify({
-                        type: "webrtc_offer",
-                        target_participant_id: participantId,
-                        data: { offer },
-                      })
-                    );
-                  }
-                  console.log(`Sent renegotiation offer to participant ${participantId} for manual video removal`);
-                }
-              }
-            } catch (error) {
-              console.error(`Error manually removing video track for participant ${participantId}:`, error);
-            }
-          });
-
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = null;
           }
         }
-
         setIsScreenSharing(false);
       }
-
       if (socketRef.current?.readyState === WebSocket.OPEN) {
         socketRef.current.send(
           JSON.stringify({
@@ -1184,18 +991,13 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       }
     } catch (error) {
       console.error("Screen share error:", error);
-      if (error.name === "NotAllowedError") {
-        setMediaError("Screen sharing permission denied.");
-      } else {
-        setMediaError("Failed to start screen sharing.");
-      }
+      setMediaError("Failed to start screen sharing.");
     }
   }, [isScreenSharing, isCameraOff, isMuted]);
 
   const toggleHandRaise = useCallback(() => {
     const newHandRaisedState = !handRaised;
     setHandRaised(newHandRaisedState);
-
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(
         JSON.stringify({
@@ -1233,17 +1035,14 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
-
       peerConnectionsRef.current.forEach((peerConnection) => {
         peerConnection.close();
       });
       peerConnectionsRef.current.clear();
       remoteVideosRef.current.clear();
-
       if (socketRef.current?.readyState === WebSocket.OPEN) {
         socketRef.current.close();
       }
-
       if (sessionInfo?.group?.id) {
         const result = await leaveSession(sessionInfo.group.id);
         if (result?.group_deleted) {
@@ -1258,7 +1057,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           return;
         }
       }
-
       onLeaveSession();
     } catch (error) {
       console.error("Error leaving session:", error);
@@ -1307,13 +1105,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     });
   };
 
-  // NEW: Modified layout mode handler with logging
-  const setLayoutModeWithLog = (newMode) => {
-    console.log("Changing layout mode to:", newMode);
-    console.log("Current isMuted:", isMuted, "isCameraOff:", isCameraOff);
-    setLayoutMode(newMode);
-  };
-
   if (connectionStatus === "connecting") {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -1352,9 +1143,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             <Users className="w-5 h-5" />
             <span>{participants.length} participants</span>
           </div>
-
           {mediaError && <div className="text-red-400 text-sm max-w-xs">{mediaError}</div>}
-
           <button
             onClick={handleLeaveSession}
             className="px-4 py-2 bg-red-600 rounded-lg hover:bg-red-700 flex items-center gap-2"
@@ -1409,7 +1198,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       <div className="font-semibold text-sm mb-1">Pin Participant</div>
                       <select
                         value={pinnedParticipantId || ""}
-                        onChange={(e) => setPinnedParticipantId(e.target.value)}
+                        onChange={(e) => setPinnedParticipantWithLog(e.target.value)}
                         className="w-full bg-gray-100 text-gray-900 rounded px-2 py-1 border"
                       >
                         <option value="">Select...</option>
@@ -1423,7 +1212,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                     </div>
                   )}
                 </div>
-
                 <div
                   className={`md:hidden fixed inset-0 z-50 flex items-end justify-center ${showSettings ? "" : "pointer-events-none"}`}
                   aria-hidden={!showSettings}
@@ -1457,8 +1245,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                         <div className="font-semibold text-sm mb-1">Pin Participant</div>
                         <select
                           value={pinnedParticipantId || ""}
-                          onChange={(e) => setPinnedParticipantId(e.target.value)}
-                          className="w-full bg-gray-100 text-gray-900 rounded px-2 py-2 border"
+                          onChange={(e) => setPinnedParticipantWithLog(e.target.value)}
+                          className="w-full bg-gray-100 text-gray-900 rounded px-2 py-1 border"
                         >
                           <option value="">Select...</option>
                           {participants.map((p) => (
@@ -1850,7 +1638,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
       <div className="bg-gray-800 p-4 flex flex-wrap justify-center items-center gap-3 sm:gap-4 w-full">
         <button
-          onClick={toggleMute}
+          onClick={() => {
+            console.log("🔇 Toggling mute, current isMuted:", isMuted);
+            toggleMute();
+          }}
           className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${isMuted ? "bg-red-600 hover:bg-red-700" : "bg-gray-600 hover:bg-gray-700"}`}
           title={isMuted ? "Unmute" : "Mute"}
         >
@@ -1858,7 +1649,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         </button>
 
         <button
-          onClick={toggleCamera}
+          onClick={() => {
+            console.log("📹 Toggling camera, current isCameraOff:", isCameraOff);
+            toggleCamera();
+          }}
           className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${isCameraOff ? "bg-red-600 hover:bg-red-700" : "bg-gray-600 hover:bg-gray-700"}`}
           title={isCameraOff ? "Turn camera on" : "Turn camera off"}
         >
