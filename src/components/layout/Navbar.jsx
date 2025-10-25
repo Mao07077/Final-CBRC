@@ -42,15 +42,12 @@ const Navbar = () => {
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
-      <div className="relative container mx-auto px-6 py-3">
-        {/* absolute-positioned logo so it stays at the left edge regardless of container centering */}
-        <div className="absolute left-6 top-1/2 transform -translate-y-1/2">
-          <RouterLink to="/" className="flex items-center">
+      <div className="container mx-auto px-6 py-3 relative">
+        <div className="flex justify-between items-center">
+          {/* position logo absolutely so it stays pinned to the left even when viewport or zoom changes */}
+          <RouterLink to="/" className="absolute left-6 top-1/2 transform -translate-y-1/2">
             <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-auto max-w-[160px] object-contain" />
           </RouterLink>
-        </div>
-
-        <div className="flex justify-between items-center md:pl-28">
 
           {!isAuthenticated && (
             <>
