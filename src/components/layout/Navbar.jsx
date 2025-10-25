@@ -43,23 +43,23 @@ const Navbar = () => {
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-6 py-3">
-        <div className="flex justify-between items-center">
-          <RouterLink to="/" className="flex items-center">
-            {/* responsive logo: keep height, allow width to auto-scale but cap with max-w */}
-            <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-auto max-w-[160px] object-contain" />
-          </RouterLink>
+        <div className="flex items-center justify-start">
+          <div className="flex-shrink-0">
+            <RouterLink to="/" className="flex items-center">
+              <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-auto max-w-[160px] object-contain" />
+            </RouterLink>
+          </div>
 
           {!isAuthenticated && (
             <>
               {/* Desktop Menu */}
-              <div className="hidden md:flex items-center space-x-6">
+              <div className="hidden md:flex items-center space-x-6 ml-auto">
                 {renderNavLinks()}
-                {/* reduce vertical padding and increase horizontal padding so button looks longer and less 'fat' */}
                 <RouterLink to="/login" className="py-1 px-6 bg-primary-dark text-white rounded-full hover:bg-accent-medium transition duration-300">Login</RouterLink>
               </div>
 
               {/* Mobile Menu Button */}
-              <div className="md:hidden">
+              <div className="md:hidden ml-auto">
                 <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-gray-600 focus:outline-none">
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16m-7 6h7"} />
