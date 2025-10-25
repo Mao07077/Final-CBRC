@@ -22,8 +22,8 @@ const Navbar = () => {
     duration: 500,
   };
 
-  const linkClassName = "text-gray-600 hover:text-accent-medium transition duration-300 cursor-pointer whitespace-nowrap";
-  const mobileLinkClassName = "block py-2 px-4 text-sm text-gray-600 hover:bg-gray-100 cursor-pointer whitespace-nowrap";
+  const linkClassName = "text-gray-600 hover:text-accent-medium transition duration-300 cursor-pointer";
+  const mobileLinkClassName = "block py-2 px-4 text-sm text-gray-600 hover:bg-gray-100 cursor-pointer";
 
   const renderNavLinks = (isMobile = false) => {
     const className = isMobile ? mobileLinkClassName : linkClassName;
@@ -42,21 +42,23 @@ const Navbar = () => {
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
-      {/* constrain navbar content width so items don't reflow on very large screens */}
-      <div className="relative max-w-screen-xl mx-auto px-6 py-3">
-        <div className="flex justify-between items-center flex-nowrap">
+      <div className="relative container mx-auto px-6 py-3">
+        {/* absolute-positioned logo so it stays at the left edge regardless of container centering */}
+        <div className="absolute left-6 top-1/2 transform -translate-y-1/2">
           <RouterLink to="/" className="flex items-center">
-            {/* left-aligned responsive logo */}
-            <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-auto max-w-[160px] object-contain flex-shrink-0" />
+            <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-auto max-w-[160px] object-contain" />
           </RouterLink>
+        </div>
+
+        <div className="flex justify-between items-center md:pl-28">
 
           {!isAuthenticated && (
             <>
               {/* Desktop Menu */}
-              <div className="hidden md:flex items-center space-x-6 flex-nowrap">
+              <div className="hidden md:flex items-center space-x-6">
                 {renderNavLinks()}
                 {/* reduce vertical padding and increase horizontal padding so button looks longer and less 'fat' */}
-                <RouterLink to="/login" className="py-1 px-6 bg-primary-dark text-white rounded-full hover:bg-accent-medium transition duration-300 flex-shrink-0">Login</RouterLink>
+                <RouterLink to="/login" className="py-1 px-6 bg-primary-dark text-white rounded-full hover:bg-accent-medium transition duration-300">Login</RouterLink>
               </div>
 
               {/* Mobile Menu Button */}
@@ -70,8 +72,6 @@ const Navbar = () => {
             </>
           )}
         </div>
-
-        {/* centered logo removed; logo is left-aligned above */}
 
         {/* Mobile Menu */}
         {isMenuOpen && !isAuthenticated && (
