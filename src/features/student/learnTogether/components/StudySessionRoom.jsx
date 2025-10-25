@@ -5,20 +5,20 @@ const LAYOUT_OPTIONS = [
   { value: "spotlight", label: "Spotlight (Pin Participant)" },
   { value: "speaker", label: "Focus on Speaker" },
 ];
-import { 
-  Mic, 
-  MicOff, 
-  Video, 
-  VideoOff, 
-  Phone, 
-  MessageSquare, 
-  Users, 
+import {
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  Phone,
+  MessageSquare,
+  Users,
   Hand,
   Monitor,
   MonitorOff,
   Settings,
   Send,
-  Volume2
+  Volume2,
 } from "lucide-react";
 import useLearnTogetherStore from "../../../../store/student/learnTogetherStore";
 import SessionEndNotification from "../../../../components/common/SessionEndNotification";
@@ -27,20 +27,20 @@ import apiClient from "../../../../api/axiosClient";
 // Speaking Indicator Component
 const SpeakingIndicator = ({ isActive, audioLevel = 0 }) => {
   const bars = [1, 2, 3, 4, 5];
-  
+
   return (
     <div className="flex items-center space-x-1">
       {bars.map((bar) => (
         <div
           key={bar}
           className={`w-1 bg-green-400 rounded-full transition-all duration-150 ${
-            isActive 
-              ? `h-${Math.min(6, Math.max(2, Math.floor(audioLevel / 20) + 2))} animate-pulse` 
-              : 'h-2 opacity-30'
+            isActive
+              ? `h-${Math.min(6, Math.max(2, Math.floor(audioLevel / 20) + 2))} animate-pulse`
+              : "h-2 opacity-30"
           }`}
           style={{
             animationDelay: `${bar * 0.1}s`,
-            height: isActive ? `${Math.min(24, Math.max(8, (audioLevel / 255) * 24 + bar * 2))}px` : '8px'
+            height: isActive ? `${Math.min(24, Math.max(8, (audioLevel / 255) * 24 + bar * 2))}px` : "8px",
           }}
         />
       ))}
@@ -50,7 +50,7 @@ const SpeakingIndicator = ({ isActive, audioLevel = 0 }) => {
 
 const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => {
   const { leaveSession } = useLearnTogetherStore();
-  
+
   // Add notification state
   const [showEndNotification, setShowEndNotification] = useState(false);
   const [endNotificationMessage, setEndNotificationMessage] = useState("");
@@ -58,48 +58,32 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   // WebSocket connection
   const [socket, setSocket] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("connecting");
-  
-  // Local media state (define these BEFORE using them)
+
+  // Local media state
   const [isMuted, setIsMuted] = useState(true);
   const [isCameraOff, setIsCameraOff] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [mediaError, setMediaError] = useState(null);
-  
+
   // Room state
   const [participants, setParticipants] = useState([]);
   const [roomInfo, setRoomInfo] = useState(null);
 
-  // Initialize participants with current user
-  useEffect(() => {
-    if (userId && userName) {
-      setParticipants([{
-        id: `user_${userId}`,
-        user_id: userId,
-        name: userName,
-        muted: isMuted,
-        camera_off: isCameraOff,
-        is_screen_sharing: isScreenSharing
-        ,
-        self: true
-      }]);
-    }
-  }, [userId, userName, isMuted, isCameraOff, isScreenSharing]);
-  
   // Chat state
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [showChat, setShowChat] = useState(false);
-  
+
   // UI state
   const [showSettings, setShowSettings] = useState(false);
   const [layoutMode, setLayoutMode] = useState("grid");
   const [pinnedParticipantId, setPinnedParticipantId] = useState(null);
-  
+
   // Speaking indicator state
   const [speakingParticipants, setSpeakingParticipants] = useState(new Set());
   const [localAudioLevel, setLocalAudioLevel] = useState(0);
-  
+
   // Refs
   const localVideoRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -107,13 +91,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const animationFrameRef = useRef(null);
-  // Add refs for ICE candidate queuing
-  const pendingIceCandidates = useRef(new Map()); // participantId -> array of candidates
+  const pendingIceCandidates = useRef(new Map());
   const chatContainerRef = useRef(null);
-  const peerConnectionsRef = useRef(new Map()); // Store peer connections
-  const remoteVideosRef = useRef(new Map()); // Store remote video refs
+  const peerConnectionsRef = useRef(new Map());
+  const remoteVideosRef = useRef(new Map());
 
-  // --- Diagnostic Logging Helpers ---
+  // Diagnostic Logging Helpers
   const logSignal = (msg, data) => console.log(`[SIGNAL] ${msg}`, data);
   const logStream = (msg, data) => console.log(`[STREAM] ${msg}`, data);
   const logPeer = (msg, data) => console.log(`[PEER] ${msg}`, data);
@@ -122,23 +105,20 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   useEffect(() => {
     const initializeMedia = async () => {
       try {
-        // Start with audio enabled but muted, video disabled
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: false,  // Start with camera off
-          audio: true    // Get audio permission but we'll mute it
+          video: false,
+          audio: true,
         });
-        
+
         localStreamRef.current = stream;
-        
-        // Mute audio by default
+
         const audioTrack = stream.getAudioTracks()[0];
         if (audioTrack) {
-          audioTrack.enabled = false; // Muted by default
+          audioTrack.enabled = false;
         }
-        
-        // Set up audio level monitoring for speaking indicator
+
         setupAudioLevelMonitoring(stream);
-        
+
         console.log("Media permissions granted");
         console.log("Initial stream - Audio tracks:", stream.getAudioTracks().length, "Video tracks:", stream.getVideoTracks().length);
         setMediaError(null);
@@ -157,24 +137,58 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       if (localStreamRef.current) {
         const audioTrack = localStreamRef.current.getAudioTracks()[0];
         const videoTrack = localStreamRef.current.getVideoTracks()[0];
-        
-        // Log the actual state of media tracks
-        console.log("Media state sync - Audio:", audioTrack?.enabled, "Video:", !!videoTrack);
-        console.log("UI state - Muted:", isMuted, "Camera off:", isCameraOff);
-        
-        // Debug video element state
+
+        // Update UI state based on actual track state
+        const newMutedState = audioTrack ? !audioTrack.enabled : true;
+        const newCameraOffState = !videoTrack;
+
+        if (newMutedState !== isMuted) {
+          console.warn("Audio state desync detected! Updating isMuted to", newMutedState);
+          setIsMuted(newMutedState);
+        }
+        if (newCameraOffState !== isCameraOff) {
+          console.warn("Video state desync detected! Updating isCameraOff to", newCameraOffState);
+          setIsCameraOff(newCameraOffState);
+        }
+
+        console.log("SyncMediaState - Audio track enabled:", audioTrack?.enabled, "Video track exists:", !!videoTrack);
+        console.log("SyncMediaState - UI state:", { isMuted, isCameraOff });
+
         if (localVideoRef.current) {
-          console.log("Video element srcObject:", !!localVideoRef.current.srcObject);
-          console.log("Video element readyState:", localVideoRef.current.readyState);
-          console.log("Video element paused:", localVideoRef.current.paused);
-          console.log("Video element dimensions:", localVideoRef.current.videoWidth, "x", localVideoRef.current.videoHeight);
+          console.log("Local video element state:", {
+            hasSrcObject: !!localVideoRef.current.srcObject,
+            readyState: localVideoRef.current.readyState,
+            paused: localVideoRef.current.paused,
+            dimensions: `${localVideoRef.current.videoWidth}x${localVideoRef.current.videoHeight}`,
+          });
         }
       }
     };
 
-    // Sync state every time media controls change
     syncMediaState();
   }, [isMuted, isCameraOff]);
+
+  // Initialize and update participants with current user
+  useEffect(() => {
+    if (userId && userName) {
+      setParticipants((prev) => {
+        const otherParticipants = prev.filter((p) => p.user_id !== userId);
+        return [
+          {
+            id: `user_${userId}`,
+            user_id: userId,
+            name: userName,
+            muted: isMuted,
+            camera_off: isCameraOff,
+            is_screen_sharing: isScreenSharing,
+            hand_raised: handRaised,
+            self: true,
+          },
+          ...otherParticipants,
+        ];
+      });
+    }
+  }, [userId, userName, isMuted, isCameraOff, isScreenSharing, handRaised]);
 
   // WebSocket connection setup
   useEffect(() => {
@@ -182,28 +196,17 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
     const initializeSession = async () => {
       try {
-        // Just join the existing active session
         const { joinSession } = useLearnTogetherStore.getState();
         await joinSession(sessionInfo.group.id);
 
-        // Now establish WebSocket connection
-        const baseUrl = (import.meta.env.VITE_API_URL || "https://cbrcs-final.onrender.com").replace(/\/$/, '');
-        const wsBaseUrl = baseUrl.replace(/^http/, 'ws');
-        console.log("Base URL:", baseUrl);
-        console.log("WS Base URL:", wsBaseUrl);
-        console.log("WebSocket URL from backend:", sessionInfo.websocket_url);
-        
-        // Ensure websocket_url starts with / and remove any double slashes
+        const baseUrl = (import.meta.env.VITE_API_URL || "https://cbrcs-final.onrender.com").replace(/\/$/, "");
+        const wsBaseUrl = baseUrl.replace(/^http/, "ws");
         let websocketPath = sessionInfo.websocket_url;
-        if (!websocketPath.startsWith('/')) {
-          websocketPath = '/' + websocketPath;
+        if (!websocketPath.startsWith("/")) {
+          websocketPath = "/" + websocketPath;
         }
-        console.log("WebSocket path after processing:", websocketPath);
-        
         const wsUrl = `${wsBaseUrl}${websocketPath}`;
-        
-        console.log("Final WebSocket URL:", wsUrl);
-        
+
         console.log("Connecting to WebSocket:", wsUrl);
         const ws = new WebSocket(wsUrl);
         socketRef.current = ws;
@@ -211,17 +214,18 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         ws.onopen = () => {
           console.log("WebSocket connected");
           setConnectionStatus("connected");
-          
-          // Send initial connection data with current media state
-          ws.send(JSON.stringify({
-            type: "join_session",
-            user_id: userId,
-            user_name: userName,
-            muted: isMuted,
-            camera_off: isCameraOff,
-            is_screen_sharing: isScreenSharing,
-            hand_raised: handRaised
-          }));
+
+          ws.send(
+            JSON.stringify({
+              type: "join_session",
+              user_id: userId,
+              user_name: userName,
+              muted: isMuted,
+              camera_off: isCameraOff,
+              is_screen_sharing: isScreenSharing,
+              hand_raised: handRaised,
+            })
+          );
         };
 
         ws.onmessage = (event) => {
@@ -256,33 +260,29 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       if (socketRef.current?.readyState === WebSocket.OPEN) {
         socketRef.current.close();
       }
-      // Clean up audio monitoring
       stopAudioLevelMonitoring();
     };
   }, [sessionInfo, userId, userName]);
 
-  // Activity updater to keep session alive
+  // Activity updater
   useEffect(() => {
     if (!sessionInfo?.group?.id) return;
 
     const updateActivity = async () => {
       try {
-        const response = await apiClient.post('/api/study-groups/update-activity', {
-          group_id: sessionInfo.group.id
+        const response = await apiClient.post("/api/study-groups/update-activity", {
+          group_id: sessionInfo.group.id,
         });
-        
+
         if (!response.data.success) {
-          console.warn('Failed to update activity:', response.data);
+          console.warn("Failed to update activity:", response.data);
         }
       } catch (error) {
-        console.warn('Error updating activity:', error);
+        console.warn("Error updating activity:", error);
       }
     };
 
-    // Update activity immediately
     updateActivity();
-
-    // Set up interval to update every 2 minutes (keeps sessions alive)
     const activityInterval = setInterval(updateActivity, 2 * 60 * 1000);
 
     return () => {
@@ -290,7 +290,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     };
   }, [sessionInfo?.group?.id]);
 
-  // Track last speaking state for each user to avoid console spam
+  // Track last speaking state
   const lastSpeakingStateRef = useRef(new Map());
 
   // Handle WebSocket messages
@@ -300,79 +300,73 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         console.log("Connection established:", data);
         setRoomInfo(data.room_info);
         break;
-        
+
       case "participants_update":
         console.log("Participants update:", data.participants);
-        // Always include current user in participants list
         const currentUser = {
           id: `user_${userId}`,
           user_id: userId,
           name: userName,
           muted: isMuted,
           camera_off: isCameraOff,
-          is_screen_sharing: isScreenSharing
+          is_screen_sharing: isScreenSharing,
+          hand_raised: handRaised,
+          self: true,
         };
-        
-        // Filter out current user from server data and add our local version
-        const otherParticipants = data.participants.filter(p => p.user_id !== userId);
+        const otherParticipants = data.participants.filter((p) => p.user_id !== userId);
         const allParticipants = [currentUser, ...otherParticipants];
-        
         setParticipants(allParticipants);
         setRoomInfo(data.room_info);
-        // Handle new participants for WebRTC connections
         handleParticipantsUpdate(allParticipants);
         break;
-        
+
       case "chat_message":
-        setChatMessages(prev => [...prev, data.message]);
-        // Auto-scroll chat to bottom
+        setChatMessages((prev) => [...prev, data.message]);
         setTimeout(() => {
           if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
           }
         }, 100);
         break;
-        
+
       case "chat_history":
         setChatMessages(data.messages);
         break;
-        
+
       case "hand_raise_update":
-        // Handle hand raise notifications (you could show a toast here)
-        console.log(`${data.participant_name} ${data.hand_raised ? 'raised' : 'lowered'} their hand`);
+        console.log(`${data.participant_name} ${data.hand_raised ? "raised" : "lowered"} their hand`);
         break;
-        
+
       case "status_update":
-        // Handle participant status updates (mute, camera, screen share)
         console.log("Status update received:", data);
-        
-        // Update participant status in the participants list
-        setParticipants(prev => prev.map(participant => {
-          if (participant.user_id === data.from_user_id) {
-            return {
-              ...participant,
-              muted: data.muted,
-              camera_off: data.camera_off,
-              is_screen_sharing: data.is_screen_sharing
-            };
-          }
-          return participant;
-        }));
-        
-        console.log(`Participant ${data.from_user_id} status: muted=${data.muted}, camera_off=${data.camera_off}, screen_sharing=${data.is_screen_sharing}`);
+        setParticipants((prev) =>
+          prev.map((participant) => {
+            if (participant.user_id === data.from_user_id) {
+              return {
+                ...participant,
+                muted: data.muted,
+                camera_off: data.camera_off,
+                is_screen_sharing: data.is_screen_sharing,
+              };
+            }
+            return participant;
+          })
+        );
+        console.log(
+          `Participant ${data.from_user_id} status: muted=${data.muted}, camera_off=${data.camera_off}, screen_sharing=${data.is_screen_sharing}`
+        );
         break;
-        
+
       case "speaking_update": {
-        // Only log when speaking state changes
         const lastState = lastSpeakingStateRef.current.get(data.from_user_id);
         if (lastState !== data.is_speaking) {
           console.log("Speaking update received:", data);
           lastSpeakingStateRef.current.set(data.from_user_id, data.is_speaking);
         }
         if (data.is_speaking) {
-          setSpeakingParticipants(prev => new Set([...prev, data.from_user_id]));
+          setSpeakingParticipants((prev) => new Set([...prev, data.from_user_id]));
         } else {
-          setSpeakingParticipants(prev => {
+          setSpeakingParticipants((prev) => {
             const newSet = new Set(prev);
             newSet.delete(data.from_user_id);
             return newSet;
@@ -380,295 +374,293 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         }
         break;
       }
-        
+
       case "webrtc_offer":
       case "webrtc_answer":
       case "webrtc_ice_candidate":
-        // Handle WebRTC signaling
         handleWebRTCSignaling(data);
         break;
-        
+
       case "error":
         console.error("Server error:", data.message);
         alert(data.message);
         break;
-        
+
       default:
         console.log("Unknown message type:", data.type);
     }
-  }, []);
+  }, [userId, isMuted, isCameraOff, isScreenSharing, handRaised]);
 
   // WebRTC functions
-  const createPeerConnection = useCallback((participantId) => {
-    const peerConnection = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
-    });
-
-    // Add local stream to peer connection
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStreamRef.current);
+  const createPeerConnection = useCallback(
+    (participantId) => {
+      const peerConnection = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" },
+        ],
       });
-    }
 
-    // Handle remote stream
-    peerConnection.ontrack = (event) => {
-      const [remoteStream] = event.streams;
-      const videoElement = remoteVideosRef.current.get(participantId);
-      if (videoElement) {
-        videoElement.srcObject = remoteStream;
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => {
+          peerConnection.addTrack(track, localStreamRef.current);
+        });
       }
-    };
 
-    // Handle ICE candidates
-    peerConnection.onicecandidate = (event) => {
-      if (event.candidate && socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify({
-          type: "webrtc_ice_candidate",
-          target_participant_id: participantId,
-          data: { candidate: event.candidate }
-        }));
-      }
-    };
-
-    // Handle connection state changes
-    peerConnection.onconnectionstatechange = () => {
-      console.log(`Peer connection to ${participantId} state:`, peerConnection.connectionState);
-      if (peerConnection.connectionState === 'failed') {
-        console.log(`Attempting to restart ICE for ${participantId}`);
-        peerConnection.restartIce();
-      }
-    };
-
-    peerConnectionsRef.current.set(participantId, peerConnection);
-    return peerConnection;
-  }, []);
-
-  const handleParticipantsUpdate = useCallback(async (newParticipants) => {
-    const currentParticipantIds = new Set(participants.map(p => p.id));
-    const newParticipantIds = new Set(newParticipants.map(p => p.id));
-
-    // Handle new participants (create offers)
-    for (const participant of newParticipants) {
-      if (participant.user_id !== userId && !currentParticipantIds.has(participant.id)) {
-        try {
-          const peerConnection = createPeerConnection(participant.id);
-          const offer = await peerConnection.createOffer();
-          await peerConnection.setLocalDescription(offer);
-
-          if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current.send(JSON.stringify({
-              type: "webrtc_offer",
-              target_participant_id: participant.id,
-              data: { offer }
-            }));
-          }
-        } catch (error) {
-          console.error("Error creating offer:", error);
+      peerConnection.ontrack = (event) => {
+        const [remoteStream] = event.streams;
+        const videoElement = remoteVideosRef.current.get(participantId);
+        if (videoElement) {
+          videoElement.srcObject = remoteStream;
         }
-      }
-    }
-
-    // Clean up disconnected participants
-    for (const participantId of currentParticipantIds) {
-      if (!newParticipantIds.has(participantId)) {
-        const peerConnection = peerConnectionsRef.current.get(participantId);
-        if (peerConnection) {
-          peerConnection.close();
-          peerConnectionsRef.current.delete(participantId);
-        }
-        remoteVideosRef.current.delete(participantId);
-        pendingIceCandidates.current.delete(participantId); // Clean up queued ICE candidates
-      }
-    }
-  }, [participants, userId, createPeerConnection]);
-
-  const handleWebRTCSignaling = useCallback(async (data) => {
-    const { type, from_participant_id, data: signalData } = data;
-
-    try {
-      let peerConnection = peerConnectionsRef.current.get(from_participant_id);
-
-      if (type === "webrtc_offer") {
-        if (!peerConnection) {
-          peerConnection = createPeerConnection(from_participant_id);
-        }
-
-        // Reset connection if it's in failed state
-        if (peerConnection.connectionState === 'failed') {
-          peerConnection.close();
-          peerConnection = createPeerConnection(from_participant_id);
-        }
-
-        // Implement polite peer pattern to avoid glare condition
-        const isPolite = userId < from_participant_id; // Determine who should be polite based on user ID
-        
-        if (peerConnection.signalingState === 'have-local-offer' && !isPolite) {
-          // Impolite peer ignores the offer during glare condition
-          console.log(`🤝 Impolite peer ignoring offer from ${from_participant_id} during glare condition`);
-          return;
-        } else if (peerConnection.signalingState === 'have-local-offer' && isPolite) {
-          // Polite peer accepts the offer and rolls back
-          console.log(`🤝 Polite peer rolling back local offer for ${from_participant_id}`);
-          await peerConnection.setLocalDescription({type: "rollback"});
-        }
-
-        try {
-          logSignal(`Received signaling message: ${data.type}`, data);
-          logSignal('Processing offer', signalData.offer);
-          await peerConnection.setRemoteDescription(signalData.offer);
-          logSignal('Set remote description (offer)', signalData.offer);
-          const answer = await peerConnection.createAnswer();
-          await peerConnection.setLocalDescription(answer);
-          logSignal('Created and set local description (answer)', answer);
-          logSignal('Sending answer', answer);
-
-          // Process any queued ICE candidates
-          const queuedCandidates = pendingIceCandidates.current.get(from_participant_id) || [];
-          for (const candidate of queuedCandidates) {
-            try {
-              await peerConnection.addIceCandidate(candidate);
-            } catch (candidateError) {
-              console.warn('Failed to add queued ICE candidate:', candidateError);
-            }
-          }
-          pendingIceCandidates.current.delete(from_participant_id);
-
-          if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current.send(JSON.stringify({
-              type: "webrtc_answer",
-              target_participant_id: from_participant_id,
-              data: { answer }
-            }));
-          }
-          
-          console.log(`✅ Successfully processed offer from ${from_participant_id}`);
-        } catch (error) {
-          console.error(`❌ Error processing offer from ${from_participant_id}:`, error);
-          // Reset connection on error
-          peerConnection.close();
-          peerConnectionsRef.current.delete(from_participant_id);
-        }
-      } else if (type === "webrtc_answer" && peerConnection) {
-        // Only process answer if signalingState is 'have-local-offer'
-        if (peerConnection.signalingState === 'have-local-offer') {
-          await peerConnection.setRemoteDescription(signalData.answer);
-          logSignal('Set remote description (answer)', signalData.answer);
-          // Process any queued ICE candidates
-          const queuedCandidates = pendingIceCandidates.current.get(from_participant_id) || [];
-          for (const candidate of queuedCandidates) {
-            try {
-              await peerConnection.addIceCandidate(candidate);
-            } catch (candidateError) {
-              logSignal('Failed to add queued ICE candidate', candidateError);
-            }
-          }
-          pendingIceCandidates.current.delete(from_participant_id);
-        } else {
-          logSignal('Ignored remote answer: signaling state not have-local-offer', peerConnection.signalingState);
-          // Clean up any queued ICE candidates for this peer
-          pendingIceCandidates.current.delete(from_participant_id);
-        }
-      } else if (type === "webrtc_ice_candidate" && peerConnection) {
-        // Only add ICE candidates if we have a remote description
-        if (peerConnection.remoteDescription) {
-          await peerConnection.addIceCandidate(signalData.candidate);
-          logSignal('Processing ICE candidate', signalData.candidate);
-          logSignal('Added ICE candidate', signalData.candidate);
-        } else {
-          // Queue the ICE candidate for later (limit to 50 to prevent infinite buildup)
-          if (!pendingIceCandidates.current.has(from_participant_id)) {
-            pendingIceCandidates.current.set(from_participant_id, []);
-          }
-          const candidateQueue = pendingIceCandidates.current.get(from_participant_id);
-          if (candidateQueue.length < 50) {
-            candidateQueue.push(signalData.candidate);
-            logSignal(`Queued ICE candidate for ${from_participant_id} (total: ${candidateQueue.length})`, signalData.candidate);
-          } else {
-            console.warn(`⚠️ ICE candidate queue full for ${from_participant_id}, dropping candidate`);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("WebRTC signaling error:", error);
-    }
-  }, [createPeerConnection]);
-
-  // Audio level monitoring for speaking indicator
-  const setupAudioLevelMonitoring = useCallback((stream) => {
-    try {
-      // Create audio context if it doesn't exist
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      
-      const audioContext = audioContextRef.current;
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      
-      analyser.fftSize = 256;
-      analyser.minDecibels = -90;
-      analyser.maxDecibels = -10;
-      analyser.smoothingTimeConstant = 0.85;
-      
-      source.connect(analyser);
-      analyserRef.current = analyser;
-      
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      
-      const checkAudioLevel = () => {
-        if (!analyserRef.current) return;
-        
-        analyser.getByteFrequencyData(dataArray);
-        
-        // Calculate average volume
-        const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-        setLocalAudioLevel(average);
-        
-        // Determine if speaking (threshold can be adjusted)
-        const isSpeaking = average > 10 && !isMuted; // Only detect if not muted
-        
-        if (isSpeaking) {
-          setSpeakingParticipants(prev => new Set([...prev, userId]));
-          
-          // Send speaking status to other participants
-          if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current.send(JSON.stringify({
-              type: "speaking_update",
-              from_user_id: userId,
-              is_speaking: true
-            }));
-          }
-        } else {
-          setSpeakingParticipants(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(userId);
-            return newSet;
-          });
-          
-          // Send speaking status to other participants
-          if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current.send(JSON.stringify({
-              type: "speaking_update",
-              from_user_id: userId,
-              is_speaking: false
-            }));
-          }
-        }
-        
-        animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
       };
-      
-      checkAudioLevel();
-    } catch (error) {
-      console.error("Error setting up audio level monitoring:", error);
-    }
-  }, [userId, isMuted]);
 
-  // Clean up audio monitoring
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate && socketRef.current?.readyState === WebSocket.OPEN) {
+          socketRef.current.send(
+            JSON.stringify({
+              type: "webrtc_ice_candidate",
+              target_participant_id: participantId,
+              data: { candidate: event.candidate },
+            })
+          );
+        }
+      };
+
+      peerConnection.onconnectionstatechange = () => {
+        console.log(`Peer connection to ${participantId} state:`, peerConnection.connectionState);
+        if (peerConnection.connectionState === "failed") {
+          console.log(`Attempting to restart ICE for ${participantId}`);
+          peerConnection.restartIce();
+        }
+      };
+
+      peerConnectionsRef.current.set(participantId, peerConnection);
+      return peerConnection;
+    },
+    []
+  );
+
+  const handleParticipantsUpdate = useCallback(
+    async (newParticipants) => {
+      const currentParticipantIds = new Set(participants.map((p) => p.id));
+      const newParticipantIds = new Set(newParticipants.map((p) => p.id));
+
+      for (const participant of newParticipants) {
+        if (participant.user_id !== userId && !currentParticipantIds.has(participant.id)) {
+          try {
+            const peerConnection = createPeerConnection(participant.id);
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            if (socketRef.current?.readyState === WebSocket.OPEN) {
+              socketRef.current.send(
+                JSON.stringify({
+                  type: "webrtc_offer",
+                  target_participant_id: participant.id,
+                  data: { offer },
+                })
+              );
+            }
+          } catch (error) {
+            console.error("Error creating offer:", error);
+          }
+        }
+      }
+
+      for (const participantId of currentParticipantIds) {
+        if (!newParticipantIds.has(participantId)) {
+          const peerConnection = peerConnectionsRef.current.get(participantId);
+          if (peerConnection) {
+            peerConnection.close();
+            peerConnectionsRef.current.delete(participantId);
+          }
+          remoteVideosRef.current.delete(participantId);
+          pendingIceCandidates.current.delete(participantId);
+        }
+      }
+    },
+    [participants, userId, createPeerConnection]
+  );
+
+  const handleWebRTCSignaling = useCallback(
+    async (data) => {
+      const { type, from_participant_id, data: signalData } = data;
+
+      try {
+        let peerConnection = peerConnectionsRef.current.get(from_participant_id);
+
+        if (type === "webrtc_offer") {
+          if (!peerConnection) {
+            peerConnection = createPeerConnection(from_participant_id);
+          }
+
+          if (peerConnection.connectionState === "failed") {
+            peerConnection.close();
+            peerConnection = createPeerConnection(from_participant_id);
+          }
+
+          const isPolite = userId < from_participant_id;
+
+          if (peerConnection.signalingState === "have-local-offer" && !isPolite) {
+            console.log(`🤝 Impolite peer ignoring offer from ${from_participant_id} during glare condition`);
+            return;
+          } else if (peerConnection.signalingState === "have-local-offer" && isPolite) {
+            console.log(`🤝 Polite peer rolling back local offer for ${from_participant_id}`);
+            await peerConnection.setLocalDescription({ type: "rollback" });
+          }
+
+          try {
+            logSignal(`Received signaling message: ${data.type}`, data);
+            logSignal("Processing offer", signalData.offer);
+            await peerConnection.setRemoteDescription(signalData.offer);
+            logSignal("Set remote description (offer)", signalData.offer);
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            logSignal("Created and set local description (answer)", answer);
+            logSignal("Sending answer", answer);
+
+            const queuedCandidates = pendingIceCandidates.current.get(from_participant_id) || [];
+            for (const candidate of queuedCandidates) {
+              try {
+                await peerConnection.addIceCandidate(candidate);
+              } catch (candidateError) {
+                console.warn("Failed to add queued ICE candidate:", candidateError);
+              }
+            }
+            pendingIceCandidates.current.delete(from_participant_id);
+
+            if (socketRef.current?.readyState === WebSocket.OPEN) {
+              socketRef.current.send(
+                JSON.stringify({
+                  type: "webrtc_answer",
+                  target_participant_id: from_participant_id,
+                  data: { answer },
+                })
+              );
+            }
+
+            console.log(`✅ Successfully processed offer from ${from_participant_id}`);
+          } catch (error) {
+            console.error(`❌ Error processing offer from ${from_participant_id}:`, error);
+            peerConnection.close();
+            peerConnectionsRef.current.delete(from_participant_id);
+          }
+        } else if (type === "webrtc_answer" && peerConnection) {
+          if (peerConnection.signalingState === "have-local-offer") {
+            await peerConnection.setRemoteDescription(signalData.answer);
+            logSignal("Set remote description (answer)", signalData.answer);
+            const queuedCandidates = pendingIceCandidates.current.get(from_participant_id) || [];
+            for (const candidate of queuedCandidates) {
+              try {
+                await peerConnection.addIceCandidate(candidate);
+              } catch (candidateError) {
+                logSignal("Failed to add queued ICE candidate", candidateError);
+              }
+            }
+            pendingIceCandidates.current.delete(from_participant_id);
+          } else {
+            logSignal("Ignored remote answer: signaling state not have-local-offer", peerConnection.signalingState);
+            pendingIceCandidates.current.delete(from_participant_id);
+          }
+        } else if (type === "webrtc_ice_candidate" && peerConnection) {
+          if (peerConnection.remoteDescription) {
+            await peerConnection.addIceCandidate(signalData.candidate);
+            logSignal("Processing ICE candidate", signalData.candidate);
+            logSignal("Added ICE candidate", signalData.candidate);
+          } else {
+            if (!pendingIceCandidates.current.has(from_participant_id)) {
+              pendingIceCandidates.current.set(from_participant_id, []);
+            }
+            const candidateQueue = pendingIceCandidates.current.get(from_participant_id);
+            if (candidateQueue.length < 50) {
+              candidateQueue.push(signalData.candidate);
+              logSignal(`Queued ICE candidate for ${from_participant_id} (total: ${candidateQueue.length})`, signalData.candidate);
+            } else {
+              console.warn(`⚠️ ICE candidate queue full for ${from_participant_id}, dropping candidate`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("WebRTC signaling error:", error);
+      }
+    },
+    [createPeerConnection, userId]
+  );
+
+  // Audio level monitoring
+  const setupAudioLevelMonitoring = useCallback(
+    (stream) => {
+      try {
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        const audioContext = audioContextRef.current;
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+
+        analyser.fftSize = 256;
+        analyser.minDecibels = -90;
+        analyser.maxDecibels = -10;
+        analyser.smoothingTimeConstant = 0.85;
+
+        source.connect(analyser);
+        analyserRef.current = analyser;
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        const checkAudioLevel = () => {
+          if (!analyserRef.current) return;
+
+          analyser.getByteFrequencyData(dataArray);
+
+          const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+          setLocalAudioLevel(average);
+
+          const isSpeaking = average > 10 && !isMuted;
+
+          if (isSpeaking) {
+            setSpeakingParticipants((prev) => new Set([...prev, userId]));
+
+            if (socketRef.current?.readyState === WebSocket.OPEN) {
+              socketRef.current.send(
+                JSON.stringify({
+                  type: "speaking_update",
+                  from_user_id: userId,
+                  is_speaking: true,
+                })
+              );
+            }
+          } else {
+            setSpeakingParticipants((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(userId);
+              return newSet;
+            });
+
+            if (socketRef.current?.readyState === WebSocket.OPEN) {
+              socketRef.current.send(
+                JSON.stringify({
+                  type: "speaking_update",
+                  from_user_id: userId,
+                  is_speaking: false,
+                })
+              );
+            }
+          }
+
+          animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
+        };
+
+        checkAudioLevel();
+      } catch (error) {
+        console.error("Error setting up audio level monitoring:", error);
+      }
+    },
+    [userId, isMuted]
+  );
+
   const stopAudioLevelMonitoring = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -685,57 +677,53 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   // Media controls
   const toggleMute = useCallback(async () => {
     const newMutedState = !isMuted;
-    
+
     try {
       if (isMuted) {
-        // Turn microphone on (unmute)
         console.log("Turning microphone on (unmuting)...");
         if (!localStreamRef.current || !localStreamRef.current.getAudioTracks().length) {
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: true, 
-            video: !isCameraOff 
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: !isCameraOff,
           });
-          
+
           console.log("Got audio stream:", stream.getAudioTracks().length > 0);
-          
+
           if (localStreamRef.current) {
-            // Replace existing stream
-            localStreamRef.current.getTracks().forEach(track => track.stop());
+            localStreamRef.current.getTracks().forEach((track) => track.stop());
           }
-          
+
           localStreamRef.current = stream;
           if (localVideoRef.current && !isCameraOff) {
             localVideoRef.current.srcObject = stream;
           }
 
-          // Set up audio level monitoring for the new stream
           setupAudioLevelMonitoring(stream);
 
-          // Update all peer connections with new stream
           peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
             try {
               const senders = peerConnection.getSenders();
-              const audioSender = senders.find(sender => sender.track?.kind === 'audio');
+              const audioSender = senders.find((sender) => sender.track?.kind === "audio");
               if (audioSender) {
                 await audioSender.replaceTrack(stream.getAudioTracks()[0]);
                 console.log(`Replaced audio track for participant ${participantId}`);
               } else {
-                // Add audio track if it doesn't exist
                 peerConnection.addTrack(stream.getAudioTracks()[0], stream);
                 console.log(`Added audio track for participant ${participantId}`);
               }
-              
-              // Trigger renegotiation after track changes
-              if (peerConnection.signalingState === 'stable') {
+
+              if (peerConnection.signalingState === "stable") {
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
-                
+
                 if (socketRef.current?.readyState === WebSocket.OPEN) {
-                  socketRef.current.send(JSON.stringify({
-                    type: "offer",
-                    offer: offer,
-                    target: participantId
-                  }));
+                  socketRef.current.send(
+                    JSON.stringify({
+                      type: "webrtc_offer",
+                      target_participant_id: participantId,
+                      data: { offer },
+                    })
+                  );
                 }
                 console.log(`Sent renegotiation offer to participant ${participantId} for audio track change`);
               }
@@ -753,7 +741,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         setIsMuted(false);
         console.log("Microphone turned on (unmuted) successfully");
       } else {
-        // Turn microphone off (mute)
         console.log("Turning microphone off (muting)...");
         if (localStreamRef.current) {
           const audioTrack = localStreamRef.current.getAudioTracks()[0];
@@ -765,150 +752,135 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         setIsMuted(true);
         console.log("Microphone turned off (muted) successfully");
       }
-      
-      // Send status update to other participants
+
       if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify({
-          type: "status_update",
-          from_user_id: userId,
-          muted: newMutedState,
-          camera_off: isCameraOff,
-          is_screen_sharing: isScreenSharing
-        }));
-      }
-      
-      // Also update local participant status immediately
-      setParticipants(prev => prev.map(participant => {
-        if (participant.user_id === userId) {
-          return {
-            ...participant,
+        socketRef.current.send(
+          JSON.stringify({
+            type: "status_update",
+            from_user_id: userId,
             muted: newMutedState,
             camera_off: isCameraOff,
-            is_screen_sharing: isScreenSharing
-          };
-        }
-        return participant;
-      }));
+            is_screen_sharing: isScreenSharing,
+          })
+        );
+      }
+
+      setParticipants((prev) =>
+        prev.map((participant) => {
+          if (participant.user_id === userId) {
+            return {
+              ...participant,
+              muted: newMutedState,
+              camera_off: isCameraOff,
+              is_screen_sharing: isScreenSharing,
+            };
+          }
+          return participant;
+        })
+      );
     } catch (error) {
       console.error("Microphone toggle error:", error);
       setMediaError("Failed to access microphone. Please check permissions.");
     }
-  }, [isMuted, isCameraOff]);
+  }, [isMuted, isCameraOff, isScreenSharing]);
 
   const toggleCamera = useCallback(async () => {
     const newCameraState = !isCameraOff;
-    
+
     try {
       if (isCameraOff) {
-        // Turn camera on
         console.log("Turning camera on...");
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: true, 
-          audio: true  // Always request audio to preserve the track
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
         });
-        
+
         console.log("Got video stream:", stream.getVideoTracks().length > 0);
         console.log("Got audio stream:", stream.getAudioTracks().length > 0);
-        
-        // Set audio track to match current mute state
+
         const audioTrack = stream.getAudioTracks()[0];
         if (audioTrack) {
-          audioTrack.enabled = !isMuted; // Enable based on current mute state
+          audioTrack.enabled = !isMuted;
           console.log("Set audio track enabled to:", !isMuted);
         }
-        
+
         if (localStreamRef.current) {
-          // Stop existing tracks
-          localStreamRef.current.getTracks().forEach(track => track.stop());
+          localStreamRef.current.getTracks().forEach((track) => track.stop());
         }
-        
+
         localStreamRef.current = stream;
-        
-        // Wait for video ref to be available and set stream
-        const setVideoStream = () => {
+
+        const setVideoStream = (attempts = 0) => {
           if (localVideoRef.current) {
-            // assign stream to local video element
             try {
               localVideoRef.current.srcObject = stream;
-            } catch (err) {
-              console.warn('Failed to set srcObject directly, retrying via assign:', err);
-              localVideoRef.current.src = URL.createObjectURL(stream);
-            }
-            console.log("Set local video srcObject");
-            console.log("Video element:", localVideoRef.current);
-            console.log("Video srcObject:", localVideoRef.current.srcObject);
-            console.log("Video readyState:", localVideoRef.current.readyState);
-            console.log("Video paused:", localVideoRef.current.paused);
-            
-            // Force the video to play and ensure immediate visibility
-            localVideoRef.current.play().then(() => {
-              console.log("Video play started successfully");
-              
-              // Force a UI update to ensure the video is visible immediately
-              localVideoRef.current.style.display = 'block';
-              localVideoRef.current.style.opacity = '1';
-              
-            }).catch((playError) => {
-              console.log("Video play promise rejected (this is normal):", playError);
-            });
+              localVideoRef.current.style.display = "block";
+              localVideoRef.current.style.opacity = "1";
+              localVideoRef.current.play().catch((err) => {
+                console.log("Video play error (normal during init):", err);
+              });
 
-            // Add event listeners to debug video state
-            localVideoRef.current.onloadedmetadata = () => {
-              console.log("Video metadata loaded - dimensions:", localVideoRef.current.videoWidth, "x", localVideoRef.current.videoHeight);
-            };
-            
-            localVideoRef.current.oncanplay = () => {
-              console.log("Video can play");
-            };
-            
-            localVideoRef.current.onplaying = () => {
-              console.log("Video is playing");
-            };
-          } else {
-            console.error("Local video ref is null! Retrying in 100ms...");
-            // Retry after a short delay
-            setTimeout(setVideoStream, 100);
+              localVideoRef.current.onloadedmetadata = () => {
+                console.log(
+                  "Video metadata loaded - dimensions:",
+                  localVideoRef.current.videoWidth,
+                  "x",
+                  localVideoRef.current.videoHeight
+                );
+              };
+              localVideoRef.current.oncanplay = () => {
+                console.log("Video can play");
+              };
+              localVideoRef.current.onplaying = () => {
+                console.log("Video is playing");
+              };
+            } catch (err) {
+              console.warn("Failed to set srcObject:", err);
+              if (attempts < 3) {
+                console.log(`Retrying setVideoStream, attempt ${attempts + 1}...`);
+                setTimeout(() => setVideoStream(attempts + 1), 100);
+              }
+            }
+          } else if (attempts < 3) {
+            console.error("Local video ref is null! Retrying...");
+            setTimeout(() => setVideoStream(attempts + 1), 100);
           }
         };
-        
+
         setVideoStream();
 
-        // Update all peer connections with new stream
         peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
           try {
             const senders = peerConnection.getSenders();
-            const videoSender = senders.find(sender => sender.track?.kind === 'video');
+            const videoSender = senders.find((sender) => sender.track?.kind === "video");
             if (videoSender) {
               await videoSender.replaceTrack(stream.getVideoTracks()[0]);
               console.log(`Replaced video track for participant ${participantId}`);
             } else {
-              // Add video track if it doesn't exist
               peerConnection.addTrack(stream.getVideoTracks()[0], stream);
               console.log(`Added video track for participant ${participantId}`);
             }
-            
-            const audioSender = senders.find(sender => sender.track?.kind === 'audio');
+
+            const audioSender = senders.find((sender) => sender.track?.kind === "audio");
             if (audioSender) {
-              // Always replace audio track to maintain the connection
               await audioSender.replaceTrack(stream.getAudioTracks()[0]);
               console.log(`Replaced audio track for participant ${participantId}`);
             } else {
-              // Add audio track if it doesn't exist
               peerConnection.addTrack(stream.getAudioTracks()[0], stream);
               console.log(`Added audio track for participant ${participantId}`);
             }
-            
-            // Trigger renegotiation after track changes
-            if (peerConnection.signalingState === 'stable') {
+
+            if (peerConnection.signalingState === "stable") {
               const offer = await peerConnection.createOffer();
               await peerConnection.setLocalDescription(offer);
-              
               if (socketRef.current?.readyState === WebSocket.OPEN) {
-                socketRef.current.send(JSON.stringify({
-                  type: "offer",
-                  offer: offer,
-                  target: participantId
-                }));
+                socketRef.current.send(
+                  JSON.stringify({
+                    type: "webrtc_offer",
+                    target_participant_id: participantId,
+                    data: { offer },
+                  })
+                );
               }
               console.log(`Sent renegotiation offer to participant ${participantId} for video track change`);
             }
@@ -916,38 +888,36 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             console.error(`Error updating video track for participant ${participantId}:`, error);
           }
         });
-        
+
         setIsCameraOff(false);
         console.log("Camera turned on successfully");
       } else {
-        // Turn camera off
         console.log("Turning camera off...");
         if (localStreamRef.current) {
           const videoTracks = localStreamRef.current.getVideoTracks();
-          videoTracks.forEach(track => {
+          videoTracks.forEach((track) => {
             track.stop();
           });
 
-          // Remove video tracks from peer connections
           peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
             try {
               const senders = peerConnection.getSenders();
-              const videoSender = senders.find(sender => sender.track?.kind === 'video');
+              const videoSender = senders.find((sender) => sender.track?.kind === "video");
               if (videoSender) {
                 await videoSender.replaceTrack(null);
                 console.log(`Removed video track for participant ${participantId}`);
-                
-                // Trigger renegotiation after removing video track
-                if (peerConnection.signalingState === 'stable') {
+
+                if (peerConnection.signalingState === "stable") {
                   const offer = await peerConnection.createOffer();
                   await peerConnection.setLocalDescription(offer);
-                  
                   if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.send(JSON.stringify({
-                      type: "offer",
-                      offer: offer,
-                      target: participantId
-                    }));
+                    socketRef.current.send(
+                      JSON.stringify({
+                        type: "webrtc_offer",
+                        target_participant_id: participantId,
+                        data: { offer },
+                      })
+                    );
                   }
                   console.log(`Sent renegotiation offer to participant ${participantId} for video removal`);
                 }
@@ -957,61 +927,65 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             }
           });
         }
-        
+
         if (localVideoRef.current) {
-          try { localVideoRef.current.srcObject = null; } catch(e) { localVideoRef.current.src = ''; }
+          try {
+            localVideoRef.current.srcObject = null;
+          } catch (e) {
+            localVideoRef.current.src = "";
+          }
         }
         setIsCameraOff(true);
         console.log("Camera turned off successfully");
       }
-      
-      // Send status update to other participants
+
       if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify({
-          type: "status_update",
-          from_user_id: userId,
-          muted: isMuted,
-          camera_off: newCameraState,
-          is_screen_sharing: isScreenSharing
-        }));
-      }
-      
-      // Also update local participant status immediately
-      setParticipants(prev => prev.map(participant => {
-        if (participant.user_id === userId) {
-          return {
-            ...participant,
+        socketRef.current.send(
+          JSON.stringify({
+            type: "status_update",
+            from_user_id: userId,
             muted: isMuted,
             camera_off: newCameraState,
-            is_screen_sharing: isScreenSharing
-          };
-        }
-        return participant;
-      }));
-      
+            is_screen_sharing: isScreenSharing,
+          })
+        );
+      }
+
+      setParticipants((prev) =>
+        prev.map((participant) => {
+          if (participant.user_id === userId) {
+            return {
+              ...participant,
+              muted: isMuted,
+              camera_off: newCameraState,
+              is_screen_sharing: isScreenSharing,
+            };
+          }
+          return participant;
+        })
+      );
+
       setMediaError(null);
     } catch (error) {
       console.error("Camera toggle error:", error);
       setMediaError("Failed to access camera. Please check permissions and ensure your camera isn't being used by another application.");
     }
-  }, [isCameraOff, isMuted]);
+  }, [isCameraOff, isMuted, isScreenSharing]);
 
   const toggleScreenShare = useCallback(async () => {
     try {
       if (!isScreenSharing) {
-        // Start screen share
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
-          video: true, 
-          audio: true 
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true,
         });
-        
-  // Always update localStreamRef to the latest screen stream
-  localStreamRef.current = screenStream;
-  // Replace video track in all peer connections with screen share
-  peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
+
+        localStreamRef.current = screenStream;
+
+        peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
           try {
             const senders = peerConnection.getSenders();
-            const videoSender = senders.find(sender => sender.track?.kind === 'video');
+            const videoSender = senders.find((sender) => sender.track?.kind === "video");
             if (videoSender) {
               await videoSender.replaceTrack(screenStream.getVideoTracks()[0]);
               console.log(`Replaced video track with screen share for participant ${participantId}`);
@@ -1019,18 +993,19 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               peerConnection.addTrack(screenStream.getVideoTracks()[0], screenStream);
               console.log(`Added screen share track for participant ${participantId}`);
             }
-            
-            // Trigger renegotiation for screen share
-            if (peerConnection.signalingState === 'stable') {
+
+            if (peerConnection.signalingState === "stable") {
               const offer = await peerConnection.createOffer();
               await peerConnection.setLocalDescription(offer);
-              
+
               if (socketRef.current?.readyState === WebSocket.OPEN) {
-                socketRef.current.send(JSON.stringify({
-                  type: "offer",
-                  offer: offer,
-                  target: participantId
-                }));
+                socketRef.current.send(
+                  JSON.stringify({
+                    type: "webrtc_offer",
+                    target_participant_id: participantId,
+                    data: { offer },
+                  })
+                );
               }
               console.log(`Sent renegotiation offer to participant ${participantId} for screen share`);
             }
@@ -1039,51 +1014,47 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           }
         });
 
-        // Update local video to show screen share
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = screenStream;
-          // Force play and update style for visibility
           localVideoRef.current.muted = true;
           localVideoRef.current.playsInline = true;
-          localVideoRef.current.style.display = 'block';
-          localVideoRef.current.style.opacity = '1';
+          localVideoRef.current.style.display = "block";
+          localVideoRef.current.style.opacity = "1";
           localVideoRef.current.play().catch((err) => {
-            console.log('Screen share video play error:', err);
+            console.log("Screen share video play error:", err);
           });
         }
-        
-        // Handle when user stops screen share via browser controls
-        screenStream.getVideoTracks()[0].addEventListener('ended', async () => {
+
+        screenStream.getVideoTracks()[0].addEventListener("ended", async () => {
           setIsScreenSharing(false);
-          
-          // Switch back to camera if it was on
+
           if (!isCameraOff) {
             try {
-              const cameraStream = await navigator.mediaDevices.getUserMedia({ 
-                video: true, 
-                audio: !isMuted 
+              const cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: !isMuted,
               });
-              
-              // Replace screen share with camera in peer connections
+
               peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
                 try {
                   const senders = peerConnection.getSenders();
-                  const videoSender = senders.find(sender => sender.track?.kind === 'video');
+                  const videoSender = senders.find((sender) => sender.track?.kind === "video");
                   if (videoSender) {
                     await videoSender.replaceTrack(cameraStream.getVideoTracks()[0]);
                     console.log(`Switched back to camera for participant ${participantId}`);
-                    
-                    // Trigger renegotiation
-                    if (peerConnection.signalingState === 'stable') {
+
+                    if (peerConnection.signalingState === "stable") {
                       const offer = await peerConnection.createOffer();
                       await peerConnection.setLocalDescription(offer);
-                      
+
                       if (socketRef.current?.readyState === WebSocket.OPEN) {
-                        socketRef.current.send(JSON.stringify({
-                          type: "offer",
-                          offer: offer,
-                          target: participantId
-                        }));
+                        socketRef.current.send(
+                          JSON.stringify({
+                            type: "webrtc_offer",
+                            target_participant_id: participantId,
+                            data: { offer },
+                          })
+                        );
                       }
                       console.log(`Sent renegotiation offer to participant ${participantId} for camera switch`);
                     }
@@ -1101,26 +1072,26 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               console.error("Error switching back to camera:", error);
             }
           } else {
-            // Remove video track if camera was off
             peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
               try {
                 const senders = peerConnection.getSenders();
-                const videoSender = senders.find(sender => sender.track?.kind === 'video');
+                const videoSender = senders.find((sender) => sender.track?.kind === "video");
                 if (videoSender) {
                   await videoSender.replaceTrack(null);
                   console.log(`Removed video track for participant ${participantId}`);
-                  
-                  // Trigger renegotiation
-                  if (peerConnection.signalingState === 'stable') {
+
+                  if (peerConnection.signalingState === "stable") {
                     const offer = await peerConnection.createOffer();
                     await peerConnection.setLocalDescription(offer);
-                    
+
                     if (socketRef.current?.readyState === WebSocket.OPEN) {
-                      socketRef.current.send(JSON.stringify({
-                        type: "offer",
-                        offer: offer,
-                        target: participantId
-                      }));
+                      socketRef.current.send(
+                        JSON.stringify({
+                          type: "webrtc_offer",
+                          target_participant_id: participantId,
+                          data: { offer },
+                        })
+                      );
                     }
                     console.log(`Sent renegotiation offer to participant ${participantId} for video removal`);
                   }
@@ -1129,52 +1100,53 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 console.error(`Error removing video track for participant ${participantId}:`, error);
               }
             });
-            
+
             if (localVideoRef.current) {
               localVideoRef.current.srcObject = null;
             }
           }
-          
+
           if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current.send(JSON.stringify({
-              type: "status_update",
-              from_user_id: userId,
-              muted: isMuted,
-              camera_off: isCameraOff,
-              is_screen_sharing: false
-            }));
+            socketRef.current.send(
+              JSON.stringify({
+                type: "status_update",
+                from_user_id: userId,
+                muted: isMuted,
+                camera_off: isCameraOff,
+                is_screen_sharing: false,
+              })
+            );
           }
         });
-        
+
         setIsScreenSharing(true);
       } else {
-        // Stop screen share - switch back to camera or turn off video
         if (!isCameraOff) {
-          const cameraStream = await navigator.mediaDevices.getUserMedia({ 
-            video: true, 
-            audio: !isMuted 
+          const cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: !isMuted,
           });
-          
-          // Replace screen share with camera
+
           peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
             try {
               const senders = peerConnection.getSenders();
-              const videoSender = senders.find(sender => sender.track?.kind === 'video');
+              const videoSender = senders.find((sender) => sender.track?.kind === "video");
               if (videoSender) {
                 await videoSender.replaceTrack(cameraStream.getVideoTracks()[0]);
                 console.log(`Manual switch back to camera for participant ${participantId}`);
-                
-                // Trigger renegotiation
-                if (peerConnection.signalingState === 'stable') {
+
+                if (peerConnection.signalingState === "stable") {
                   const offer = await peerConnection.createOffer();
                   await peerConnection.setLocalDescription(offer);
-                  
+
                   if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.send(JSON.stringify({
-                      type: "offer",
-                      offer: offer,
-                      target: participantId
-                    }));
+                    socketRef.current.send(
+                      JSON.stringify({
+                        type: "webrtc_offer",
+                        target_participant_id: participantId,
+                        data: { offer },
+                      })
+                    );
                   }
                   console.log(`Sent renegotiation offer to participant ${participantId} for manual camera switch`);
                 }
@@ -1189,26 +1161,26 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           }
           localStreamRef.current = cameraStream;
         } else {
-          // Remove video track
           peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
             try {
               const senders = peerConnection.getSenders();
-              const videoSender = senders.find(sender => sender.track?.kind === 'video');
+              const videoSender = senders.find((sender) => sender.track?.kind === "video");
               if (videoSender) {
                 await videoSender.replaceTrack(null);
                 console.log(`Manual video track removal for participant ${participantId}`);
-                
-                // Trigger renegotiation
-                if (peerConnection.signalingState === 'stable') {
+
+                if (peerConnection.signalingState === "stable") {
                   const offer = await peerConnection.createOffer();
                   await peerConnection.setLocalDescription(offer);
-                  
+
                   if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.send(JSON.stringify({
-                      type: "offer",
-                      offer: offer,
-                      target: participantId
-                    }));
+                    socketRef.current.send(
+                      JSON.stringify({
+                        type: "webrtc_offer",
+                        target_participant_id: participantId,
+                        data: { offer },
+                      })
+                    );
                   }
                   console.log(`Sent renegotiation offer to participant ${participantId} for manual video removal`);
                 }
@@ -1217,41 +1189,43 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               console.error(`Error manually removing video track for participant ${participantId}:`, error);
             }
           });
-          
+
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = null;
           }
         }
-        
+
         setIsScreenSharing(false);
       }
-      
-      // Send status update
+
       if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify({
-          type: "status_update",
-          from_user_id: userId,
-          muted: isMuted,
-          camera_off: isCameraOff,
-          is_screen_sharing: !isScreenSharing
-        }));
-      }
-      
-      // Also update local participant status immediately
-      setParticipants(prev => prev.map(participant => {
-        if (participant.user_id === userId) {
-          return {
-            ...participant,
+        socketRef.current.send(
+          JSON.stringify({
+            type: "status_update",
+            from_user_id: userId,
             muted: isMuted,
             camera_off: isCameraOff,
-            is_screen_sharing: !isScreenSharing
-          };
-        }
-        return participant;
-      }));
+            is_screen_sharing: !isScreenSharing,
+          })
+        );
+      }
+
+      setParticipants((prev) =>
+        prev.map((participant) => {
+          if (participant.user_id === userId) {
+            return {
+              ...participant,
+              muted: isMuted,
+              camera_off: isCameraOff,
+              is_screen_sharing: !isScreenSharing,
+            };
+          }
+          return participant;
+        })
+      );
     } catch (error) {
       console.error("Screen share error:", error);
-      if (error.name === 'NotAllowedError') {
+      if (error.name === "NotAllowedError") {
         setMediaError("Screen sharing permission denied.");
       } else {
         setMediaError("Failed to start screen sharing.");
@@ -1262,61 +1236,64 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const toggleHandRaise = useCallback(() => {
     const newHandRaisedState = !handRaised;
     setHandRaised(newHandRaisedState);
-    
+
     if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: "hand_raise",
-        hand_raised: newHandRaisedState
-      }));
+      socketRef.current.send(
+        JSON.stringify({
+          type: "hand_raise",
+          hand_raised: newHandRaisedState,
+        })
+      );
     }
   }, [handRaised]);
 
   // Chat functions
   const sendMessage = useCallback(() => {
     if (newMessage.trim() && socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: "chat_message",
-        message: newMessage.trim()
-      }));
+      socketRef.current.send(
+        JSON.stringify({
+          type: "chat_message",
+          message: newMessage.trim(),
+        })
+      );
       setNewMessage("");
     }
   }, [newMessage]);
 
-  const handleMessageKeyPress = useCallback((e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  }, [sendMessage]);
+  const handleMessageKeyPress = useCallback(
+    (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    },
+    [sendMessage]
+  );
 
-  // Handle leaving session with backend cleanup
+  // Handle leaving session
   const handleLeaveSession = useCallback(async () => {
     try {
-      // Clean up local resources first
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
-      
-      // Close all peer connections
-      peerConnectionsRef.current.forEach(peerConnection => {
+
+      peerConnectionsRef.current.forEach((peerConnection) => {
         peerConnection.close();
       });
       peerConnectionsRef.current.clear();
       remoteVideosRef.current.clear();
 
-      // Close WebSocket connection
       if (socketRef.current?.readyState === WebSocket.OPEN) {
         socketRef.current.close();
       }
 
-      // Notify backend about leaving the session
       if (sessionInfo?.group?.id) {
         const result = await leaveSession(sessionInfo.group.id);
         if (result?.group_deleted) {
           setEndNotificationMessage("Study group has been automatically deleted since no participants remain.");
           setEndNotificationType("success");
           setShowEndNotification(true);
-          return; // Don't call onLeaveSession immediately, wait for user acknowledgment
+          return;
         } else if (result?.success) {
           setEndNotificationMessage("You have left the study session.");
           setEndNotificationType("success");
@@ -1325,7 +1302,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         }
       }
 
-      // If no backend result or error, just leave
       onLeaveSession();
     } catch (error) {
       console.error("Error leaving session:", error);
@@ -1340,48 +1316,41 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     onLeaveSession();
   };
 
-  // Clean up media streams and peer connections on unmount
+  // Clean up on unmount
   useEffect(() => {
-    // Handle browser tab close/refresh - cleanup participants
     const handleBeforeUnload = async (event) => {
       try {
-        // Call leave session to remove from participants
         await leaveSession(sessionInfo.group.id);
       } catch (error) {
         console.warn("Cleanup on beforeunload failed:", error);
       }
     };
 
-    // Add event listener for page unload
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      // Remove event listener
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      
-      // Stop local media tracks
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
-      
-      // Close all peer connections
-      peerConnectionsRef.current.forEach(peerConnection => {
+
+      peerConnectionsRef.current.forEach((peerConnection) => {
         peerConnection.close();
       });
       peerConnectionsRef.current.clear();
       remoteVideosRef.current.clear();
-      
-      // Also call leave session on unmount
-      leaveSession(sessionInfo.group.id).catch(error => {
+
+      leaveSession(sessionInfo.group.id).catch((error) => {
         console.warn("Cleanup on unmount failed:", error);
       });
     };
   }, [sessionInfo, leaveSession]);
 
   const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -1402,10 +1371,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         <div className="text-center text-white">
           <h2 className="text-2xl font-bold mb-4">Connection Error</h2>
           <p className="mb-4">Failed to connect to the study session.</p>
-          <button 
-            onClick={handleLeaveSession}
-            className="px-6 py-3 bg-blue-600 rounded-lg hover:bg-blue-700"
-          >
+          <button onClick={handleLeaveSession} className="px-6 py-3 bg-blue-600 rounded-lg hover:bg-blue-700">
             Back to Study Groups
           </button>
         </div>
@@ -1426,13 +1392,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             <Users className="w-5 h-5" />
             <span>{participants.length} participants</span>
           </div>
-          
-          {mediaError && (
-            <div className="text-red-400 text-sm max-w-xs">
-              {mediaError}
-            </div>
-          )}
-          
+
+          {mediaError && <div className="text-red-400 text-sm max-w-xs">{mediaError}</div>}
+
           <button
             onClick={handleLeaveSession}
             className="px-4 py-2 bg-red-600 rounded-lg hover:bg-red-700 flex items-center gap-2"
@@ -1447,35 +1409,35 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       <div className="flex-1 flex">
         {/* Video area */}
         <div className="flex-1 p-4">
-          {/* ...removed redundant local camera preview above grid... */}
-
-          {/* Other Participants */}
           {participants.length > 1 && (
             <div className="mb-4">
               <h3 className="text-white mb-2 font-semibold">Other Participants ({participants.length - 1})</h3>
             </div>
           )}
 
-          {/* Layout controls as settings button */}
           <div className="mb-4 flex gap-4 items-center relative">
             <button
               className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500"
               title="Settings"
-              onClick={() => setShowSettings(v => !v)}
+              onClick={() => setShowSettings((v) => !v)}
             >
               <Settings className="w-6 h-6" />
             </button>
             {showSettings && (
               <>
-                {/* Desktop popover */}
                 <div className="hidden md:block absolute z-50 top-12 left-0 bg-white text-gray-900 rounded-lg shadow-lg p-4 min-w-[200px] border border-gray-200 animate-fade-in">
                   <div className="mb-2 font-semibold text-base text-gray-800">Layout Options</div>
                   <div className="flex flex-col gap-2">
-                    {LAYOUT_OPTIONS.map(opt => (
+                    {LAYOUT_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
-                        className={`text-left px-3 py-2 rounded hover:bg-blue-100 ${layoutMode === opt.value ? 'bg-blue-200 font-bold' : ''}`}
-                        onClick={() => { setLayoutMode(opt.value); setShowSettings(false); }}
+                        className={`text-left px-3 py-2 rounded hover:bg-blue-100 ${
+                          layoutMode === opt.value ? "bg-blue-200 font-bold" : ""
+                        }`}
+                        onClick={() => {
+                          setLayoutMode(opt.value);
+                          setShowSettings(false);
+                        }}
                       >
                         {opt.label}
                       </button>
@@ -1486,32 +1448,44 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       <div className="font-semibold text-sm mb-1">Pin Participant</div>
                       <select
                         value={pinnedParticipantId || ""}
-                        onChange={e => setPinnedParticipantId(e.target.value)}
+                        onChange={(e) => setPinnedParticipantId(e.target.value)}
                         className="w-full bg-gray-100 text-gray-900 rounded px-2 py-1 border"
                       >
                         <option value="">Select...</option>
-                        {participants.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}{p.user_id === userId ? " (You)" : ""}</option>
+                        {participants.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                            {p.user_id === userId ? " (You)" : ""}
+                          </option>
                         ))}
                       </select>
                     </div>
                   )}
                 </div>
 
-                {/* Mobile modal bottom sheet */}
-                <div className={`md:hidden fixed inset-0 z-50 flex items-end justify-center ${showSettings ? '' : 'pointer-events-none'}`} aria-hidden={!showSettings}>
+                <div
+                  className={`md:hidden fixed inset-0 z-50 flex items-end justify-center ${showSettings ? "" : "pointer-events-none"}`}
+                  aria-hidden={!showSettings}
+                >
                   <div className="absolute inset-0 bg-black bg-opacity-40" onClick={() => setShowSettings(false)} />
                   <div className="relative w-full max-w-2xl bg-white rounded-t-xl p-4 border-t border-gray-200">
                     <div className="mb-2 flex items-center justify-between">
                       <div className="font-semibold text-base text-gray-800">Layout Options</div>
-                      <button onClick={() => setShowSettings(false)} className="text-gray-600">Close</button>
+                      <button onClick={() => setShowSettings(false)} className="text-gray-600">
+                        Close
+                      </button>
                     </div>
                     <div className="flex flex-col gap-2">
-                      {LAYOUT_OPTIONS.map(opt => (
+                      {LAYOUT_OPTIONS.map((opt) => (
                         <button
                           key={opt.value}
-                          className={`text-left px-3 py-3 rounded hover:bg-gray-100 ${layoutMode === opt.value ? 'bg-blue-200 font-bold' : ''}`}
-                          onClick={() => { setLayoutMode(opt.value); setShowSettings(false); }}
+                          className={`text-left px-3 py-3 rounded hover:bg-gray-100 ${
+                            layoutMode === opt.value ? "bg-blue-200 font-bold" : ""
+                          }`}
+                          onClick={() => {
+                            setLayoutMode(opt.value);
+                            setShowSettings(false);
+                          }}
                         >
                           {opt.label}
                         </button>
@@ -1522,12 +1496,15 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                         <div className="font-semibold text-sm mb-1">Pin Participant</div>
                         <select
                           value={pinnedParticipantId || ""}
-                          onChange={e => setPinnedParticipantId(e.target.value)}
+                          onChange={(e) => setPinnedParticipantId(e.target.value)}
                           className="w-full bg-gray-100 text-gray-900 rounded px-2 py-2 border"
                         >
                           <option value="">Select...</option>
-                          {participants.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}{p.user_id === userId ? " (You)" : ""}</option>
+                          {participants.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                              {p.user_id === userId ? " (You)" : ""}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -1536,43 +1513,63 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 </div>
               </>
             )}
-            <span className="text-white font-semibold ml-2">Layout: {LAYOUT_OPTIONS.find(opt => opt.value === layoutMode)?.label}</span>
+            <span className="text-white font-semibold ml-2">
+              Layout: {LAYOUT_OPTIONS.find((opt) => opt.value === layoutMode)?.label}
+            </span>
           </div>
 
           {/* Participants grid with layout logic */}
           {(() => {
-            // Find all screen shares (including self)
             const screenShares = [];
             if (isScreenSharing) {
-              screenShares.push({ id: 'self_screen', name: userName, is_screen_sharing: true, camera_off: false, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true });
+              screenShares.push({
+                id: "self_screen",
+                name: userName,
+                is_screen_sharing: true,
+                camera_off: false,
+                muted: isMuted,
+                hand_raised: handRaised,
+                user_id: userId,
+                self: true,
+              });
             }
-            participants.forEach(p => {
-              if (p.is_screen_sharing && p.user_id !== userId) screenShares.push({ ...p, self: false });
+            participants.forEach((p) => {
+              if (p.is_screen_sharing && p.user_id !== userId)
+                screenShares.push({ ...p, self: false });
             });
 
-            // All participant tiles (exclude self screen share tile)
-            const participantTiles = participants.filter(p => !screenShares.some(s => s.user_id === p.user_id && s.self)).filter(p => p.user_id !== userId);
+            const participantTiles = participants
+              .filter((p) => !screenShares.some((s) => s.user_id === p.user_id && s.self))
+              .filter((p) => p.user_id !== userId);
 
-            // Spotlight mode: show pinned participant large on the left, others (including self) as normal tiles on the right
             if (layoutMode === "spotlight" && pinnedParticipantId) {
-              const pinned = participants.find(p => p.id === pinnedParticipantId);
-              // All others (including self if not pinned)
+              const pinned = participants.find((p) => p.id === pinnedParticipantId);
               const others = [
-                ...participants.filter(p => p.id !== pinnedParticipantId),
-                // Add self tile if not in participants (for local preview)
-                ...((!participants.some(p => p.user_id === userId) && pinnedParticipantId !== `user_${userId}`) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
-              ];
+                ...participants.filter((p) => p.id !== pinnedParticipantId && p.user_id !== userId),
+                {
+                  id: `user_${userId}`,
+                  user_id: userId,
+                  name: userName,
+                  muted: isMuted,
+                  camera_off: isCameraOff,
+                  is_screen_sharing: isScreenSharing,
+                  hand_raised: handRaised,
+                  self: true,
+                },
+              ].filter((p) => p.id !== pinnedParticipantId || p.user_id !== userId);
+
               return (
                 <div className="flex w-full gap-4 flex-col md:flex-row">
-                  {/* Large pinned tile on the left */}
                   <div className="flex-shrink-0 w-full md:w-[480px]">
                     {pinned && (
-                      <div key={pinned.id} className="relative bg-blue-900 rounded-lg overflow-hidden border-4 border-blue-400 aspect-video min-h-[180px] w-full">
+                      <div
+                        key={pinned.id}
+                        className="relative bg-blue-900 rounded-lg overflow-hidden border-4 border-blue-400 aspect-video min-h-[180px] w-full"
+                      >
                         {!pinned.camera_off ? (
                           <video
-                            ref={el => {
+                            ref={(el) => {
                               if (pinned.user_id === userId) {
-                                // use local video element for self so user always sees their own camera
                                 localVideoRef.current = el;
                               } else {
                                 if (el) remoteVideosRef.current.set(pinned.id, el);
@@ -1582,7 +1579,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                             muted={pinned.user_id === userId}
                             playsInline
                             className="w-full h-full object-cover"
-                            style={{ minHeight: '180px' }}
+                            style={{ minHeight: "180px" }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
@@ -1599,39 +1596,43 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       </div>
                     )}
                   </div>
-                  {/* Other tiles in a vertical column on the right */}
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
-                    {others.map(participant => (
-                      <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
+                    {others.map((participant) => (
+                      <div
+                        key={participant.id}
+                        className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]"
+                      >
                         {!participant.camera_off ? (
                           <video
-                            ref={participant.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
+                            ref={participant.self ? localVideoRef : (el) => {
+                              if (el) remoteVideosRef.current.set(participant.id, el);
+                            }}
                             autoPlay
                             muted={participant.self}
                             playsInline
                             className="w-full h-full object-cover"
-                            style={{ minHeight: '80px' }}
+                            style={{ minHeight: "80px" }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
                             <div className="text-center">
                               <VideoOff className="w-8 h-8 mx-auto mb-2" />
-                              <p className="text-xs">{participant.self ? 'You' : participant.name}</p>
+                              <p className="text-xs">{participant.self ? "You" : participant.name}</p>
                             </div>
                           </div>
                         )}
                         <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
                           <span>
-                            {participant.self ? 'You' : participant.name}
+                            {participant.self ? "You" : participant.name}
                             {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
                             {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
                             {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                             {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                           </span>
                           {!participant.muted && (
-                            <SpeakingIndicator 
-                              isActive={speakingParticipants.has(participant.user_id)} 
-                              audioLevel={participant.self ? localAudioLevel : 50} 
+                            <SpeakingIndicator
+                              isActive={speakingParticipants.has(participant.user_id)}
+                              audioLevel={participant.self ? localAudioLevel : 50}
                             />
                           )}
                         </div>
@@ -1642,25 +1643,44 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               );
             }
 
-            // Speaker mode: focus on current speaker (large left tile), others (including self) as normal tiles on the right
             if (layoutMode === "speaker") {
               const speakerId = Array.from(speakingParticipants)[0];
-              const speaker = participants.find(p => p.user_id === speakerId);
-              // All others (including self if not speaker)
+              const speaker =
+                participants.find((p) => p.user_id === speakerId) || {
+                  id: `user_${userId}`,
+                  user_id: userId,
+                  name: userName,
+                  muted: isMuted,
+                  camera_off: isCameraOff,
+                  is_screen_sharing: isScreenSharing,
+                  hand_raised: handRaised,
+                  self: true,
+                };
               const others = [
-                ...participants.filter(p => p.user_id !== speakerId),
-                // Add self tile if not in participants (for local preview)
-                ...((!participants.some(p => p.user_id === userId) && speakerId !== userId) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
-              ];
+                ...participants.filter((p) => p.user_id !== speakerId && p.user_id !== userId),
+                {
+                  id: `user_${userId}`,
+                  user_id: userId,
+                  name: userName,
+                  muted: isMuted,
+                  camera_off: isCameraOff,
+                  is_screen_sharing: isScreenSharing,
+                  hand_raised: handRaised,
+                  self: true,
+                },
+              ].filter((p) => p.user_id !== speakerId);
+
               return (
                 <div className="flex w-full gap-4 flex-col md:flex-row">
-                  {/* Large speaker tile on the left */}
                   <div className="flex-shrink-0 w-full md:w-[480px]">
                     {speaker && (
-                      <div key={speaker.id} className="relative bg-green-900 rounded-lg overflow-hidden border-4 border-green-400 aspect-video min-h-[180px] w-full">
+                      <div
+                        key={speaker.id}
+                        className="relative bg-green-900 rounded-lg overflow-hidden border-4 border-green-400 aspect-video min-h-[180px] w-full"
+                      >
                         {!speaker.camera_off ? (
                           <video
-                            ref={el => {
+                            ref={(el) => {
                               if (speaker.user_id === userId) {
                                 localVideoRef.current = el;
                               } else {
@@ -1671,7 +1691,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                             muted={speaker.user_id === userId}
                             playsInline
                             className="w-full h-full object-cover"
-                            style={{ minHeight: '180px' }}
+                            style={{ minHeight: "180px" }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
@@ -1688,39 +1708,43 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       </div>
                     )}
                   </div>
-                  {/* Other tiles in a vertical column on the right */}
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
-                    {others.map(participant => (
-                      <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
+                    {others.map((participant) => (
+                      <div
+                        key={participant.id}
+                        className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]"
+                      >
                         {!participant.camera_off ? (
                           <video
-                            ref={participant.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
+                            ref={participant.self ? localVideoRef : (el) => {
+                              if (el) remoteVideosRef.current.set(participant.id, el);
+                            }}
                             autoPlay
                             muted={participant.self}
                             playsInline
                             className="w-full h-full object-cover"
-                            style={{ minHeight: '80px' }}
+                            style={{ minHeight: "80px" }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
                             <div className="text-center">
                               <VideoOff className="w-8 h-8 mx-auto mb-2" />
-                              <p className="text-xs">{participant.self ? 'You' : participant.name}</p>
+                              <p className="text-xs">{participant.self ? "You" : participant.name}</p>
                             </div>
                           </div>
                         )}
                         <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
                           <span>
-                            {participant.self ? 'You' : participant.name}
+                            {participant.self ? "You" : participant.name}
                             {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
                             {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
                             {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                             {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                           </span>
                           {!participant.muted && (
-                            <SpeakingIndicator 
-                              isActive={speakingParticipants.has(participant.user_id)} 
-                              audioLevel={participant.self ? localAudioLevel : 50} 
+                            <SpeakingIndicator
+                              isActive={speakingParticipants.has(participant.user_id)}
+                              audioLevel={participant.self ? localAudioLevel : 50}
                             />
                           )}
                         </div>
@@ -1731,24 +1755,38 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               );
             }
 
-            // Default: grid mode (all tiles equal size)
             const allTiles = [
-              ...screenShares.map(screen => ({ ...screen, isScreen: true })),
-              !isScreenSharing && { id: 'self_camera', name: userName, camera_off: isCameraOff, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true },
-              ...participantTiles
+              ...screenShares.map((screen) => ({ ...screen, isScreen: true })),
+              !isScreenSharing && {
+                id: "self_camera",
+                name: userName,
+                camera_off: isCameraOff,
+                muted: isMuted,
+                hand_raised: handRaised,
+                user_id: userId,
+                self: true,
+              },
+              ...participantTiles,
             ].filter(Boolean);
+
             return (
               <div className="grid gap-3 justify-center items-start w-full" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(220px, 1fr))` }}>
-                {allTiles.map(tile => (
-                  <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ aspectRatio: '16/9', minHeight: tile.isScreen ? '180px' : '120px' }}>
+                {allTiles.map((tile) => (
+                  <div
+                    key={tile.id}
+                    className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0"
+                    style={{ aspectRatio: "16/9", minHeight: tile.isScreen ? "180px" : "120px" }}
+                  >
                     {!tile.camera_off ? (
                       <video
-                        ref={tile.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(tile.id, el); }}
+                        ref={tile.self ? localVideoRef : (el) => {
+                          if (el) remoteVideosRef.current.set(tile.id, el);
+                        }}
                         autoPlay
                         muted={tile.self}
                         playsInline
                         className="w-full h-full object-cover"
-                        style={{ minHeight: tile.isScreen ? '180px' : '120px' }}
+                        style={{ minHeight: tile.isScreen ? "180px" : "120px" }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
@@ -1765,7 +1803,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                         {tile.self && <span className="ml-2">(You)</span>}
                       </div>
                     )}
-                    {/* Speaking indicator overlay for remote participants */}
                     {tile.self && !tile.isScreen && !tile.muted && (
                       <div className="absolute top-2 right-2 bg-green-500 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
                         <Volume2 className="w-3 h-3" />
@@ -1778,18 +1815,22 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                         <SpeakingIndicator isActive={true} audioLevel={50} />
                       </div>
                     )}
-                    <div className={`absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2 ${tile.self ? 'text-sm' : ''}`}>
+                    <div
+                      className={`absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2 ${
+                        tile.self ? "text-sm" : ""
+                      }`}
+                    >
                       <span>
-                        {tile.self ? 'You' : tile.name}
+                        {tile.self ? "You" : tile.name}
                         {tile.muted && <span className="text-red-400 ml-1">(Muted)</span>}
                         {!tile.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
                         {tile.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                         {tile.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                       </span>
                       {!tile.muted && !tile.isScreen && (
-                        <SpeakingIndicator 
-                          isActive={speakingParticipants.has(tile.user_id)} 
-                          audioLevel={50} 
+                        <SpeakingIndicator
+                          isActive={speakingParticipants.has(tile.user_id)}
+                          audioLevel={50}
                         />
                       )}
                     </div>
@@ -1799,7 +1840,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             );
           })()}
 
-          {/* Show message if user is alone */}
           {participants.length === 1 && (
             <div className="text-center text-gray-400 mt-8">
               <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -1809,11 +1849,11 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           )}
         </div>
 
-        {/* Chat sidebar */}
-        {/* Chat Drawer Overlay */}
         <div
-          className={`fixed bottom-4 right-4 z-50 bg-gray-900 bg-opacity-95 text-white flex flex-col shadow-2xl rounded-xl transition-all duration-300 ${showChat ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}
-          style={{ width: '320px', maxWidth: '90vw', height: '420px', maxHeight: '60vh' }}
+          className={`fixed bottom-4 right-4 z-50 bg-gray-900 bg-opacity-95 text-white flex flex-col shadow-2xl rounded-xl transition-all duration-300 ${
+            showChat ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none"
+          }`}
+          style={{ width: "320px", maxWidth: "90vw", height: "420px", maxHeight: "60vh" }}
         >
           <div className="p-3 border-b border-gray-700 flex justify-between items-center rounded-t-xl">
             <h3 className="font-bold text-base">Chat</h3>
@@ -1826,7 +1866,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               <span aria-hidden="true">×</span>
             </button>
           </div>
-          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 space-y-2" style={{ maxHeight: '260px' }}>
+          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 space-y-2" style={{ maxHeight: "260px" }}>
             {chatMessages.map((message) => (
               <div key={message.id} className="bg-gray-700 rounded-lg p-2">
                 <div className="flex justify-between items-start mb-1">
@@ -1847,10 +1887,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 placeholder="Type a message..."
                 className="flex-1 px-2 py-1 bg-gray-700 rounded-lg text-white placeholder-gray-400 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <button
-                onClick={sendMessage}
-                className="px-3 py-1 bg-blue-600 rounded-lg hover:bg-blue-700 text-xs"
-              >
+              <button onClick={sendMessage} className="px-3 py-1 bg-blue-600 rounded-lg hover:bg-blue-700 text-xs">
                 Send
               </button>
             </div>
@@ -1858,11 +1895,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         </div>
       </div>
 
-      {/* Bottom controls */}
       <div className="bg-gray-800 p-4 flex flex-wrap justify-center items-center gap-3 sm:gap-4 w-full">
         <button
           onClick={toggleMute}
-          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${isMuted ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${isMuted ? "bg-red-600 hover:bg-red-700" : "bg-gray-600 hover:bg-gray-700"}`}
           title={isMuted ? "Unmute" : "Mute"}
         >
           {isMuted ? <MicOff className="w-6 h-6 text-white mx-auto" /> : <Mic className="w-6 h-6 text-white mx-auto" />}
@@ -1870,7 +1906,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
         <button
           onClick={toggleCamera}
-          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${isCameraOff ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${isCameraOff ? "bg-red-600 hover:bg-red-700" : "bg-gray-600 hover:bg-gray-700"}`}
           title={isCameraOff ? "Turn camera on" : "Turn camera off"}
         >
           {isCameraOff ? <VideoOff className="w-6 h-6 text-white mx-auto" /> : <Video className="w-6 h-6 text-white mx-auto" />}
@@ -1878,7 +1914,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
         <button
           onClick={toggleScreenShare}
-          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${isScreenSharing ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${isScreenSharing ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-700"}`}
           title={isScreenSharing ? "Stop sharing" : "Share screen"}
         >
           {isScreenSharing ? <MonitorOff className="w-6 h-6 text-white mx-auto" /> : <Monitor className="w-6 h-6 text-white mx-auto" />}
@@ -1886,7 +1922,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
         <button
           onClick={toggleHandRaise}
-          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${handRaised ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${handRaised ? "bg-yellow-600 hover:bg-yellow-700" : "bg-gray-600 hover:bg-gray-700"}`}
           title={handRaised ? "Lower hand" : "Raise hand"}
         >
           <Hand className="w-6 h-6 text-white mx-auto" />
@@ -1894,7 +1930,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
         <button
           onClick={() => setShowChat(!showChat)}
-          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${showChat ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${showChat ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-600 hover:bg-gray-700"}`}
           title="Toggle chat"
         >
           <MessageSquare className="w-6 h-6 text-white mx-auto" />
@@ -1909,7 +1945,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         </button>
       </div>
 
-      {/* Session End Notification */}
       <SessionEndNotification
         isVisible={showEndNotification}
         message={endNotificationMessage}
