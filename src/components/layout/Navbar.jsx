@@ -42,10 +42,10 @@ const Navbar = () => {
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
-      <div className="container mx-auto px-6 py-3 relative">
+      <div className="container mx-auto px-6 py-3">
         <div className="flex justify-between items-center">
-          {/* position logo absolutely so it stays pinned to the left even when viewport or zoom changes */}
-          <RouterLink to="/" className="absolute left-6 top-1/2 transform -translate-y-1/2">
+          <RouterLink to="/" className="flex items-center">
+            {/* responsive logo: keep height, allow width to auto-scale but cap with max-w */}
             <img src="/cbrc_logo.png" alt="CBRCS Logo" className="h-10 w-auto max-w-[160px] object-contain" />
           </RouterLink>
 
