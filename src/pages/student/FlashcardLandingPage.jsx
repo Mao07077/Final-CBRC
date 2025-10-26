@@ -1,32 +1,24 @@
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, Play, Users } from "lucide-react";
 import useFlashcardStore from "../../store/student/flashcardStore";
+
+import DeckSelector from "../../features/student/flashcards/components/DeckSelector";
 import Flashcard from "../../features/student/flashcards/components/Flashcard";
+import FlashcardControls from "../../features/student/flashcards/components/FlashcardControls";
 
 const FlashcardLandingPage = () => {
-  const { activeDeck, currentIndex, modules, decks, isLoading, error, fetchFlashcards, setActiveDeck, generateFlashcards } =
-    useFlashcardStore();
+  const { activeDeck, currentIndex } = useFlashcardStore();
+  const currentCard = activeDeck ? activeDeck[currentIndex] : null;
   const navigate = useNavigate();
+  const { modules, decks, isLoading, error, fetchFlashcards, setActiveDeck, generateFlashcards } =
+    useFlashcardStore();
+
+  // State for PDF fetch popup
   const [pdfStatus, setPdfStatus] = useState({ open: false, message: "", error: false });
   const [generatedFlashcards, setGeneratedFlashcards] = useState([]);
   const [showFlashcards, setShowFlashcards] = useState(false);
   const [modalIndex, setModalIndex] = useState(0);
-  // Cache for flashcard images (question -> imageUrl)
-  const imageCache = useRef({});
-
-  // Load image cache from localStorage on mount
-  useEffect(() => {
-    const savedCache = localStorage.getItem("flashcardImageCache");
-    if (savedCache) {
-      imageCache.current = JSON.parse(savedCache);
-    }
-  }, []);
-
-  // Save image cache to localStorage on update
-  useEffect(() => {
-    localStorage.setItem("flashcardImageCache", JSON.stringify(imageCache.current));
-  }, [imageCache.current]);
 
   useEffect(() => {
     fetchFlashcards();
@@ -52,7 +44,7 @@ const FlashcardLandingPage = () => {
       const arrayBuffer = await blob.arrayBuffer();
       let pdfText = "";
       try {
-        const pdfjsLib = await import("pdfjs-dist/build/pdf");
+        const pdfjsLib = await import('pdfjs-dist/build/pdf');
         if (pdfjsLib.GlobalWorkerOptions) {
           pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
         }
@@ -60,28 +52,18 @@ const FlashcardLandingPage = () => {
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
-          const pageText = content.items.map((item) => item.str).join(" ");
-          pdfText += pageText + "\n";
+          const pageText = content.items.map(item => item.str).join(' ');
+          pdfText += pageText + '\n';
         }
       } catch (e) {
-        pdfText = "[PDF.js failed to extract text]";
+        pdfText = '[PDF.js failed to extract text]';
       }
       setPdfStatus({ open: true, message: "Generating flashcards from PDF...", error: false });
       // Call Gemini backend to generate flashcards
-      const result = await generateFlashcards(pdfText, 5);
+      const { generateFlashcards } = useFlashcardStore.getState();
+      const result = await generateFlashcards(pdfText, 5); // You can change 5 to desired number
       if (result.success) {
-        // Validate and normalize flashcards
-        const validatedFlashcards = result.flashcards
-          .filter((card) => card.question && card.question.includes("?") && card.answer)
-          .map((card) => ({
-            question: card.question.trim(),
-            answer: card.answer.trim(),
-          }));
-        if (validatedFlashcards.length === 0) {
-          setPdfStatus({ open: true, message: "No valid flashcards generated from the PDF content.", error: true });
-          return;
-        }
-        setGeneratedFlashcards(validatedFlashcards);
+        setGeneratedFlashcards(result.flashcards);
         setModalIndex(0);
         setShowFlashcards(true);
         setPdfStatus({ open: false, message: "", error: false });
@@ -126,7 +108,9 @@ const FlashcardLandingPage = () => {
       {pdfStatus.open && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
           <div className="bg-white rounded-lg shadow-lg p-6 min-w-[300px] max-w-[90vw] text-center">
-            <div className={pdfStatus.error ? "text-red-600" : "text-green-700"}>{pdfStatus.message}</div>
+            <div className={pdfStatus.error ? "text-red-600" : "text-green-700"}>
+              {pdfStatus.message}
+            </div>
             <button
               className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
               onClick={() => setPdfStatus({ ...pdfStatus, open: false })}
@@ -141,9 +125,7 @@ const FlashcardLandingPage = () => {
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
           <div className="flex flex-col items-center justify-center w-full h-full">
             {generatedFlashcards.length === 0 ? (
-              <div className="bg-white rounded-2xl shadow-2xl p-8 text-xl font-bold text-center">
-                No flashcards generated.
-              </div>
+              <div className="bg-white rounded-2xl shadow-2xl p-8 text-xl font-bold text-center">No flashcards generated.</div>
             ) : modalIndex < generatedFlashcards.length ? (
               <>
                 {/* Main, large, responsive flashcard container */}
@@ -153,53 +135,32 @@ const FlashcardLandingPage = () => {
                     {modalIndex > 0 && (
                       <div
                         className="absolute left-1/2 -translate-x-[70%] z-0 scale-90 opacity-60 pointer-events-none select-none rotate--8"
-                        style={{ maxWidth: "320px", maxHeight: "440px", width: "28vw", height: "38vw", minWidth: "180px", minHeight: "250px" }}
+                        style={{ maxWidth: '320px', maxHeight: '440px', width: '28vw', height: '38vw', minWidth: '180px', minHeight: '250px' }}
                       >
-                        <Flashcard
-                          card={generatedFlashcards[modalIndex - 1]}
-                          peek
-                          cachedImage={imageCache.current[generatedFlashcards[modalIndex - 1].question]}
-                          setCachedImage={(url) => {
-                            imageCache.current[generatedFlashcards[modalIndex - 1].question] = url;
-                          }}
-                        />
+                        <Flashcard card={generatedFlashcards[modalIndex - 1]} peek />
                       </div>
                     )}
                     {/* Next card peeking */}
                     {modalIndex < generatedFlashcards.length - 1 && (
                       <div
                         className="absolute left-1/2 -translate-x-[30%] z-0 scale-90 opacity-60 pointer-events-none select-none rotate-8"
-                        style={{ maxWidth: "320px", maxHeight: "440px", width: "28vw", height: "38vw", minWidth: "180px", minHeight: "250px" }}
+                        style={{ maxWidth: '320px', maxHeight: '440px', width: '28vw', height: '38vw', minWidth: '180px', minHeight: '250px' }}
                       >
-                        <Flashcard
-                          card={generatedFlashcards[modalIndex + 1]}
-                          peek
-                          cachedImage={imageCache.current[generatedFlashcards[modalIndex + 1].question]}
-                          setCachedImage={(url) => {
-                            imageCache.current[generatedFlashcards[modalIndex + 1].question] = url;
-                          }}
-                        />
+                        <Flashcard card={generatedFlashcards[modalIndex + 1]} peek />
                       </div>
                     )}
                     {/* Main card */}
                     <div
                       className="relative z-10 transition-transform duration-500 w-full flex justify-center"
-                      style={{ maxWidth: "340px", maxHeight: "480px", width: "32vw", height: "44vw", minWidth: "200px", minHeight: "270px" }}
+                      style={{ maxWidth: '340px', maxHeight: '480px', width: '32vw', height: '44vw', minWidth: '200px', minHeight: '270px' }}
                     >
-                      <Flashcard
-                        card={generatedFlashcards[modalIndex]}
-                        portrait
-                        cachedImage={imageCache.current[generatedFlashcards[modalIndex].question]}
-                        setCachedImage={(url) => {
-                          imageCache.current[generatedFlashcards[modalIndex].question] = url;
-                        }}
-                      />
+                      <Flashcard card={generatedFlashcards[modalIndex]} portrait />
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-center mt-8 space-x-8">
                   <button
-                    onClick={() => setModalIndex((i) => Math.max(i - 1, 0))}
+                    onClick={() => setModalIndex(i => Math.max(i - 1, 0))}
                     className="flex items-center gap-2 px-8 py-4 bg-white rounded-xl shadow-md font-semibold text-blue-700 hover:bg-blue-100 transition-colors text-lg"
                     disabled={modalIndex === 0}
                   >
@@ -209,7 +170,7 @@ const FlashcardLandingPage = () => {
                     {modalIndex + 1} / {generatedFlashcards.length}
                   </span>
                   <button
-                    onClick={() => setModalIndex((i) => Math.min(i + 1, generatedFlashcards.length - 1))}
+                    onClick={() => setModalIndex(i => Math.min(i + 1, generatedFlashcards.length))}
                     className="flex items-center gap-2 px-8 py-4 bg-white rounded-xl shadow-md font-semibold text-blue-700 hover:bg-blue-100 transition-colors text-lg"
                     disabled={modalIndex === generatedFlashcards.length - 1}
                   >
@@ -219,7 +180,7 @@ const FlashcardLandingPage = () => {
                 {/* X close icon at top right */}
                 <button
                   className="absolute top-4 right-4 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-white/80 hover:bg-red-100 text-2xl font-bold text-gray-700 shadow transition-all focus:outline-none"
-                  style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.10)" }}
+                  style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }}
                   onClick={() => setShowFlashcards(false)}
                   aria-label="Close"
                 >
@@ -234,16 +195,12 @@ const FlashcardLandingPage = () => {
                   className="px-8 py-4 bg-gradient-to-r from-blue-500 to-pink-500 text-white rounded-full font-bold shadow hover:scale-105 transition-all text-lg"
                   onClick={async () => {
                     setPdfStatus({ open: true, message: "Generating new unique flashcards...", error: false });
-                    const lastText = generatedFlashcards.map((fc) => fc.question + fc.answer).join("|");
+                    // Regenerate with a new seed (simulate by adding a random string)
+                    const lastText = generatedFlashcards.map(fc => fc.question + fc.answer).join("|");
+                    const { generateFlashcards } = useFlashcardStore.getState();
                     const result = await generateFlashcards(lastText + Math.random().toString(36).slice(2), 5);
                     if (result.success) {
-                      const validatedFlashcards = result.flashcards
-                        .filter((card) => card.question && card.question.includes("?") && card.answer)
-                        .map((card) => ({
-                          question: card.question.trim(),
-                          answer: card.answer.trim(),
-                        }));
-                      setGeneratedFlashcards(validatedFlashcards);
+                      setGeneratedFlashcards(result.flashcards);
                       setModalIndex(0);
                       setShowFlashcards(true);
                       setPdfStatus({ open: false, message: "", error: false });
@@ -263,15 +220,21 @@ const FlashcardLandingPage = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Flashcards</h1>
-          <p className="text-gray-600">Choose a flashcard deck to start practicing</p>
+          <p className="text-gray-600">
+            Choose a flashcard deck to start practicing
+          </p>
         </div>
 
         {/* Available Flashcard Decks */}
         {modules.length === 0 ? (
           <div className="text-center py-12">
             <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No flashcard decks available</h3>
-            <p className="text-gray-600">Complete some modules to generate flashcard decks for practice</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No flashcard decks available
+            </h3>
+            <p className="text-gray-600">
+              Complete some modules to generate flashcard decks for practice
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -292,7 +255,9 @@ const FlashcardLandingPage = () => {
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {module.title || module.module_name || "Flashcard Deck"}
+                          {module.title ||
+                            module.module_name ||
+                            "Flashcard Deck"}
                         </h3>
                         <div className="flex items-center text-sm text-gray-600">
                           <Users className="h-4 w-4 mr-1" />
@@ -302,16 +267,22 @@ const FlashcardLandingPage = () => {
                     </div>
 
                     {module.description && (
-                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">{module.description}</p>
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                        {module.description}
+                      </p>
                     )}
 
                     <div className="flex items-center justify-between">
                       <div className="text-xs text-gray-500">
-                        {cardCount > 0 ? "Ready to practice" : "No cards available"}
+                        {cardCount > 0
+                          ? "Ready to practice"
+                          : "No cards available"}
                       </div>
                       <div
                         className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                          cardCount > 0 ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"
+                          cardCount > 0
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-600"
                         }`}
                       >
                         {cardCount > 0 ? (
@@ -334,25 +305,36 @@ const FlashcardLandingPage = () => {
         {/* Quick Overview */}
         {modules.length > 0 && (
           <div className="mt-12 bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Practice Overview</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Practice Overview
+            </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-primary mb-1">{modules.length}</div>
+                <div className="text-2xl font-bold text-primary mb-1">
+                  {modules.length}
+                </div>
                 <div className="text-sm text-gray-600">Total Decks</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-primary mb-1">{Object.values(decks).flat().length}</div>
+                <div className="text-2xl font-bold text-primary mb-1">
+                  {Object.values(decks).flat().length}
+                </div>
                 <div className="text-sm text-gray-600">Total Cards</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary mb-1">
-                  {modules.filter((module) => decks[module._id]?.length > 0).length}
+                  {
+                    modules.filter((module) => decks[module._id]?.length > 0)
+                      .length
+                  }
                 </div>
                 <div className="text-sm text-gray-600">Ready to Practice</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary mb-1">
-                  {Math.round(Object.values(decks).flat().length / (modules.length || 1))}
+                  {Math.round(
+                    Object.values(decks).flat().length / (modules.length || 1)
+                  )}
                 </div>
                 <div className="text-sm text-gray-600">Avg per Deck</div>
               </div>
