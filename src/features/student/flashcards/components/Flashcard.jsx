@@ -1,7 +1,7 @@
-
-
 import React, { useState, useMemo, useEffect } from "react";
 import apiClient from "../../../../api/axiosClient";
+import "./custom-scrollbar.css";
+
 // Helper to fetch image from backend Bytez API
 const useFlashcardImage = (topic, cachedImage, setCachedImage) => {
   const [imageUrl, setImageUrl] = useState(cachedImage || null);
@@ -9,37 +9,30 @@ const useFlashcardImage = (topic, cachedImage, setCachedImage) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!topic) return;
-    if (cachedImage) {
-      setImageUrl(cachedImage);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-    setImageUrl(null);
-    setError(null);
+    // Skip if topic is empty, already loading, or image is cached
+    if (!topic || loading || imageUrl) return;
+
     setLoading(true);
-    apiClient.post("/api/flashcard/generate-image", { topic })
-      .then(res => {
-        console.log("[Flashcard Image] Success:", res);
+    setError(null);
+
+    apiClient
+      .post("/api/flashcard/generate-image", { topic })
+      .then((res) => {
+        console.log(`[Flashcard Image] Success for topic "${topic}":`, res.data.image_url);
         setImageUrl(res.data.image_url);
-        // Only set cache if not already present
-        if (setCachedImage && !cachedImage) {
-          setCachedImage(res.data.image_url);
-        }
+        // Update parent cache
+        setCachedImage(res.data.image_url);
         setLoading(false);
       })
-      .catch(err => {
-        console.error("[Flashcard Image] Error:", err, err?.response?.data);
+      .catch((err) => {
+        console.error(`[Flashcard Image] Error for topic "${topic}":`, err, err?.response?.data);
         setError("Image generation failed");
         setLoading(false);
       });
-    // Only run when topic changes
-  }, [topic, cachedImage, setCachedImage]);
+  }, [topic, imageUrl, setCachedImage, loading]);
 
   return { imageUrl, loading, error };
 };
-import "./custom-scrollbar.css";
 
 // Card color palette
 const CARD_COLORS = [
@@ -54,20 +47,17 @@ const CARD_COLORS = [
 ];
 
 const getRandomColor = (seed) => {
-  // Deterministic color per card (based on question hash)
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
   return CARD_COLORS[Math.abs(hash) % CARD_COLORS.length];
 };
 
-const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portrait = false, cachedImage, setCachedImage }) => {
-  // Generate image for the card's question/topic, use cache if available
+const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, cachedImage, setCachedImage }) => {
   const { imageUrl, loading: imageLoading, error: imageError } = useFlashcardImage(card.question, cachedImage, setCachedImage);
   const [isFlipped, setIsFlipped] = useState(false);
   const cardColor = useMemo(() => getRandomColor(card.question || ""), [card.question]);
-  // For peeking cards, don't allow flipping and reduce brightness
   const isPeek = peek;
-  const isPortrait = portrait || !peek;
+
   const stackStyle = stacked
     ? {
         transform: `translateY(${stackIndex * 10}px) scale(${1 - stackIndex * 0.04})`,
@@ -78,32 +68,26 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portra
       }
     : {};
 
-  // Flip card only when the card is clicked (not on hover or button)
   const handleCardClick = () => {
-    if (!isPeek) setIsFlipped(f => !f);
+    if (!isPeek) setIsFlipped((f) => !f);
   };
 
-  // Responsive portrait aspect ratio for main card, slightly smaller for peeking
-  // On mobile, card fills more of the screen
-  const cardWidth = isPortrait
-    ? 'min(90vw,340px)'
-    : 'min(80vw,320px)';
-  const cardHeight = isPortrait
-    ? 'min(60vw,480px)'
-    : 'min(50vw,440px)';
+  // Landscape dimensions: wider than tall
+  const cardWidth = isPeek ? "min(80vw, 480px)" : "min(90vw, 640px)";
+  const cardHeight = isPeek ? "min(40vw, 240px)" : "min(45vw, 320px)";
 
   return (
     <div className="flex flex-col items-center w-full">
       <div
-        className={`relative select-none cursor-pointer ${isPeek ? 'pointer-events-none' : ''}`}
+        className={`relative select-none cursor-pointer ${isPeek ? "pointer-events-none" : ""}`}
         style={{
           width: cardWidth,
           height: cardHeight,
+          minWidth: isPeek ? "240px" : "320px",
+          minHeight: isPeek ? "120px" : "160px",
+          maxWidth: isPeek ? "480px" : "640px",
+          maxHeight: isPeek ? "240px" : "320px",
           ...stackStyle,
-          minWidth: isPortrait ? '180px' : '140px',
-          minHeight: isPortrait ? '180px' : '140px',
-          maxWidth: isPortrait ? '340px' : '320px',
-          maxHeight: isPortrait ? '480px' : '440px',
         }}
         onClick={handleCardClick}
       >
@@ -113,37 +97,64 @@ const Flashcard = ({ card, stacked = false, stackIndex = 0, peek = false, portra
           }`}
         >
           {/* Front */}
-          <div className={`absolute w-full h-full backface-hidden flex flex-col items-center justify-center p-2 sm:p-4 md:p-6 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all ${isPeek ? 'brightness-90 blur-[1.5px] opacity-70' : ''}`}
+          <div
+            className={`absolute w-full h-full backface-hidden flex flex-row items-stretch ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all ${
+              isPeek ? "brightness-90 blur-[1.5px] opacity-70" : ""
+            }`}
             style={{ boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.25)" }}
           >
-            {/* Generated image for the card topic/question */}
-            <div className="w-full flex justify-center items-center mb-2 min-h-[80px]">
+            {/* Left Half: Image */}
+            <div className="w-1/2 flex items-center justify-center p-2 sm:p-4">
               {imageLoading && <span className="text-xs text-gray-500 animate-pulse">Generating image...</span>}
               {imageError && <span className="text-xs text-red-500">{imageError}</span>}
               {imageUrl && (
                 <img
                   src={imageUrl}
                   alt={card.question}
-                  className="rounded-lg max-h-20 object-contain border border-gray-200 shadow"
-                  style={{ maxWidth: '90%' }}
+                  className="rounded-lg w-full h-full object-cover border border-gray-200 shadow"
                 />
               )}
             </div>
-            <span className="uppercase tracking-widest text-[10px] sm:text-xs text-gray-700/80 mb-2">Question</span>
-            <div className="w-full flex-1 overflow-auto custom-scrollbar">
-              <p className="text-lg sm:text-xl md:text-2xl text-center text-gray-900 font-bold drop-shadow-lg mb-2 font-mono break-words whitespace-pre-line">{card.question}</p>
+            {/* Right Half: Question */}
+            <div className="w-1/2 flex flex-col items-center justify-center p-2 sm:p-4">
+              <span className="uppercase tracking-widest text-[10px] sm:text-xs text-gray-700/80 mb-2">Question</span>
+              <div className="w-full flex-1 flex items-center justify-center overflow-auto custom-scrollbar">
+                <p className="text-base sm:text-lg md:text-xl text-center text-gray-900 font-bold drop-shadow-lg font-mono break-words whitespace-pre-line">
+                  {card.question}
+                </p>
+              </div>
+              {!isPeek && <span className="text-[10px] sm:text-xs text-gray-500 mt-2">(Click card to flip)</span>}
             </div>
-            {!isPeek && <span className="text-[10px] sm:text-xs text-gray-500 mt-2">(Click card to flip)</span>}
           </div>
           {/* Back */}
-          <div className={`absolute w-full h-full backface-hidden rotate-y-180 flex flex-col items-center justify-center p-2 sm:p-4 md:p-6 ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all ${isPeek ? 'brightness-90 blur-[1.5px] opacity-70' : ''}`}
+          <div
+            className={`absolute w-full h-full backface-hidden rotate-y-180 flex flex-row items-stretch ${cardColor} rounded-2xl shadow-2xl border-2 border-white transform-gpu transition-all ${
+              isPeek ? "brightness-90 blur-[1.5px] opacity-70" : ""
+            }`}
             style={{ boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.25)" }}
           >
-            <span className="uppercase tracking-widest text-[10px] sm:text-xs text-gray-700/80 mb-2">Answer</span>
-            <div className="w-full flex-1 overflow-auto custom-scrollbar">
-              <p className="text-base sm:text-lg md:text-xl text-center text-gray-900 font-bold drop-shadow-lg font-mono break-words whitespace-pre-line">{card.answer}</p>
+            {/* Left Half: Image (same as front) */}
+            <div className="w-1/2 flex items-center justify-center p-2 sm:p-4">
+              {imageLoading && <span className="text-xs text-gray-500 animate-pulse">Generating image...</span>}
+              {imageError && <span className="text-xs text-red-500">{imageError}</span>}
+              {imageUrl && (
+                <img
+                  src={imageUrl}
+                  alt={card.question}
+                  className="rounded-lg w-full h-full object-cover border border-gray-200 shadow"
+                />
+              )}
             </div>
-            {!isPeek && <span className="text-[10px] sm:text-xs text-gray-500 mt-2">(Click card to flip)</span>}
+            {/* Right Half: Answer */}
+            <div className="w-1/2 flex flex-col items-center justify-center p-2 sm:p-4">
+              <span className="uppercase tracking-widest text-[10px] sm:text-xs text-gray-700/80 mb-2">Answer</span>
+              <div className="w-full flex-1 flex items-center justify-center overflow-auto custom-scrollbar">
+                <p className="text-base sm:text-lg md:text-xl text-center text-gray-900 font-bold drop-shadow-lg font-mono break-words whitespace-pre-line">
+                  {card.answer}
+                </p>
+              </div>
+              {!isPeek && <span className="text-[10px] sm:text-xs text-gray-500 mt-2">(Click card to flip)</span>}
+            </div>
           </div>
         </div>
       </div>
