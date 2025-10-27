@@ -274,10 +274,13 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
   // Track last speaking state
   const lastSpeakingStateRef = useRef(new Map());
+  // Mounted ref to avoid state updates after unmount
+  const mountedRef = useRef(true);
 
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback((data) => {
-    switch (data.type) {
+    try {
+      switch (data.type) {
       case "connection_established":
         console.log("Connection established:", data);
         setRoomInfo(data.room_info);
@@ -354,6 +357,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       case "layout_update": {
         console.log("Layout update received:", data);
         // Apply layout mode and pinned participant coming from server
+        if (!mountedRef.current) break;
         if (data.layout_mode) {
           setLayoutMode(data.layout_mode);
         }
@@ -376,6 +380,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         
       default:
         console.log("Unknown message type:", data.type);
+      }
+    } catch (err) {
+      console.error('Error handling websocket message:', err, data);
+      // swallow to avoid crashing React due to unexpected message shapes
     }
   }, []);
 
@@ -1258,6 +1266,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       leaveSession(sessionInfo.group.id).catch(error => {
         console.warn("Cleanup on unmount failed:", error);
       });
+      // mark unmounted
+      mountedRef.current = false;
     };
   }, [sessionInfo, leaveSession]);
 

@@ -17,6 +17,8 @@ from fastapi import HTTPException
 from config import EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, logger
 from models import Flashcard
 from typing import List, Dict, Any
+import requests
+import os
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -264,6 +266,146 @@ async def paraphrase_question_with_ollama(original_question: str, correct_answer
             "correct_answer": correct_answer,
             "wrong_answers": wrong_answers
         }
+
+
+async def paraphrase_question_with_groq(original_question: str, correct_answer: str, wrong_answers: List[str]) -> Dict[str, Any]:
+    """
+    Paraphrase a single question using Groq chat completions API.
+    Returns a dict with question, correct_answer, wrong_answers.
+    """
+    try:
+        api_key = os.getenv('GROQ_API_KEY')
+        if not api_key:
+            raise Exception('GROQ_API_KEY not configured')
+
+        model = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
+        endpoint = os.getenv('GROQ_ENDPOINT', 'https://api.groq.com/openai/v1/chat/completions')
+
+        prompt = f"Paraphrase this question while keeping the exact same meaning: '{original_question}'. Return only the paraphrased question, nothing else."
+
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant that paraphrases questions."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 256,
+            "temperature": 0.6
+        }
+
+        def call_groq():
+            resp = requests.post(endpoint, headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {api_key}'
+            }, json=payload, timeout=20)
+            resp.raise_for_status()
+            return resp.json()
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, call_groq)
+        choices = result.get('choices', [])
+        if not choices:
+            raise Exception('No choices returned from Groq')
+
+        paraphrased = choices[0].get('message', {}).get('content', '').strip()
+        # cleanup similar to Ollama
+        paraphrased = re.sub(r'^(Paraphrased question:|Here\'s the paraphrased question:|Here\'s a paraphrased version:|Question:|Paraphrased:|Here is the paraphrased question:)', '', paraphrased, flags=re.IGNORECASE).strip()
+        paraphrased = re.sub(r'^\d+\.?\s*', '', paraphrased).strip()
+        paraphrased = re.sub(r'^(["\'])(.*)\1$', r'\2', paraphrased).strip()
+        paraphrased = re.sub(r'\s+', ' ', paraphrased).strip()
+
+        if (len(paraphrased) < 10 or paraphrased.lower().strip() == original_question.lower().strip() or not paraphrased):
+            logger.warning('Groq paraphrasing failed or identical, using original')
+            paraphrased = original_question
+
+        return {
+            'question': paraphrased,
+            'correct_answer': correct_answer,
+            'wrong_answers': wrong_answers
+        }
+
+    except Exception as e:
+        logger.error(f"Error paraphrasing question with Groq: {e}")
+        return {
+            'question': original_question,
+            'correct_answer': correct_answer,
+            'wrong_answers': wrong_answers
+        }
+
+
+async def paraphrase_all_questions_batch_groq(questions_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Batch paraphrase using Groq: send all questions in a single prompt and parse numbered responses.
+    """
+    try:
+        if not questions_data:
+            return []
+
+        api_key = os.getenv('GROQ_API_KEY')
+        if not api_key:
+            raise Exception('GROQ_API_KEY not set')
+
+        model = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
+        endpoint = os.getenv('GROQ_ENDPOINT', 'https://api.groq.com/openai/v1/chat/completions')
+
+        questions_text = ''
+        for i, q in enumerate(questions_data):
+            questions_text += f"{i+1}. {q.get('question','')}\n"
+
+        prompt = (
+            f"Paraphrase these {len(questions_data)} questions. Keep the same meaning for each. "
+            f"Return only the paraphrased questions in the same order, numbered 1-{len(questions_data)}:\n\n"
+            f"{questions_text}\n"
+            f"Format: Just return the numbered paraphrased questions, nothing else."
+        )
+
+        payload = {
+            'model': model,
+            'messages': [
+                {'role': 'system', 'content': 'You are a helpful assistant that paraphrases questions.'},
+                {'role': 'user', 'content': prompt}
+            ],
+            'max_tokens': 1024,
+            'temperature': 0.6
+        }
+
+        def call_groq_batch():
+            resp = requests.post(endpoint, headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {api_key}'
+            }, json=payload, timeout=30)
+            resp.raise_for_status()
+            return resp.json()
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, call_groq_batch)
+        paraphrased_text = result.get('choices', [])[0].get('message', {}).get('content', '').strip()
+
+        paraphrased_lines = paraphrased_text.split('\n')
+        paraphrased_questions = []
+
+        for i, question in enumerate(questions_data):
+            paraphrased_question = None
+            for line in paraphrased_lines:
+                if line.strip().startswith(f"{i+1}."):
+                    paraphrased_question = re.sub(r'^\d+\.?\s*', '', line).strip()
+                    break
+
+            if not paraphrased_question or len(paraphrased_question) < 10:
+                paraphrased_question = question.get('question', '')
+
+            paraphrased_questions.append({
+                'question': paraphrased_question,
+                'options': question.get('options', []),
+                'correctAnswer': question.get('correctAnswer', '')
+            })
+
+        return paraphrased_questions
+
+    except Exception as e:
+        logger.error(f"Groq batch paraphrasing failed: {e}")
+        # Fallback to existing parallel paraphrase method
+        return await paraphrase_all_questions(questions_data)
 
 def randomize_quiz_questions(quiz_data: Dict[str, Any]) -> Dict[str, Any]:
     """

@@ -5,7 +5,8 @@ from models import PostTestRequest, PostTestSubmission, PreTestResponse, PostTes
 from database import modules_collection, pre_test_collection, post_test_collection, scores_collection
 from bson import ObjectId
 from datetime import datetime
-from utils import paraphrase_all_questions_batch, paraphrase_all_questions
+from utils import paraphrase_all_questions_batch, paraphrase_all_questions, paraphrase_all_questions_batch_groq
+import os
 import asyncio
 
 router = APIRouter()
@@ -131,7 +132,11 @@ async def get_post_test(module_id: str):
     
     try:
         # First, paraphrase the questions
-        paraphrased_questions = await paraphrase_all_questions_batch(pre_test['questions'])
+        # Prefer Groq if API key is configured, otherwise use existing paraphrase functions
+        if os.getenv('GROQ_API_KEY'):
+            paraphrased_questions = await paraphrase_all_questions_batch_groq(pre_test['questions'])
+        else:
+            paraphrased_questions = await paraphrase_all_questions_batch(pre_test['questions'])
         
         # Create post-test data structure
         post_test_data = {
