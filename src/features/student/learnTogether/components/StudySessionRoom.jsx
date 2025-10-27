@@ -69,6 +69,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   // Room state
   const [participants, setParticipants] = useState([]);
   const [roomInfo, setRoomInfo] = useState(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(null);
 
   // Initialize participants with current user
   useEffect(() => {
@@ -422,6 +423,47 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         console.log("Unknown message type:", data.type);
     }
   }, []);
+
+  // Timer effect: compute remaining seconds from session_started_at (1 hour limit)
+  useEffect(() => {
+    if (!roomInfo || !roomInfo.session_started_at) {
+      setRemainingSeconds(null);
+      return;
+    }
+
+    const start = new Date(roomInfo.session_started_at).getTime();
+    const hourMs = 60 * 60 * 1000;
+
+    const update = () => {
+      const now = Date.now();
+      const elapsed = now - start;
+      const remaining = Math.max(0, Math.floor((hourMs - elapsed) / 1000));
+      setRemainingSeconds(remaining);
+    };
+
+    update();
+    const iv = setInterval(update, 1000);
+
+    return () => clearInterval(iv);
+  }, [roomInfo]);
+
+  // Auto-end session when timer reaches zero (only call once)
+  useEffect(() => {
+    if (remainingSeconds === null) return;
+    if (remainingSeconds > 0) return;
+
+    // Timer expired; call endSession (mark inactive) once
+    try {
+      const { endSession } = useLearnTogetherStore.getState();
+      if (sessionInfo?.group?.id) {
+        endSession(sessionInfo.group.id, false).then(() => {
+          console.log('Session auto-ended due to 1-hour limit');
+        }).catch(err => console.warn('Auto-end failed', err));
+      }
+    } catch (e) {
+      console.warn('Auto-end session error:', e);
+    }
+  }, [remainingSeconds, sessionInfo]);
 
   // WebRTC functions
   const createPeerConnection = useCallback((participantId) => {
@@ -1331,6 +1373,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         <div>
           <h1 className="text-xl font-bold">{roomInfo?.group_title}</h1>
           <p className="text-sm text-gray-300">{roomInfo?.group_subject}</p>
+          {remainingSeconds !== null && (
+            <p className="text-xs text-yellow-300 mt-1">Time remaining: {new Date(remainingSeconds * 1000).toISOString().substr(11, 8)}</p>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">

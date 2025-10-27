@@ -169,6 +169,7 @@ const LearnTogetherPage = () => {
               : 'Currently active study sessions you can join right now'
             }
           </p>
+          <p className="text-sm text-gray-500 mt-1">Note: Rooms are limited to 5 participants and sessions last up to 1 hour.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-2">

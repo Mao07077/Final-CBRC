@@ -29,6 +29,7 @@ calls_collection = db["calls"]
 posts_collection = db["posts"]
 reports_collection = db["reports"]
 study_groups_collection = db["study_groups"]
+session_logs_collection = db["session_logs"]
 
 # Getter functions for collections
 def get_user_collection():

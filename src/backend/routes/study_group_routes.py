@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Body
-from database import study_groups_collection, users_collection
+from database import study_groups_collection, users_collection, session_logs_collection
 from bson import ObjectId
 from datetime import datetime
 from typing import List, Dict
@@ -133,10 +133,13 @@ def create_study_group(data: dict = Body(...)):
             "creator_id": creator_id,
             "members": [creator_id],
             "created_at": datetime.utcnow(),
-            "max_members": data.get("max_members", 10),
+            # Default to 5 members per room and 1 hour session limit
+            "max_members": data.get("max_members", 5),
             "is_session_active": True,  # Start as active session immediately
             "session_started_at": datetime.utcnow(),
             "active_participants": [creator_id],  # Creator is first active participant
+            # Track per-participant join timestamps so we can compute per-user durations
+            "participant_join_times": {creator_id: datetime.utcnow()},
             "last_activity": datetime.utcnow(),  # Track activity for auto-cleanup
             "auto_delete_minutes": 10  # Auto-delete after 10 minutes of inactivity
         }
@@ -306,6 +309,32 @@ def end_study_session(group_id: str, data: dict = Body(...)):
         if not group:
             raise HTTPException(status_code=404, detail="Study group not found")
         
+        # Before ending, record session durations for currently active participants
+        try:
+            active = group.get("active_participants", [])
+            join_times = group.get("participant_join_times", {}) or {}
+            now = datetime.utcnow()
+            for participant_id in active:
+                joined_at = join_times.get(participant_id) or group.get("session_started_at")
+                duration_seconds = None
+                try:
+                    if joined_at:
+                        duration_seconds = int((now - joined_at).total_seconds())
+                except Exception:
+                    duration_seconds = None
+                try:
+                    session_logs_collection.insert_one({
+                        "group_id": str(group["_id"]),
+                        "user_id": participant_id,
+                        "joined_at": joined_at,
+                        "left_at": now,
+                        "duration_seconds": duration_seconds
+                    })
+                except Exception as e:
+                    print(f"Warning: failed to record session log for {participant_id} during end_session: {e}")
+        except Exception as e:
+            print(f"Warning: error while recording end_session participant durations: {e}")
+
         if delete_group:
             # Delete the entire group when session ends
             study_groups_collection.delete_one({"_id": ObjectId(group_id)})
@@ -315,14 +344,15 @@ def end_study_session(group_id: str, data: dict = Body(...)):
                 "group_deleted": True
             }
         else:
-            # Just mark session as inactive
+            # Just mark session as inactive and clear active participants
             study_groups_collection.update_one(
                 {"_id": ObjectId(group_id)},
                 {
                     "$set": {
                         "is_session_active": False,
                         "session_started_at": None,
-                        "active_participants": []
+                        "active_participants": [],
+                        "participant_join_times": {}
                     }
                 }
             )
@@ -389,17 +419,31 @@ async def join_study_session(group_id: str, data: dict = Body(...)):
             raise HTTPException(status_code=400, detail="No active session to join")
         
         current_participants = group.get("active_participants", [])
+        max_members = group.get("max_members", 5)
+        # Enforce max participants per room
+        if len(current_participants) >= max_members and user_id not in current_participants:
+            raise HTTPException(status_code=403, detail=f"Room is full (max {max_members} participants)")
+
+        # Enforce 1 hour session duration limit
+        session_started = group.get("session_started_at")
+        if session_started:
+            from datetime import timedelta
+            if datetime.utcnow() - session_started >= timedelta(hours=1):
+                # Mark session as ended
+                study_groups_collection.update_one({"_id": ObjectId(group_id)}, {"$set": {"is_session_active": False}})
+                raise HTTPException(status_code=400, detail="Session has reached its 1 hour limit and is now closed")
         print(f"🔍 JOIN DEBUG - Group: {group.get('title', 'Unknown')}")
         print(f"🔍 User trying to join: {user_id}")
         print(f"🔍 Current participants before join: {current_participants}")
         
         # Add user to active participants if not already there
         if user_id not in current_participants:
+            # Add user and record join time
             study_groups_collection.update_one(
                 {"_id": ObjectId(group_id)},
                 {
                     "$addToSet": {"active_participants": user_id},
-                    "$set": {"last_activity": datetime.utcnow()}  # Reset timer - cancel auto-delete
+                    "$set": {"last_activity": datetime.utcnow(), f"participant_join_times.{user_id}": datetime.utcnow()}
                 }
             )
             print(f"✅ User {user_id} added to participants - auto-delete timer reset")
@@ -445,10 +489,36 @@ async def leave_study_session(group_id: str, data: dict = Body(...)):
         print(f"🔍 User trying to leave: {user_id}")
         print(f"🔍 Current participants before leave: {current_participants}")
         
-        # Remove user from active participants
+        # Compute session duration for user using their recorded join time if present
+        join_times = group.get("participant_join_times", {}) or {}
+        joined_at = join_times.get(user_id) or group.get("session_started_at")
+        left_at = datetime.utcnow()
+        duration_seconds = None
+        try:
+            if joined_at:
+                duration_seconds = int((left_at - joined_at).total_seconds())
+        except Exception:
+            duration_seconds = None
+
+        # Record the session log for this user
+        try:
+            session_logs_collection.insert_one({
+                "group_id": str(group["_id"]),
+                "user_id": user_id,
+                "joined_at": joined_at,
+                "left_at": left_at,
+                "duration_seconds": duration_seconds
+            })
+        except Exception as e:
+            print(f"Warning: failed to record session log for {user_id}: {e}")
+
+        # Remove user from active participants and remove their join time
         study_groups_collection.update_one(
             {"_id": ObjectId(group_id)},
-            {"$pull": {"active_participants": user_id}}
+            {
+                "$pull": {"active_participants": user_id},
+                "$unset": {f"participant_join_times.{user_id}": ""}
+            }
         )
         
         # Check if no participants are left

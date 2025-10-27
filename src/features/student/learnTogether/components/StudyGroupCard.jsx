@@ -82,6 +82,7 @@ const StudyGroupCard = ({ group }) => {
 
   const isSessionActive = group.is_session_active;
   const participantCount = group.active_participants?.length || 0; // Show actual count, 0 if empty
+  const maxMembers = group.max_members || 5;
 
   return (
   <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg hover:shadow-xl transition-shadow border-l-4 border-green-500 flex flex-col min-h-[340px]">
@@ -128,12 +129,16 @@ const StudyGroupCard = ({ group }) => {
       
       <button 
         onClick={handleJoinSessionClick}
-        className="w-full px-4 py-2 sm:py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-base sm:text-lg"
+        disabled={participantCount >= maxMembers}
+        className={`w-full px-4 py-2 sm:py-3 ${participantCount >= maxMembers ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 text-base sm:text-lg`}
       >
         <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
         Join Live Session
         {group.password && <span className="text-xs">🔒</span>}
       </button>
+      {participantCount >= maxMembers && (
+        <div className="mt-2 text-xs text-red-500">Room is full (max {maxMembers} participants)</div>
+      )}
       
       {/* Password Modal */}
       {showPasswordModal && (
