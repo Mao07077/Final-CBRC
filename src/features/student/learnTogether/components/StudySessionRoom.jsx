@@ -279,8 +279,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback((data) => {
-    try {
-      switch (data.type) {
+    switch (data.type) {
       case "connection_established":
         console.log("Connection established:", data);
         setRoomInfo(data.room_info);
@@ -357,7 +356,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       case "layout_update": {
         console.log("Layout update received:", data);
         // Apply layout mode and pinned participant coming from server
-        if (!mountedRef.current) break;
         if (data.layout_mode) {
           setLayoutMode(data.layout_mode);
         }
@@ -380,10 +378,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         
       default:
         console.log("Unknown message type:", data.type);
-      }
-    } catch (err) {
-      console.error('Error handling websocket message:', err, data);
-      // swallow to avoid crashing React due to unexpected message shapes
     }
   }, []);
 
