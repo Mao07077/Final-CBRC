@@ -274,8 +274,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
   // Track last speaking state
   const lastSpeakingStateRef = useRef(new Map());
-  // Mounted ref to avoid state updates after unmount
-  const mountedRef = useRef(true);
 
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback((data) => {
@@ -1260,8 +1258,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       leaveSession(sessionInfo.group.id).catch(error => {
         console.warn("Cleanup on unmount failed:", error);
       });
-      // mark unmounted
-      mountedRef.current = false;
     };
   }, [sessionInfo, leaveSession]);
 
@@ -1306,25 +1302,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     if (!isCameraOff) {
       toggleCamera(); // Re-enable camera if it was on
     }
-    // Inform other participants about layout change
-    sendLayoutUpdate(newLayout, pinnedParticipantId);
   };
-
-  // Send layout update to server (pin/focus changes)
-  const sendLayoutUpdate = useCallback((mode, pinnedId) => {
-    try {
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify({
-          type: "layout_update",
-          from_user_id: userId,
-          layout_mode: mode,
-          pinned_participant_id: pinnedId || null
-        }));
-      }
-    } catch (e) {
-      console.warn("Failed to send layout update", e);
-    }
-  }, [userId]);
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
@@ -1394,11 +1372,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       <div className="font-semibold text-sm mb-1">Pin Participant</div>
                       <select
                         value={pinnedParticipantId || ""}
-                        onChange={e => {
-                          const newId = e.target.value || null;
-                          setPinnedParticipantId(newId);
-                          sendLayoutUpdate(layoutMode, newId);
-                        }}
+                        onChange={e => setPinnedParticipantId(e.target.value)}
                         className="w-full bg-gray-100 text-gray-900 rounded px-2 py-1 border"
                       >
                         <option value="">Select...</option>
