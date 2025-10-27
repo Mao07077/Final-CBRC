@@ -294,6 +294,22 @@ async def study_group_websocket(websocket: WebSocket, group_id: str):
                             await ws.send_text(json.dumps(message))
                         except Exception as e:
                             logger.error(f"Failed to send hand raise update: {e}")
+                elif msg_type == "layout_update":
+                    # Broadcast layout/pin changes (e.g., spotlight, speaker, pinned participant)
+                    layout_mode = msg.get("layout_mode")
+                    pinned_id = msg.get("pinned_participant_id")
+                    sender_info = student_info[room_key].get(websocket, {})
+                    message = {
+                        "type": "layout_update",
+                        "from_user_id": sender_info.get("user_id"),
+                        "layout_mode": layout_mode,
+                        "pinned_participant_id": pinned_id
+                    }
+                    for ws in rooms[room_key]:
+                        try:
+                            await ws.send_text(json.dumps(message))
+                        except Exception as e:
+                            logger.error(f"Failed to send layout update: {e}")
                 
                 elif msg_type == "speaking_update":
                     # Broadcast speaking status to all participants

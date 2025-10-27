@@ -350,6 +350,18 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         }
         break;
       }
+
+      case "layout_update": {
+        console.log("Layout update received:", data);
+        // Apply layout mode and pinned participant coming from server
+        if (data.layout_mode) {
+          setLayoutMode(data.layout_mode);
+        }
+        if (typeof data.pinned_participant_id !== 'undefined') {
+          setPinnedParticipantId(data.pinned_participant_id || null);
+        }
+        break;
+      }
         
       case "webrtc_offer":
       case "webrtc_answer":
@@ -1290,7 +1302,25 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     if (!isCameraOff) {
       toggleCamera(); // Re-enable camera if it was on
     }
+    // Inform other participants about layout change
+    sendLayoutUpdate(newLayout, pinnedParticipantId);
   };
+
+  // Send layout update to server (pin/focus changes)
+  const sendLayoutUpdate = useCallback((mode, pinnedId) => {
+    try {
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({
+          type: "layout_update",
+          from_user_id: userId,
+          layout_mode: mode,
+          pinned_participant_id: pinnedId || null
+        }));
+      }
+    } catch (e) {
+      console.warn("Failed to send layout update", e);
+    }
+  }, [userId]);
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
@@ -1360,7 +1390,11 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       <div className="font-semibold text-sm mb-1">Pin Participant</div>
                       <select
                         value={pinnedParticipantId || ""}
-                        onChange={e => setPinnedParticipantId(e.target.value)}
+                        onChange={e => {
+                          const newId = e.target.value || null;
+                          setPinnedParticipantId(newId);
+                          sendLayoutUpdate(layoutMode, newId);
+                        }}
                         className="w-full bg-gray-100 text-gray-900 rounded px-2 py-1 border"
                       >
                         <option value="">Select...</option>
