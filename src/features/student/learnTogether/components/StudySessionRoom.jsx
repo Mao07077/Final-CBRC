@@ -110,6 +110,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const chatContainerRef = useRef(null);
   const peerConnectionsRef = useRef(new Map());
   const remoteVideosRef = useRef(new Map());
+  const attachTokenRef = useRef(0);
+  const [attachVersion, setAttachVersion] = useState(0);
 
   // --- Diagnostic Logging Helpers ---
   const logSignal = (msg, data) => console.log(`[SIGNAL] ${msg}`, data);
@@ -157,10 +159,11 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         console.log("UI state - Muted:", isMuted, "Camera off:", isCameraOff);
         
         if (localVideoRef.current) {
-          console.log("Video element srcObject:", !!localVideoRef.current.srcObject);
-          console.log("Video element readyState:", localVideoRef.current.readyState);
-          console.log("Video element paused:", localVideoRef.current.paused);
-          console.log("Video element dimensions:", localVideoRef.current.videoWidth, "x", localVideoRef.current.videoHeight);
+          const el = localVideoRef.current;
+          console.log("Video element srcObject:", !!el.srcObject);
+          console.log("Video element readyState:", el.readyState);
+          console.log("Video element paused:", el.paused);
+          console.log("Video element dimensions:", el.videoWidth, "x", el.videoHeight);
         }
       }
     };
@@ -168,13 +171,48 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     syncMediaState();
   }, [isMuted, isCameraOff]);
 
-  // Reapply local video stream on layout or camera state change
+  // Centralized attachment of local stream to the video element.
+  // We use an attachVersion token to avoid races from multiple concurrent attach attempts.
   useEffect(() => {
-    if (localVideoRef.current && localStreamRef.current && !isCameraOff) {
-      localVideoRef.current.srcObject = localStreamRef.current;
-      localVideoRef.current.play().catch((err) => console.log("Play error:", err));
+    const el = localVideoRef.current;
+    const stream = localStreamRef.current;
+    const currentToken = attachTokenRef.current;
+
+    if (!el || !stream || isCameraOff) return;
+
+    let cancelled = false;
+
+    const handleLoaded = () => {
+      if (cancelled || currentToken !== attachTokenRef.current) return;
+      el.play().then(() => {
+        console.log("Video play started successfully");
+      }).catch((err) => {
+        console.log("Play error:", err);
+      });
+    };
+
+    try {
+      el.srcObject = stream;
+    } catch (err) {
+      try {
+        // fallback (very rare in modern browsers)
+        el.src = URL.createObjectURL(stream);
+      } catch (e) {
+        console.warn('Failed to assign srcObject or fallback src:', e);
+      }
     }
-  }, [layoutMode, isCameraOff]);
+
+    el.addEventListener('loadedmetadata', handleLoaded, { once: true });
+    if (el.readyState >= 1) {
+      // Metadata already available (e.g., reattach), attempt to play immediately
+      handleLoaded();
+    }
+
+    return () => {
+      cancelled = true;
+      try { el.removeEventListener('loadedmetadata', handleLoaded); } catch (e) {}
+    };
+  }, [attachVersion, layoutMode, isCameraOff]);
 
   // WebSocket connection setup
   useEffect(() => {
@@ -320,6 +358,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         
       case "status_update":
         console.log("Status update received:", data);
+        // Ignore status updates that originate from this client to avoid
+        // echoing our own actions back and causing unintended toggles.
+        if (data.from_user_id === userId) {
+          console.log("Ignoring status_update for local user (echo):", data);
+          break;
+        }
         setParticipants(prev => prev.map(participant => {
           if (participant.user_id === data.from_user_id) {
             return {
@@ -652,9 +696,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           }
           
           localStreamRef.current = stream;
-          if (localVideoRef.current && !isCameraOff) {
-            localVideoRef.current.srcObject = stream;
-          }
+          // Let the centralized attachment effect handle attaching the stream
+          // to the video element to avoid race conditions.
+          attachTokenRef.current += 1;
+          setAttachVersion(v => v + 1);
 
           setupAudioLevelMonitoring(stream);
 
@@ -757,46 +802,17 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         }
         
         if (localStreamRef.current) {
+          console.log('[DEBUG] toggleCamera: stopping existing local tracks before assign');
           localStreamRef.current.getTracks().forEach(track => track.stop());
         }
-        
-        localStreamRef.current = stream;
-        
-        const setVideoStream = () => {
-          if (localVideoRef.current) {
-            try {
-              localVideoRef.current.srcObject = stream;
-            } catch (err) {
-              console.warn('Failed to set srcObject directly, retrying via assign:', err);
-              localVideoRef.current.src = URL.createObjectURL(stream);
-            }
-            console.log("Set local video srcObject");
-            localVideoRef.current.play().then(() => {
-              console.log("Video play started successfully");
-              localVideoRef.current.style.display = 'block';
-              localVideoRef.current.style.opacity = '1';
-            }).catch((playError) => {
-              console.log("Video play promise rejected (this is normal):", playError);
-            });
 
-            localVideoRef.current.onloadedmetadata = () => {
-              console.log("Video metadata loaded - dimensions:", localVideoRef.current.videoWidth, "x", localVideoRef.current.videoHeight);
-            };
-            
-            localVideoRef.current.oncanplay = () => {
-              console.log("Video can play");
-            };
-            
-            localVideoRef.current.onplaying = () => {
-              console.log("Video is playing");
-            };
-          } else {
-            console.error("Local video ref is null! Retrying in 100ms...");
-            setTimeout(setVideoStream, 100);
-          }
-        };
-        
-        setVideoStream();
+        // Assign the new stream to the localStreamRef and let the centralized
+        // attachment effect handle DOM assignment/play. Bump the attach token
+        // so any stale attach attempts are ignored.
+        localStreamRef.current = stream;
+        attachTokenRef.current += 1;
+        setAttachVersion(v => v + 1);
+        console.log('[DEBUG] toggleCamera: new stream assigned, attachVersion bumped', attachTokenRef.current);
 
         peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
           try {
@@ -842,6 +858,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       } else {
         console.log("Turning camera off...");
         if (localStreamRef.current) {
+          console.log('[DEBUG] toggleCamera: stopping local video tracks');
           const videoTracks = localStreamRef.current.getVideoTracks();
           videoTracks.forEach(track => {
             track.stop();
@@ -876,6 +893,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         }
         
         if (localVideoRef.current) {
+          console.log('[DEBUG] toggleCamera: clearing localVideoRef.srcObject');
           try { localVideoRef.current.srcObject = null; } catch(e) { localVideoRef.current.src = ''; }
         }
         setIsCameraOff(true);
@@ -918,7 +936,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           video: true, 
           audio: true 
         });
-        
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(track => track.stop());
+        }
         localStreamRef.current = screenStream;
         peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
           try {
@@ -951,15 +971,15 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         });
 
         if (localVideoRef.current) {
-          localVideoRef.current.srcObject = screenStream;
+          // Configure element flags and let centralized attachment effect
+          // assign the stream and call play().
           localVideoRef.current.muted = true;
           localVideoRef.current.playsInline = true;
           localVideoRef.current.style.display = 'block';
           localVideoRef.current.style.opacity = '1';
-          localVideoRef.current.play().catch((err) => {
-            console.log('Screen share video play error:', err);
-          });
         }
+        attachTokenRef.current += 1;
+        setAttachVersion(v => v + 1);
         
         screenStream.getVideoTracks()[0].addEventListener('ended', async () => {
           setIsScreenSharing(false);
@@ -997,10 +1017,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 }
               });
 
-              if (localVideoRef.current) {
-                localVideoRef.current.srcObject = cameraStream;
-              }
+              // Let the centralized effect attach the camera stream.
               localStreamRef.current = cameraStream;
+              attachTokenRef.current += 1;
+              setAttachVersion(v => v + 1);
             } catch (error) {
               console.error("Error switching back to camera:", error);
             }
@@ -1083,10 +1103,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             }
           });
 
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = cameraStream;
-          }
+          // Let centralized effect attach stream instead of setting srcObject here
           localStreamRef.current = cameraStream;
+          attachTokenRef.current += 1;
+          setAttachVersion(v => v + 1);
         } else {
           peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
             try {
@@ -1296,12 +1316,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     );
   }
 
-  // Handle layout change with camera preservation
+  // Handle layout change (do not toggle camera here — that caused the camera
+  // to be switched off when layout changes e.g. pin/spotlight). The attachment
+  // effect will reapply the local stream if needed.
   const handleLayoutChange = (newLayout) => {
     setLayoutMode(newLayout);
-    if (!isCameraOff) {
-      toggleCamera(); // Re-enable camera if it was on
-    }
+    // No side-effects on camera state to avoid accidental toggles during layout re-render.
   };
 
   return (
@@ -1603,8 +1623,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             }
 
             const allTiles = [
-              ...screenShares.map(screen => ({ ...screen, isScreen: true })),
-              !isScreenSharing && { id: 'self_camera', name: userName, camera_off: isCameraOff, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true },
+              ...screenShares.map(s => ({ ...s, isScreen: true })),
+              !isScreenSharing && { id: `user_${userId}`, name: userName, camera_off: isCameraOff, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true },
               ...participantTiles
             ].filter(Boolean);
             return (
