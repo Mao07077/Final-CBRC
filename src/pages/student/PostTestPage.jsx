@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import moduleService from "../../services/moduleService";
-import paraphraseService from "../../services/paraphraseService";
 import useAuthStore from "../../store/authStore";
 import useDashboardStore from '../../store/student/dashboardStore';
 
@@ -20,44 +19,46 @@ const PostTestPage = () => {
   const [startTime] = useState(Date.now());
 
   useEffect(() => {
-    // Fetch pre-test questions, paraphrase, and randomize
-    const fetchAndParaphrase = async () => {
+    // Fetch server-generated post-test (paraphrased on backend)
+    const fetchPostTest = async () => {
       try {
         setIsLoading(true);
-        // Get pre-test questions for this module
-        const preTest = await moduleService.getPreTest(moduleId);
-        if (!preTest || !preTest.questions) throw new Error("No pre-test found");
-        // Paraphrase each question
-        const paraphrased = await Promise.all(
-          preTest.questions.map(async (q) => {
-            let paraphrasedQ;
-            try {
-              paraphrasedQ = await paraphraseService.paraphrase(q.question);
-            } catch {
-              paraphrasedQ = q.question; // fallback
-            }
-            // Log original and paraphrased question to console
-            console.log("Original:", q.question);
-            console.log("Paraphrased:", paraphrasedQ);
-            // Randomize options
-            const shuffledOptions = q.options
-              .map((opt) => ({ opt, sort: Math.random() }))
-              .sort((a, b) => a.sort - b.sort)
-              .map(({ opt }) => opt);
-            return {
-              ...q,
-              question: paraphrasedQ,
-              options: shuffledOptions,
-            };
-          })
-        );
-        // Randomize question order
-        const shuffledQuestions = paraphrased
-          .map((q) => ({ q, sort: Math.random() }))
-          .sort((a, b) => a.sort - b.sort)
-          .map(({ q }) => q);
-        setParaphrasedQuestions(shuffledQuestions);
-        setPostTest({ title: `Post-Test for ${preTest.title || "Module"}`, questions: shuffledQuestions });
+        // Fetch both pre-test and post-test so we can show original vs paraphrased
+        const [pre, post] = await Promise.all([
+          moduleService.getPreTest(moduleId),
+          moduleService.getPostTest(moduleId)
+        ]);
+
+        if (!post || !post.questions) throw new Error("No post-test found");
+
+        // Map post questions back to their original pre-test question by matching options
+        const mapQuestions = (preTest, postTest) => {
+          if (!preTest || !preTest.questions) return [];
+          return postTest.questions.map(pq => {
+            const match = preTest.questions.find(pr => {
+              const a = (pr.options || []).slice().sort().join('|');
+              const b = (pq.options || []).slice().sort().join('|');
+              return a === b && (pr.correctAnswer || pr.correctAnswer === pq.correctAnswer);
+            });
+            return { pre: match || null, post: pq };
+          });
+        };
+
+        const pairs = mapQuestions(pre, post);
+        // Log pairs to console for verification
+        console.groupCollapsed(`Post-test paraphrase mapping for module ${moduleId}`);
+        pairs.forEach((pair, i) => {
+          if (pair.pre) {
+            console.log(`Q${i + 1} - Original:`, pair.pre.question);
+            console.log(`Q${i + 1} - Paraphrased:`, pair.post.question);
+          } else {
+            console.warn(`Q${i + 1} - No matching pre-test question found for paraphrased question:`);
+            console.log(pair.post.question);
+          }
+        });
+        console.groupEnd();
+
+        setPostTest(post);
       } catch (error) {
         console.error("Failed to load post-test:", error);
         setError("Failed to load post-test. Please try again.");
@@ -65,7 +66,7 @@ const PostTestPage = () => {
         setIsLoading(false);
       }
     };
-    fetchAndParaphrase();
+    fetchPostTest();
   }, [moduleId]);
 
   const handleAnswerSelect = (questionIndex, selectedAnswer) => {
