@@ -165,6 +165,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const chatContainerRef = useRef(null);
   const peerConnectionsRef = useRef(new Map());
   const remoteVideosRef = useRef(new Map());
+  const remoteStreamsRef = useRef(new Map());
   const attachTokenRef = useRef(0);
   const [attachVersion, setAttachVersion] = useState(0);
 
@@ -172,6 +173,106 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const logSignal = (msg, data) => console.log(`[SIGNAL] ${msg}`, data);
   const logStream = (msg, data) => console.log(`[STREAM] ${msg}`, data);
   const logPeer = (msg, data) => console.log(`[PEER] ${msg}`, data);
+
+  const setRemoteVideoElement = (participantId, el) => {
+    try {
+      if (el) {
+        remoteVideosRef.current.set(participantId, el);
+
+        const existingStream = remoteStreamsRef.current.get(participantId);
+        if (!existingStream) return;
+
+        // Attempt to attach and play with a small retry/backoff loop.
+        // On some browsers autoplay with audio is blocked; temporarily muting
+        // the element for the play() attempt often allows playback to start.
+        let cancelled = false;
+
+        const tryAttach = async (attempt = 1) => {
+          if (cancelled) return;
+          console.debug('[attach] attempt', attempt, 'for', participantId);
+          try {
+            // Assign stream
+            try {
+              el.srcObject = existingStream;
+            } catch (srcErr) {
+              try { el.src = URL.createObjectURL(existingStream); } catch (e) {}
+            }
+
+            const prevMuted = el.muted;
+
+            try {
+              await el.play();
+              // restore muted state shortly after successful play
+              setTimeout(() => {
+                try { el.muted = prevMuted; } catch (e) {}
+              }, 300);
+              console.debug('[attach] success', participantId, 'attempt', attempt);
+              return;
+            } catch (playErr) {
+              console.debug('[attach] play failed', attempt, participantId, playErr);
+              // Try again with muted=true (may satisfy autoplay policy)
+              try {
+                el.muted = true;
+                await el.play();
+                setTimeout(() => {
+                  try { el.muted = prevMuted; } catch (e) {}
+                }, 300);
+                console.debug('[attach] success (muted) ', participantId, 'attempt', attempt);
+                return;
+              } catch (mutedErr) {
+                console.debug('[attach] muted play failed', attempt, participantId, mutedErr);
+                if (attempt < 3) {
+                  const backoff = attempt === 1 ? 200 : attempt === 2 ? 500 : 1000;
+                  setTimeout(() => tryAttach(attempt + 1), backoff);
+                } else {
+                  console.warn('[attach] failed to play after attempts for', participantId);
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('[attach] unexpected error attaching stream for', participantId, e);
+          }
+        };
+
+        tryAttach(1);
+
+        // return a small cleanup hook in case the element is removed quickly
+        // (we don't expose it here, but set a flag when element is removed)
+        const observer = new MutationObserver(() => {
+          if (!document.contains(el)) {
+            cancelled = true;
+            observer.disconnect();
+          }
+        });
+        try { observer.observe(document, { childList: true, subtree: true }); } catch (e) { observer.disconnect(); }
+      } else {
+        remoteVideosRef.current.delete(participantId);
+      }
+    } catch (e) {
+      console.warn('setRemoteVideoElement error', e);
+    }
+  };
+
+  // Reconcile stored remote streams with mounted video elements.
+  // This helps when layout changes or elements remount after a reflow.
+  useEffect(() => {
+    try {
+      remoteStreamsRef.current.forEach((stream, participantId) => {
+        const el = remoteVideosRef.current.get(participantId);
+        if (el && (!el.srcObject || el.srcObject !== stream)) {
+          console.debug('[reconcile] attaching stored stream to element', participantId);
+          try {
+            el.srcObject = stream;
+            el.play().catch(() => {});
+          } catch (e) {
+            try { el.src = URL.createObjectURL(stream); } catch (e2) {}
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('reconcile attach error', e);
+    }
+  }, [participants, layoutMode, attachVersion]);
 
   // Initialize media on component mount
   useEffect(() => {
@@ -585,9 +686,18 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
     peerConnection.ontrack = (event) => {
       const [remoteStream] = event.streams;
+      // Store stream so a later-mounted video element can attach to it.
+      remoteStreamsRef.current.set(participantId, remoteStream);
+      console.debug('[ontrack] received remote stream for', participantId, remoteStream);
       const videoElement = remoteVideosRef.current.get(participantId);
       if (videoElement) {
-        videoElement.srcObject = remoteStream;
+        console.debug('[ontrack] attaching stream to existing element', participantId);
+        try {
+          videoElement.srcObject = remoteStream;
+          videoElement.play().catch(() => {});
+        } catch (e) {
+          try { videoElement.src = URL.createObjectURL(remoteStream); } catch (e2) {}
+        }
       }
     };
 
@@ -863,12 +973,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               if (peerConnection.signalingState === 'stable') {
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
-                
+
                 if (socketRef.current?.readyState === WebSocket.OPEN) {
                   socketRef.current.send(JSON.stringify({
-                    type: "offer",
-                    offer: offer,
-                    target: participantId
+                    type: "webrtc_offer",
+                    target_participant_id: participantId,
+                    data: { offer }
                   }));
                 }
                 console.log(`Sent renegotiation offer to participant ${participantId} for audio track change`);
@@ -983,12 +1093,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             if (peerConnection.signalingState === 'stable') {
               const offer = await peerConnection.createOffer();
               await peerConnection.setLocalDescription(offer);
-              
+
               if (socketRef.current?.readyState === WebSocket.OPEN) {
                 socketRef.current.send(JSON.stringify({
-                  type: "offer",
-                  offer: offer,
-                  target: participantId
+                  type: "webrtc_offer",
+                  target_participant_id: participantId,
+                  data: { offer }
                 }));
               }
               console.log(`Sent renegotiation offer to participant ${participantId} for video track change`);
@@ -1020,12 +1130,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 if (peerConnection.signalingState === 'stable') {
                   const offer = await peerConnection.createOffer();
                   await peerConnection.setLocalDescription(offer);
-                  
+
                   if (socketRef.current?.readyState === WebSocket.OPEN) {
                     socketRef.current.send(JSON.stringify({
-                      type: "offer",
-                      offer: offer,
-                      target: participantId
+                      type: "webrtc_offer",
+                      target_participant_id: participantId,
+                      data: { offer }
                     }));
                   }
                   console.log(`Sent renegotiation offer to participant ${participantId} for video removal`);
@@ -1097,19 +1207,19 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               console.log(`Added screen share track for participant ${participantId}`);
             }
             
-            if (peerConnection.signalingState === 'stable') {
-              const offer = await peerConnection.createOffer();
-              await peerConnection.setLocalDescription(offer);
-              
-              if (socketRef.current?.readyState === WebSocket.OPEN) {
-                socketRef.current.send(JSON.stringify({
-                  type: "offer",
-                  offer: offer,
-                  target: participantId
-                }));
-              }
-              console.log(`Sent renegotiation offer to participant ${participantId} for screen share`);
-            }
+                if (peerConnection.signalingState === 'stable') {
+                  const offer = await peerConnection.createOffer();
+                  await peerConnection.setLocalDescription(offer);
+
+                  if (socketRef.current?.readyState === WebSocket.OPEN) {
+                    socketRef.current.send(JSON.stringify({
+                      type: "webrtc_offer",
+                      target_participant_id: participantId,
+                      data: { offer }
+                    }));
+                  }
+                  console.log(`Sent renegotiation offer to participant ${participantId} for screen share`);
+                }
           } catch (error) {
             console.error(`Error starting screen share for participant ${participantId}:`, error);
           }
@@ -1146,12 +1256,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                     if (peerConnection.signalingState === 'stable') {
                       const offer = await peerConnection.createOffer();
                       await peerConnection.setLocalDescription(offer);
-                      
+
                       if (socketRef.current?.readyState === WebSocket.OPEN) {
                         socketRef.current.send(JSON.stringify({
-                          type: "offer",
-                          offer: offer,
-                          target: participantId
+                          type: "webrtc_offer",
+                          target_participant_id: participantId,
+                          data: { offer }
                         }));
                       }
                       console.log(`Sent renegotiation offer to participant ${participantId} for camera switch`);
@@ -1181,12 +1291,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   if (peerConnection.signalingState === 'stable') {
                     const offer = await peerConnection.createOffer();
                     await peerConnection.setLocalDescription(offer);
-                    
+
                     if (socketRef.current?.readyState === WebSocket.OPEN) {
                       socketRef.current.send(JSON.stringify({
-                        type: "offer",
-                        offer: offer,
-                        target: participantId
+                        type: "webrtc_offer",
+                        target_participant_id: participantId,
+                        data: { offer }
                       }));
                     }
                     console.log(`Sent renegotiation offer to participant ${participantId} for video removal`);
@@ -1229,19 +1339,19 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 await videoSender.replaceTrack(cameraStream.getVideoTracks()[0]);
                 console.log(`Manual switch back to camera for participant ${participantId}`);
                 
-                if (peerConnection.signalingState === 'stable') {
-                  const offer = await peerConnection.createOffer();
-                  await peerConnection.setLocalDescription(offer);
-                  
-                  if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.send(JSON.stringify({
-                      type: "offer",
-                      offer: offer,
-                      target: participantId
-                    }));
+                  if (peerConnection.signalingState === 'stable') {
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+
+                    if (socketRef.current?.readyState === WebSocket.OPEN) {
+                      socketRef.current.send(JSON.stringify({
+                        type: "webrtc_offer",
+                        target_participant_id: participantId,
+                        data: { offer }
+                      }));
+                    }
+                    console.log(`Sent renegotiation offer to participant ${participantId} for manual camera switch`);
                   }
-                  console.log(`Sent renegotiation offer to participant ${participantId} for manual camera switch`);
-                }
               }
             } catch (error) {
               console.error(`Error manually switching back to camera for participant ${participantId}:`, error);
@@ -1261,19 +1371,19 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 await videoSender.replaceTrack(null);
                 console.log(`Manual video track removal for participant ${participantId}`);
                 
-                if (peerConnection.signalingState === 'stable') {
-                  const offer = await peerConnection.createOffer();
-                  await peerConnection.setLocalDescription(offer);
-                  
-                  if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.send(JSON.stringify({
-                      type: "offer",
-                      offer: offer,
-                      target: participantId
-                    }));
+                  if (peerConnection.signalingState === 'stable') {
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+
+                    if (socketRef.current?.readyState === WebSocket.OPEN) {
+                      socketRef.current.send(JSON.stringify({
+                        type: "webrtc_offer",
+                        target_participant_id: participantId,
+                        data: { offer }
+                      }));
+                    }
+                    console.log(`Sent renegotiation offer to participant ${participantId} for manual video removal`);
                   }
-                  console.log(`Sent renegotiation offer to participant ${participantId} for manual video removal`);
-                }
               }
             } catch (error) {
               console.error(`Error manually removing video track for participant ${participantId}:`, error);
@@ -1673,7 +1783,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                               if (pinned.user_id === userId) {
                                 localVideoRef.current = el;
                               } else {
-                                if (el) remoteVideosRef.current.set(pinned.id, el);
+                                setRemoteVideoElement(pinned.id, el);
                               }
                             }}
                             autoPlay
@@ -1702,7 +1812,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
                         {!participant.camera_off ? (
                           <video
-                            ref={participant.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
+                            ref={participant.self ? localVideoRef : el => { setRemoteVideoElement(participant.id, el); }}
                             autoPlay
                             muted={participant.self}
                             playsInline
@@ -1760,7 +1870,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                               if (speaker.user_id === userId) {
                                 localVideoRef.current = el;
                               } else {
-                                if (el) remoteVideosRef.current.set(speaker.id, el);
+                                setRemoteVideoElement(speaker.id, el);
                               }
                             }}
                             autoPlay
@@ -1789,7 +1899,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
                         {!participant.camera_off ? (
                           <video
-                            ref={participant.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(participant.id, el); }}
+                            ref={participant.self ? localVideoRef : el => { setRemoteVideoElement(participant.id, el); }}
                             autoPlay
                             muted={participant.self}
                             playsInline
@@ -1840,7 +1950,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ aspectRatio: '16/9', minHeight: tile.isScreen ? '180px' : '120px' }}>
                     {!tile.camera_off ? (
                       <video
-                        ref={tile.self ? localVideoRef : el => { if (el) remoteVideosRef.current.set(tile.id, el); }}
+                        ref={tile.self ? localVideoRef : el => { setRemoteVideoElement(tile.id, el); }}
                         autoPlay
                         muted={tile.self}
                         playsInline

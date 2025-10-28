@@ -264,17 +264,24 @@ async def study_group_websocket(websocket: WebSocket, group_id: str):
                     target_participant_id = msg.get("target_participant_id")
                     if target_participant_id:
                         # Find target websocket and forward the message
-                        for ws in rooms[room_key]:
-                            if student_info[room_key][ws]["id"] == target_participant_id:
+                            forwarded = False
+                            logger.info(f"WebSocket signaling incoming: {msg_type} from {participant_id} -> target {target_participant_id}")
+                            for ws in rooms[room_key]:
                                 try:
-                                    await ws.send_text(json.dumps({
-                                        "type": msg_type,
-                                        "from_participant_id": participant_id,
-                                        "data": msg.get("data", {})
-                                    }))
+                                    if student_info[room_key][ws]["id"] == target_participant_id:
+                                        await ws.send_text(json.dumps({
+                                            "type": msg_type,
+                                            "from_participant_id": participant_id,
+                                            "data": msg.get("data", {})
+                                        }))
+                                        forwarded = True
+                                        logger.info(f"Forwarded {msg_type} from {participant_id} to {target_participant_id}")
+                                        break
                                 except Exception as e:
-                                    logger.error(f"Failed to forward WebRTC message: {e}")
-                                break
+                                    logger.error(f"Failed to forward WebRTC message to {target_participant_id}: {e}")
+
+                            if not forwarded:
+                                logger.warning(f"Could not find target participant {target_participant_id} in room {room_key} for signaling message {msg_type}")
                 
                 elif msg_type == "hand_raise":
                     # Handle hand raising for asking questions
