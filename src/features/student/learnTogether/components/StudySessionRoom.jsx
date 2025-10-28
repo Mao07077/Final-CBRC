@@ -48,6 +48,57 @@ const SpeakingIndicator = ({ isActive, audioLevel = 0 }) => {
   );
 };
 
+// New Timer Display Component
+const TimerDisplay = ({ remainingSeconds }) => {
+  if (remainingSeconds === null) return null;
+
+  const totalSeconds = 60 * 60; // 1 hour
+  const progress = (remainingSeconds / totalSeconds) * 100; // percent remaining
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+
+  // color mapping (use hex to avoid dynamic Tailwind classname issues)
+  const color = remainingSeconds <= 300 ? '#ef4444' : remainingSeconds <= 600 ? '#f59e0b' : '#10b981';
+
+  const radius = 44;
+  const circumference = 2 * Math.PI * radius;
+  const dash = (progress / 100) * circumference;
+
+  return (
+    <div className="fixed top-4 right-4 z-50 flex items-center justify-center">
+      <div className="relative w-16 h-16">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle
+            strokeWidth="8"
+            stroke="#374151"
+            fill="transparent"
+            r={radius}
+            cx="50"
+            cy="50"
+          />
+          <circle
+            strokeWidth="8"
+            stroke={color}
+            strokeDasharray={`${dash} ${circumference}`}
+            strokeDashoffset="0"
+            strokeLinecap="round"
+            fill="transparent"
+            r={radius}
+            cx="50"
+            cy="50"
+            transform="rotate(-90 50 50)"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span style={{ color }} className="text-sm font-semibold">
+            {minutes}:{seconds.toString().padStart(2, '0')}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => {
   const { leaveSession } = useLearnTogetherStore();
   
@@ -70,6 +121,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const [participants, setParticipants] = useState([]);
   const [roomInfo, setRoomInfo] = useState(null);
   const [remainingSeconds, setRemainingSeconds] = useState(null);
+  const [sessionLogs, setSessionLogs] = useState([]);
+  const [showLogs, setShowLogs] = useState(false);
+  const [elapsedMap, setElapsedMap] = useState({});
 
   // Initialize participants with current user
   useEffect(() => {
@@ -464,6 +518,55 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       console.warn('Auto-end session error:', e);
     }
   }, [remainingSeconds, sessionInfo]);
+
+  // Fetch recent session logs for this group
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        if (!sessionInfo?.group?.id) return;
+        const response = await apiClient.get(`/api/study-groups/${sessionInfo.group.id}/session-logs`);
+        if (response.data && response.data.success) {
+          setSessionLogs(response.data.logs || []);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch session logs:', error);
+      }
+    };
+
+    fetchLogs();
+    const iv = setInterval(fetchLogs, 30 * 1000); // refresh logs every 30s
+    return () => clearInterval(iv);
+  }, [sessionInfo]);
+
+  // Update per-participant elapsed-in-call every second
+  useEffect(() => {
+    if (!participants || participants.length === 0) {
+      setElapsedMap({});
+      return;
+    }
+
+    const tick = () => {
+      const now = Date.now();
+      const next = {};
+      participants.forEach(p => {
+        try {
+          const joinedAt = p.joined_at ? Date.parse(p.joined_at) : null;
+          if (joinedAt && !Number.isNaN(joinedAt)) {
+            next[p.user_id] = Math.max(0, Math.floor((now - joinedAt) / 1000));
+          } else {
+            next[p.user_id] = null;
+          }
+        } catch (e) {
+          next[p.user_id] = null;
+        }
+      });
+      setElapsedMap(next);
+    };
+
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [participants]);
 
   // WebRTC functions
   const createPeerConnection = useCallback((participantId) => {
@@ -1330,6 +1433,22 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     });
   };
 
+  const formatDuration = (seconds) => {
+    if (typeof seconds !== 'number' || isNaN(seconds)) return '-';
+    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
+
+  const getElapsedClass = (seconds) => {
+    if (seconds == null) return 'text-gray-300';
+    // thresholds: >= 59m -> red, >= 55m -> orange, else green/neutral
+    if (seconds >= 59 * 60) return 'text-red-400';
+    if (seconds >= 55 * 60) return 'text-yellow-400';
+    return 'text-green-300';
+  };
+
   if (connectionStatus === "connecting") {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -1376,19 +1495,35 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           {remainingSeconds !== null && (
             <p className="text-xs text-yellow-300 mt-1">Time remaining: {new Date(remainingSeconds * 1000).toISOString().substr(11, 8)}</p>
           )}
+          {elapsedMap && elapsedMap[userId] != null && (
+            <p className={`mt-1 text-lg font-semibold ${getElapsedClass(elapsedMap[userId])}`}>You: {formatDuration(elapsedMap[userId])}</p>
+          )}
         </div>
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowLogs(v => !v)}
+            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
+          >
+            {showLogs ? 'Hide' : 'Show'} History
+          </button>
+
+          {remainingSeconds !== null && (
+            <div className={`px-3 py-1 rounded ${remainingSeconds <= 300 ? 'bg-red-600' : 'bg-blue-600'} text-white text-sm`}>
+              {new Date(remainingSeconds * 1000).toISOString().substr(11, 8)}
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5" />
             <span>{participants.length} participants</span>
           </div>
-          
+
           {mediaError && (
             <div className="text-red-400 text-sm max-w-xs">
               {mediaError}
             </div>
           )}
-          
+
           <button
             onClick={handleLeaveSession}
             className="px-4 py-2 bg-red-600 rounded-lg hover:bg-red-700 flex items-center gap-2"
@@ -1398,6 +1533,27 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           </button>
         </div>
       </div>
+
+      {/* Session history panel */}
+      {showLogs && (
+        <div className="absolute right-6 top-20 z-50 w-96 max-w-[90vw] bg-white text-gray-900 rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+          <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+            <div className="font-semibold">Session History</div>
+            <div className="text-xs text-gray-500">Recent</div>
+          </div>
+          <div className="p-3 max-h-64 overflow-y-auto">
+            {sessionLogs.length === 0 && (
+              <div className="text-sm text-gray-600">No recent sessions found.</div>
+            )}
+            {sessionLogs.map((log) => (
+              <div key={log._id || `${log.user_id}_${log.joined_at}`} className="mb-3 last:mb-0">
+                <div className="text-sm font-semibold">{log.user_name || log.user_id}</div>
+                <div className="text-xs text-gray-500">{formatTime(log.joined_at)} — {formatTime(log.left_at)} ({formatDuration(log.duration_seconds)})</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main content area */}
       <div className="flex-1 flex">
@@ -1562,13 +1718,16 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                           </div>
                         )}
                         <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
-                          <span>
-                            {participant.self ? 'You' : participant.name}
-                            {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                            {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
-                            {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
-                            {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
-                          </span>
+                          <div className="flex flex-col">
+                            <span>
+                              {participant.self ? 'You' : participant.name}
+                              {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
+                              {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                              {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
+                              {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
+                            </span>
+                            <span className={`text-xs ${getElapsedClass(elapsedMap && elapsedMap[participant.user_id] != null ? elapsedMap[participant.user_id] : null)}`}>{elapsedMap && elapsedMap[participant.user_id] != null ? formatDuration(elapsedMap[participant.user_id]) : ''}</span>
+                          </div>
                           {!participant.muted && (
                             <SpeakingIndicator 
                               isActive={speakingParticipants.has(participant.user_id)} 
@@ -1646,13 +1805,16 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                           </div>
                         )}
                         <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
-                          <span>
-                            {participant.self ? 'You' : participant.name}
-                            {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                            {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
-                            {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
-                            {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
-                          </span>
+                          <div className="flex flex-col">
+                            <span>
+                              {participant.self ? 'You' : participant.name}
+                              {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
+                              {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                              {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
+                              {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
+                            </span>
+                            <span className={`text-xs ${getElapsedClass(elapsedMap && elapsedMap[participant.user_id] != null ? elapsedMap[participant.user_id] : null)}`}>{elapsedMap && elapsedMap[participant.user_id] != null ? formatDuration(elapsedMap[participant.user_id]) : ''}</span>
+                          </div>
                           {!participant.muted && (
                             <SpeakingIndicator 
                               isActive={speakingParticipants.has(participant.user_id)} 
@@ -1713,13 +1875,16 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                       </div>
                     )}
                     <div className={`absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2 ${tile.self ? 'text-sm' : ''}`}>
-                      <span>
-                        {tile.self ? 'You' : tile.name}
-                        {tile.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                        {!tile.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
-                        {tile.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
-                        {tile.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
-                      </span>
+                      <div className="flex flex-col">
+                        <span>
+                          {tile.self ? 'You' : tile.name}
+                          {tile.muted && <span className="text-red-400 ml-1">(Muted)</span>}
+                          {!tile.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                          {tile.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
+                          {tile.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
+                        </span>
+                        <span className="text-xs text-gray-300">{elapsedMap && elapsedMap[tile.user_id] != null ? formatDuration(elapsedMap[tile.user_id]) : ''}</span>
+                      </div>
                       {!tile.muted && !tile.isScreen && (
                         <SpeakingIndicator 
                           isActive={speakingParticipants.has(tile.user_id)} 
@@ -1792,6 +1957,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
       {/* Bottom controls */}
       <div className="bg-gray-800 p-4 flex flex-wrap justify-center items-center gap-3 sm:gap-4 w-full">
+        {/* Local elapsed pill (always visible) */}
+        <div className="absolute left-4 bottom-6 z-50">
+          <div className={`px-3 py-1 rounded-full bg-black bg-opacity-60 text-white text-sm font-medium ${getElapsedClass(elapsedMap && elapsedMap[userId] != null ? elapsedMap[userId] : null)}`}>
+            In call: {elapsedMap && elapsedMap[userId] != null ? formatDuration(elapsedMap[userId]) : '—'}
+          </div>
+        </div>
         <button
           onClick={toggleMute}
           className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${isMuted ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'}`}

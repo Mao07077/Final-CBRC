@@ -863,3 +863,51 @@ def get_groups_status():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
+
+
+@router.get("/api/study-groups/{group_id}/session-logs")
+def get_session_logs(group_id: str, limit: int = 20):
+    """Return recent session logs for a group (most recent first)"""
+    try:
+        # Ensure group exists
+        group = study_groups_collection.find_one({"_id": ObjectId(group_id)})
+        if not group:
+            raise HTTPException(status_code=404, detail="Study group not found")
+
+        # session_logs stores group_id as string
+        logs_cursor = session_logs_collection.find({"group_id": str(group_id)}).sort("left_at", -1).limit(int(limit))
+        logs = []
+        for log in logs_cursor:
+            entry = {
+                "id": str(log.get("_id")),
+                "user_id": log.get("user_id"),
+                "joined_at": log.get("joined_at"),
+                "left_at": log.get("left_at"),
+                "duration_seconds": log.get("duration_seconds")
+            }
+            # Try to resolve user name from users_collection
+            try:
+                user = users_collection.find_one({"id_number": entry["user_id"]})
+                if user:
+                    entry["user_name"] = f"{user.get('firstname', '')} {user.get('lastname', '')}".strip()
+                else:
+                    entry["user_name"] = entry["user_id"]
+            except Exception:
+                entry["user_name"] = entry["user_id"]
+
+            # Ensure datetimes are serializable (convert to isoformat strings)
+            try:
+                if entry["joined_at"]:
+                    entry["joined_at"] = entry["joined_at"].isoformat()
+                if entry["left_at"]:
+                    entry["left_at"] = entry["left_at"].isoformat()
+            except Exception:
+                pass
+
+            logs.append(entry)
+
+        return {"success": True, "logs": logs}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch session logs: {str(e)}")
