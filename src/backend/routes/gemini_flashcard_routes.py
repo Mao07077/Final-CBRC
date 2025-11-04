@@ -5,7 +5,8 @@ from fastapi import APIRouter, HTTPException, Request
 from datetime import datetime
 
 # DB collections
-from database import flashcards_collection, db
+from database import flashcards_collection, db, modules_collection
+from bson import ObjectId
 from config import logger
 
 router = APIRouter()
@@ -103,12 +104,24 @@ async def generate_flashcards(request: Request):
                     res = flashcards_collection.insert_one(doc)
                     inserted_ids.append(str(res.inserted_id))
 
-                # write a generation audit record
+                # write a generation audit record; try to fill module title/topic if module_id provided
                 try:
+                    module_title = None
+                    module_topic = None
+                    if module_id:
+                        try:
+                            mod = modules_collection.find_one({"_id": ObjectId(module_id)})
+                            if mod:
+                                module_title = mod.get("title")
+                                module_topic = mod.get("topic")
+                        except Exception:
+                            # leave title/topic as None if lookup fails (invalid id format or not found)
+                            pass
+
                     gen_log = {
                         "module_id": module_id,
-                        "module_title": None,
-                        "module_topic": None,
+                        "module_title": module_title,
+                        "module_topic": module_topic,
                         "generated_by": generated_by,
                         "generated_count": len(inserted_ids),
                         "inserted_ids": inserted_ids,
