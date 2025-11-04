@@ -2,6 +2,11 @@ import os
 import requests
 import re
 from fastapi import APIRouter, HTTPException, Request
+from datetime import datetime
+
+# DB collections
+from database import flashcards_collection, db
+from config import logger
 
 router = APIRouter()
 
@@ -21,9 +26,21 @@ def parse_flashcards(text: str):
 
 @router.post("/generate-flashcards")
 async def generate_flashcards(request: Request):
+    """
+    Generate flashcards using Groq/Gemini endpoint and persist them when requested.
+    Optional JSON body fields:
+      - text: source text
+      - num: number of cards
+      - module_id: (optional) module id to associate with generated cards
+      - generated_by: (optional) id_number of the user who requested generation
+    Returns generated flashcards and inserted_ids when persisted.
+    """
     data = await request.json()
     text = data.get("text")
     num = data.get("num", 3)
+    module_id = data.get("module_id")
+    generated_by = data.get("generated_by")
+
     api_key = os.getenv("GROQ_API_KEY")
 
     if not api_key:
@@ -57,8 +74,8 @@ async def generate_flashcards(request: Request):
             timeout=60
         )
 
-        print("[Groq API] Status:", response.status_code)
-        print("[Groq API] Response:", response.text)
+        logger.info("[Groq API] Status: %s", response.status_code)
+        logger.debug("[Groq API] Response: %s", response.text)
         response.raise_for_status()
 
         result = response.json()
@@ -68,12 +85,47 @@ async def generate_flashcards(request: Request):
 
         raw_text = choices[0]["message"]["content"]
         flashcards = parse_flashcards(raw_text)
-        return {"flashcards": flashcards}
+
+        # If the caller provided module_id or generated_by, persist the generated flashcards
+        inserted_ids = []
+        if flashcards:
+            now = datetime.utcnow()
+            try:
+                for fc in flashcards:
+                    doc = {
+                        "module_id": module_id,
+                        "question": fc.get("question"),
+                        "answer": fc.get("answer"),
+                        "created_at": now,
+                        "source": "generated_via_gemini",
+                        "generated_by": generated_by
+                    }
+                    res = flashcards_collection.insert_one(doc)
+                    inserted_ids.append(str(res.inserted_id))
+
+                # write a generation audit record
+                try:
+                    gen_log = {
+                        "module_id": module_id,
+                        "module_title": None,
+                        "module_topic": None,
+                        "generated_by": generated_by,
+                        "generated_count": len(inserted_ids),
+                        "inserted_ids": inserted_ids,
+                        "timestamp": now
+                    }
+                    db["flashcard_generation_logs"].insert_one(gen_log)
+                except Exception as e:
+                    logger.error("Failed to write flashcard_generation_logs: %s", e)
+            except Exception as e:
+                logger.error("Failed to persist Gemini-generated flashcards: %s", e)
+
+        return {"flashcards": flashcards, "inserted_ids": inserted_ids}
 
     except requests.exceptions.HTTPError as http_err:
-        print("[Groq API] HTTP error:", str(http_err))
-        print("[Groq API] Response:", getattr(response, 'text', 'No response'))
+        logger.error("[Groq API] HTTP error: %s", str(http_err))
+        logger.error("[Groq API] Response: %s", getattr(response, 'text', 'No response'))
         raise HTTPException(status_code=response.status_code, detail="Groq API error: " + str(http_err))
     except Exception as e:
-        print("[Groq API] Exception:", str(e))
+        logger.error("[Groq API] Exception: %s", str(e))
         raise HTTPException(status_code=500, detail="Unexpected error: " + str(e))

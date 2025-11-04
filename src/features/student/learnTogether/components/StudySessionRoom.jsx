@@ -112,8 +112,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   
   // Local media state
   const [isMuted, setIsMuted] = useState(true);
-  // Force camera to be on by default; disable camera-off logic for now
-  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [mediaError, setMediaError] = useState(null);
@@ -279,9 +278,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   useEffect(() => {
     const initializeMedia = async () => {
       try {
-        // Always request camera+audio so local camera remains on
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: false,
           audio: true
         });
         
@@ -294,7 +292,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         
         setupAudioLevelMonitoring(stream);
         
-  console.log("Media permissions granted (camera+audio)");
+        console.log("Media permissions granted");
         console.log("Initial stream - Audio tracks:", stream.getAudioTracks().length, "Video tracks:", stream.getVideoTracks().length);
         setMediaError(null);
       } catch (error) {
@@ -336,7 +334,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     const stream = localStreamRef.current;
     const currentToken = attachTokenRef.current;
 
-    if (!el || !stream) return;
+    if (!el || !stream || isCameraOff) return;
 
     let cancelled = false;
 
@@ -489,7 +487,6 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           camera_off: isCameraOff,
           is_screen_sharing: isScreenSharing
         };
-        // Respect server-provided participant state for others (do not forcibly override camera_off)
         const otherParticipants = data.participants.filter(p => p.user_id !== userId);
         const allParticipants = [currentUser, ...otherParticipants];
         
@@ -1040,37 +1037,63 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   }, [isMuted, isCameraOff]);
 
   const toggleCamera = useCallback(async () => {
-    // Toggle camera: if currently on, turn it off; if off, request camera and turn on.
-    const newCameraOff = !isCameraOff;
+    const newCameraState = !isCameraOff;
+    
     try {
-      if (newCameraOff) {
-        // Turn camera OFF: stop video tracks locally and tell peers to stop receiving.
-        setIsCameraOff(true);
-
-        try {
-          if (localStreamRef.current) {
-            const videoTracks = localStreamRef.current.getVideoTracks();
-            videoTracks.forEach(track => {
-              try { track.stop(); } catch (e) {}
-              try { localStreamRef.current.removeTrack(track); } catch (e) {}
-            });
-          }
-        } catch (e) {
-          console.warn('Error stopping local video tracks:', e);
+      if (isCameraOff) {
+        console.log("Turning camera on...");
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: true, 
+          audio: true
+        });
+        
+        console.log("Got video stream:", stream.getVideoTracks().length > 0);
+        console.log("Got audio stream:", stream.getAudioTracks().length > 0);
+        
+        const audioTrack = stream.getAudioTracks()[0];
+        if (audioTrack) {
+          audioTrack.enabled = !isMuted;
+          console.log("Set audio track enabled to:", !isMuted);
+        }
+        
+        if (localStreamRef.current) {
+          console.log('[DEBUG] toggleCamera: stopping existing local tracks before assign');
+          localStreamRef.current.getTracks().forEach(track => track.stop());
         }
 
-        // Replace outgoing video tracks with null on each peer (stop sending video)
+        // Assign the new stream to the localStreamRef and let the centralized
+        // attachment effect handle DOM assignment/play. Bump the attach token
+        // so any stale attach attempts are ignored.
+        localStreamRef.current = stream;
+        attachTokenRef.current += 1;
+        setAttachVersion(v => v + 1);
+        console.log('[DEBUG] toggleCamera: new stream assigned, attachVersion bumped', attachTokenRef.current);
+
         peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
           try {
             const senders = peerConnection.getSenders();
-            const videoSender = senders.find(s => s.track?.kind === 'video');
+            const videoSender = senders.find(sender => sender.track?.kind === 'video');
             if (videoSender) {
-              try { await videoSender.replaceTrack(null); } catch (e) { console.warn('replaceTrack(null) failed', e); }
+              await videoSender.replaceTrack(stream.getVideoTracks()[0]);
+              console.log(`Replaced video track for participant ${participantId}`);
+            } else {
+              peerConnection.addTrack(stream.getVideoTracks()[0], stream);
+              console.log(`Added video track for participant ${participantId}`);
             }
-
+            
+            const audioSender = senders.find(sender => sender.track?.kind === 'audio');
+            if (audioSender) {
+              await audioSender.replaceTrack(stream.getAudioTracks()[0]);
+              console.log(`Replaced audio track for participant ${participantId}`);
+            } else {
+              peerConnection.addTrack(stream.getAudioTracks()[0], stream);
+              console.log(`Added audio track for participant ${participantId}`);
+            }
+            
             if (peerConnection.signalingState === 'stable') {
               const offer = await peerConnection.createOffer();
               await peerConnection.setLocalDescription(offer);
+
               if (socketRef.current?.readyState === WebSocket.OPEN) {
                 socketRef.current.send(JSON.stringify({
                   type: "webrtc_offer",
@@ -1078,89 +1101,88 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   data: { offer }
                 }));
               }
+              console.log(`Sent renegotiation offer to participant ${participantId} for video track change`);
             }
           } catch (error) {
-            console.warn('Error disabling video for peer', participantId, error);
+            console.error(`Error updating video track for participant ${participantId}:`, error);
           }
         });
-
-        if (localVideoRef.current) {
-          try { localVideoRef.current.srcObject = null; } catch (e) {}
-        }
+        
+        setIsCameraOff(false);
+        console.log("Camera turned on successfully");
       } else {
-        // Turn camera ON: request video and add/replace tracks for peers
-        let newVideoTrack = null;
-        try {
-          const camStream = await navigator.mediaDevices.getUserMedia({ video: true });
-          newVideoTrack = camStream.getVideoTracks()[0];
+        console.log("Turning camera off...");
+        if (localStreamRef.current) {
+          console.log('[DEBUG] toggleCamera: stopping local video tracks');
+          const videoTracks = localStreamRef.current.getVideoTracks();
+          videoTracks.forEach(track => {
+            track.stop();
+          });
 
-          if (!localStreamRef.current) {
-            localStreamRef.current = new MediaStream();
-          }
-
-          try {
-            // Add the new video track to our local stream so attach effect can pick it up
-            localStreamRef.current.addTrack(newVideoTrack);
-          } catch (e) {
-            console.warn('Failed to add video track to existing local stream, replacing stream', e);
-            localStreamRef.current = camStream;
-          }
-
-          // Update outgoing senders
           peerConnectionsRef.current.forEach(async (peerConnection, participantId) => {
             try {
               const senders = peerConnection.getSenders();
-              const videoSender = senders.find(s => s.track?.kind === 'video');
+              const videoSender = senders.find(sender => sender.track?.kind === 'video');
               if (videoSender) {
-                await videoSender.replaceTrack(newVideoTrack);
-              } else {
-                peerConnection.addTrack(newVideoTrack, localStreamRef.current);
-              }
+                await videoSender.replaceTrack(null);
+                console.log(`Removed video track for participant ${participantId}`);
+                
+                if (peerConnection.signalingState === 'stable') {
+                  const offer = await peerConnection.createOffer();
+                  await peerConnection.setLocalDescription(offer);
 
-              if (peerConnection.signalingState === 'stable') {
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                if (socketRef.current?.readyState === WebSocket.OPEN) {
-                  socketRef.current.send(JSON.stringify({
-                    type: "webrtc_offer",
-                    target_participant_id: participantId,
-                    data: { offer }
-                  }));
+                  if (socketRef.current?.readyState === WebSocket.OPEN) {
+                    socketRef.current.send(JSON.stringify({
+                      type: "webrtc_offer",
+                      target_participant_id: participantId,
+                      data: { offer }
+                    }));
+                  }
+                  console.log(`Sent renegotiation offer to participant ${participantId} for video removal`);
                 }
               }
             } catch (error) {
-              console.warn('Error enabling video for peer', participantId, error);
+              console.error(`Error removing video track for participant ${participantId}:`, error);
             }
           });
-
-          // Trigger local attach/reconcile
-          attachTokenRef.current += 1;
-          setAttachVersion(v => v + 1);
-          setIsCameraOff(false);
-        } catch (err) {
-          console.error('Failed to acquire camera when turning on:', err);
-          setMediaError('Unable to access camera. Please check permissions.');
-          // keep state as off if we failed to get the camera
-          setIsCameraOff(true);
         }
+        
+        if (localVideoRef.current) {
+          console.log('[DEBUG] toggleCamera: clearing localVideoRef.srcObject');
+          try { localVideoRef.current.srcObject = null; } catch(e) { localVideoRef.current.src = ''; }
+        }
+        setIsCameraOff(true);
+        console.log("Camera turned off successfully");
       }
-
-      // Notify server and update participants list
+      
       if (socketRef.current?.readyState === WebSocket.OPEN) {
         socketRef.current.send(JSON.stringify({
           type: "status_update",
           from_user_id: userId,
           muted: isMuted,
-          camera_off: newCameraOff,
+          camera_off: newCameraState,
           is_screen_sharing: isScreenSharing
         }));
       }
-
-      setParticipants(prev => prev.map(participant => participant.user_id === userId ? { ...participant, camera_off: newCameraOff } : participant));
+      
+      setParticipants(prev => prev.map(participant => {
+        if (participant.user_id === userId) {
+          return {
+            ...participant,
+            muted: isMuted,
+            camera_off: newCameraState,
+            is_screen_sharing: isScreenSharing
+          };
+        }
+        return participant;
+      }));
+      
+      setMediaError(null);
     } catch (error) {
-      console.error('toggleCamera error:', error);
+      console.error("Camera toggle error:", error);
+      setMediaError("Failed to access camera. Please check permissions and ensure your camera isn't being used by another application.");
     }
-  }, [isMuted, isScreenSharing, userId, isCameraOff]);
+  }, [isCameraOff, isMuted]);
 
   const toggleScreenShare = useCallback(async () => {
     try {
@@ -1755,6 +1777,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div className="flex-shrink-0 w-full md:w-[480px]">
                     {pinned && (
                       <div key={pinned.id} className="relative bg-blue-900 rounded-lg overflow-hidden border-4 border-blue-400 aspect-video min-h-[180px] w-full">
+                        {!pinned.camera_off ? (
                           <video
                             ref={el => {
                               if (pinned.user_id === userId) {
@@ -1769,12 +1792,14 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                             className="w-full h-full object-cover"
                             style={{ minHeight: '180px' }}
                           />
-                            {(pinned.user_id === userId ? isCameraOff : pinned.camera_off) && (
-                              <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center text-white text-sm font-semibold z-20">
-                                <VideoOff className="w-6 h-6 mr-2" />
-                                <span>Camera Off</span>
-                              </div>
-                            )}
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                            <div className="text-center">
+                              <VideoOff className="w-12 h-12 mx-auto mb-2" />
+                              <p className="text-base">{pinned.name}</p>
+                            </div>
+                          </div>
+                        )}
                         <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
                           <span>Pinned</span>
                           {pinned.user_id === userId && <span className="ml-2">(You)</span>}
@@ -1785,6 +1810,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
                     {others.map(participant => (
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
+                        {!participant.camera_off ? (
                           <video
                             ref={participant.self ? localVideoRef : el => { setRemoteVideoElement(participant.id, el); }}
                             autoPlay
@@ -1793,18 +1819,20 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                             className="w-full h-full object-cover"
                             style={{ minHeight: '80px' }}
                           />
-                          {(participant.self ? isCameraOff : participant.camera_off) && (
-                            <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center text-white text-sm font-semibold z-20">
-                              <VideoOff className="w-6 h-6 mr-2" />
-                              <span>Camera Off</span>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                            <div className="text-center">
+                              <VideoOff className="w-8 h-8 mx-auto mb-2" />
+                              <p className="text-xs">{participant.self ? 'You' : participant.name}</p>
                             </div>
-                          )}
+                          </div>
+                        )}
                         <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
                           <div className="flex flex-col">
                             <span>
                               {participant.self ? 'You' : participant.name}
                               {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                              <span className="text-green-400 ml-1">(Camera On)</span>
+                              {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
                               {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                               {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                             </span>
@@ -1825,39 +1853,18 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             }
 
             if (layoutMode === "speaker") {
-              // Choose the speaker to focus:
-              // 1) If a participant is pinned, prefer the pinned participant
-              // 2) Else prefer the first currently-speaking participant
-              // 3) Else fall back to a sensible default (first non-screen-sharing participant, or self)
-              let speaker = null;
-
-              // If a pinned participant id exists and matches a participant, use that
-              if (pinnedParticipantId) {
-                speaker = participants.find(p => p.id === pinnedParticipantId) || null;
-              }
-
-              // If no pinned participant, prefer an active speaker (from speakingParticipants set)
-              if (!speaker && speakingParticipants && speakingParticipants.size > 0) {
-                const firstSpeakerUserId = Array.from(speakingParticipants)[0];
-                speaker = participants.find(p => p.user_id === firstSpeakerUserId) || null;
-              }
-
-              // Fallback: first participant who is not screen-sharing, else the first participant, else self
-              if (!speaker) {
-                speaker = participants.find(p => !p.is_screen_sharing) || participants[0] || { id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true };
-              }
-
-              // Build the 'others' list: all participants except the speaker
+              const speakerId = Array.from(speakingParticipants)[0];
+              const speaker = participants.find(p => p.user_id === speakerId);
               const others = [
-                ...participants.filter(p => p.id !== speaker.id),
-                // Ensure local self is included if not already present
-                ...((!participants.some(p => p.user_id === userId) && speaker.user_id !== userId) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
+                ...participants.filter(p => p.user_id !== speakerId),
+                ...((!participants.some(p => p.user_id === userId) && speakerId !== userId) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
               ];
               return (
                 <div className="flex w-full gap-4 flex-col md:flex-row">
                   <div className="flex-shrink-0 w-full md:w-[480px]">
                     {speaker && (
                       <div key={speaker.id} className="relative bg-green-900 rounded-lg overflow-hidden border-4 border-green-400 aspect-video min-h-[180px] w-full">
+                        {!speaker.camera_off ? (
                           <video
                             ref={el => {
                               if (speaker.user_id === userId) {
@@ -1872,12 +1879,14 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                             className="w-full h-full object-cover"
                             style={{ minHeight: '180px' }}
                           />
-                          {(speaker.user_id === userId ? isCameraOff : speaker.camera_off) && (
-                            <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center text-white text-sm font-semibold z-20">
-                              <VideoOff className="w-6 h-6 mr-2" />
-                              <span>Camera Off</span>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                            <div className="text-center">
+                              <VideoOff className="w-12 h-12 mx-auto mb-2" />
+                              <p className="text-base">{speaker.name}</p>
                             </div>
-                          )}
+                          </div>
+                        )}
                         <div className="absolute top-2 left-2 bg-green-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
                           <span>Speaking</span>
                           {speaker.user_id === userId && <span className="ml-2">(You)</span>}
@@ -1888,6 +1897,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
                     {others.map(participant => (
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
+                        {!participant.camera_off ? (
                           <video
                             ref={participant.self ? localVideoRef : el => { setRemoteVideoElement(participant.id, el); }}
                             autoPlay
@@ -1896,12 +1906,20 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                             className="w-full h-full object-cover"
                             style={{ minHeight: '80px' }}
                           />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                            <div className="text-center">
+                              <VideoOff className="w-8 h-8 mx-auto mb-2" />
+                              <p className="text-xs">{participant.self ? 'You' : participant.name}</p>
+                            </div>
+                          </div>
+                        )}
                         <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
                           <div className="flex flex-col">
                             <span>
                               {participant.self ? 'You' : participant.name}
                               {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                              <span className="text-green-400 ml-1">(Camera On)</span>
+                              {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
                               {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                               {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                             </span>
@@ -1930,18 +1948,21 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               <div className="grid gap-3 justify-center items-start w-full" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(220px, 1fr))` }}>
                 {allTiles.map(tile => (
                   <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ aspectRatio: '16/9', minHeight: tile.isScreen ? '180px' : '120px' }}>
-                          <video
-                            ref={tile.self ? localVideoRef : el => { setRemoteVideoElement(tile.id, el); }}
-                            autoPlay
-                            muted={tile.self}
-                            playsInline
-                            className="w-full h-full object-cover"
-                            style={{ minHeight: tile.isScreen ? '180px' : '120px' }}
-                          />
-                    {(!tile.isScreen && (tile.self ? isCameraOff : tile.camera_off)) && (
-                      <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center text-white text-sm font-semibold z-20">
-                        <VideoOff className="w-6 h-6 mr-2" />
-                        <span>Camera Off</span>
+                    {!tile.camera_off ? (
+                      <video
+                        ref={tile.self ? localVideoRef : el => { setRemoteVideoElement(tile.id, el); }}
+                        autoPlay
+                        muted={tile.self}
+                        playsInline
+                        className="w-full h-full object-cover"
+                        style={{ minHeight: tile.isScreen ? '180px' : '120px' }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                        <div className="text-center">
+                          <VideoOff className={tile.isScreen ? "w-12 h-12 mx-auto mb-2" : "w-8 h-8 mx-auto mb-2"} />
+                          <p className={tile.isScreen ? "text-base" : "text-xs"}>{tile.name}</p>
+                        </div>
                       </div>
                     )}
                     {tile.isScreen && (
