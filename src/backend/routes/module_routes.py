@@ -1,8 +1,9 @@
 
 from fastapi import APIRouter, HTTPException, Query, Form, File, UploadFile
-from database import modules_collection, post_test_collection
+from database import modules_collection, post_test_collection, flashcards_collection, db
 from bson import ObjectId
 from config import logger
+from datetime import datetime
 import os
 from typing import Optional
 import re
@@ -19,7 +20,7 @@ except Exception as e:
 router = APIRouter()
 
 @router.post("/api/generate-flashcards/{module_id}")
-def generate_flashcards_post(module_id: str, num_cards: int = 5):
+def generate_flashcards_post(module_id: str, num_cards: int = 5, generated_by: str = None):
     try:
         if not ObjectId.is_valid(module_id):
             logger.error(f"Invalid module ID format: {module_id}")
@@ -72,7 +73,42 @@ def generate_flashcards_post(module_id: str, num_cards: int = 5):
         flashcards = flashcards[:num_cards]
         if not flashcards:
             flashcards = [{"question": "No content available in PDF.", "answer": "No content available in PDF."}]
-        return {"flashcards": flashcards}
+
+        # Persist generated flashcards into the flashcards collection for monitoring/usage
+        try:
+            inserted_ids = []
+            now = datetime.utcnow()
+            for fc in flashcards:
+                doc = {
+                    "module_id": module_id,
+                    "question": fc.get("question"),
+                    "answer": fc.get("answer"),
+                    "created_at": now,
+                    "source": "generated_via_endpoint",
+                    "generated_by": generated_by
+                }
+                res = flashcards_collection.insert_one(doc)
+                inserted_ids.append(str(res.inserted_id))
+
+            # Write an audit/log entry for monitoring
+            try:
+                gen_log = {
+                    "module_id": module_id,
+                    "module_title": module.get("title"),
+                    "module_topic": module.get("topic"),
+                    "generated_by": generated_by,
+                    "generated_count": len(inserted_ids),
+                    "inserted_ids": inserted_ids,
+                    "timestamp": now
+                }
+                db["flashcard_generation_logs"].insert_one(gen_log)
+            except Exception as e:
+                logger.error(f"Failed to write flashcard generation log: {e}")
+
+        except Exception as e:
+            logger.error(f"Failed to persist generated flashcards: {e}")
+
+        return {"flashcards": flashcards, "inserted_ids": inserted_ids}
     except Exception as e:
         logger.error(f"Error in generate_flashcards_post: {e}")
         raise HTTPException(status_code=500, detail=f"Flashcard generation failed: {str(e)}")
