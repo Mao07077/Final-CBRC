@@ -112,7 +112,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   
   // Local media state
   const [isMuted, setIsMuted] = useState(true);
-  const [isCameraOff, setIsCameraOff] = useState(true);
+  // Camera is enabled by default; remove ability to turn it off from the UI
+  const [isCameraOff, setIsCameraOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [mediaError, setMediaError] = useState(null);
@@ -253,6 +254,75 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     }
   };
 
+  // Helper: determine whether a participant currently has an active video track
+  const isVideoActiveForParticipant = (p) => {
+    try {
+      if (!p) return false;
+      if (p.self) {
+        const s = localStreamRef.current;
+        if (!s) return false;
+        const vtracks = s.getVideoTracks ? s.getVideoTracks() : [];
+        return vtracks.length > 0 && vtracks.some(t => t && t.readyState !== 'ended');
+      } else {
+        const s = remoteStreamsRef.current.get(p.id);
+        if (!s) return false;
+        const vtracks = s.getVideoTracks ? s.getVideoTracks() : [];
+        return vtracks.length > 0;
+      }
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // Camera overlay state: map participantId -> boolean (true = show "camera off" overlay)
+  const [cameraOverlay, setCameraOverlay] = useState({});
+  const overlayTimersRef = useRef(new Map());
+
+  // Periodically reconcile stream presence with overlay state to debounce transient losses
+  useEffect(() => {
+    const interval = setInterval(() => {
+      try {
+        participants.forEach(p => {
+          if (!p || !p.id) return;
+          const active = isVideoActiveForParticipant(p);
+          const currentlyOverlay = !!cameraOverlay[p.id];
+          if (active) {
+            // If video active, ensure overlay is cleared and cancel any pending timer
+            if (currentlyOverlay) {
+              setCameraOverlay(prev => {
+                const copy = { ...prev };
+                delete copy[p.id];
+                return copy;
+              });
+            }
+            const t = overlayTimersRef.current.get(p.id);
+            if (t) {
+              clearTimeout(t);
+              overlayTimersRef.current.delete(p.id);
+            }
+          } else {
+            // Not active: schedule overlay after short grace period if not already scheduled/shown
+            if (!currentlyOverlay && !overlayTimersRef.current.has(p.id)) {
+              const timer = setTimeout(() => {
+                setCameraOverlay(prev => ({ ...prev, [p.id]: true }));
+                overlayTimersRef.current.delete(p.id);
+              }, 1500); // 1.5s debounce to avoid flicker
+              overlayTimersRef.current.set(p.id, timer);
+            }
+          }
+        });
+      } catch (e) {
+        // ignore
+      }
+    }, 500);
+
+    return () => {
+      clearInterval(interval);
+      overlayTimersRef.current.forEach(t => clearTimeout(t));
+      overlayTimersRef.current.clear();
+    };
+  }, [participants, isVideoActiveForParticipant, cameraOverlay]);
+
   // Reconcile stored remote streams with mounted video elements.
   // This helps when layout changes or elements remount after a reflow.
   useEffect(() => {
@@ -278,8 +348,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   useEffect(() => {
     const initializeMedia = async () => {
       try {
+        // Always request camera + microphone so camera cannot be turned off
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: false,
+          video: true,
           audio: true
         });
         
@@ -1551,6 +1622,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     return `${h}:${m}:${s}`;
   };
 
+  // local video active flag (stream-aware)
+  const localVideoActive = isVideoActiveForParticipant({ id: `user_${userId}`, self: true });
+
   const getElapsedClass = (seconds) => {
     if (seconds == null) return 'text-gray-300';
     // thresholds: >= 59m -> red, >= 55m -> orange, else green/neutral
@@ -1777,7 +1851,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div className="flex-shrink-0 w-full md:w-[480px]">
                     {pinned && (
                       <div key={pinned.id} className="relative bg-blue-900 rounded-lg overflow-hidden border-4 border-blue-400 aspect-video min-h-[180px] w-full">
-                        {!pinned.camera_off ? (
+                        {!cameraOverlay[pinned.id] ? (
                           <video
                             ref={el => {
                               if (pinned.user_id === userId) {
@@ -1810,7 +1884,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
                     {others.map(participant => (
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
-                        {!participant.camera_off ? (
+                        {!cameraOverlay[participant.id] ? (
                           <video
                             ref={participant.self ? localVideoRef : el => { setRemoteVideoElement(participant.id, el); }}
                             autoPlay
@@ -1832,7 +1906,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                             <span>
                               {participant.self ? 'You' : participant.name}
                               {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                              {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                              {!cameraOverlay[participant.id] && <span className="text-green-400 ml-1">(Camera On)</span>}
                               {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                               {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                             </span>
@@ -1854,7 +1928,24 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
             if (layoutMode === "speaker") {
               const speakerId = Array.from(speakingParticipants)[0];
-              const speaker = participants.find(p => p.user_id === speakerId);
+              let speaker = participants.find(p => p.user_id === speakerId);
+              // If the speaker is the local user but not present in participants list,
+              // construct a lightweight speaker object so the UI still renders the local video element.
+              if (!speaker && speakerId === userId) {
+                speaker = {
+                  id: `user_${userId}`,
+                  user_id: userId,
+                  name: userName,
+                  muted: isMuted,
+                  camera_off: isCameraOff,
+                  is_screen_sharing: isScreenSharing,
+                  hand_raised: handRaised,
+                  self: true
+                };
+                // Ensure local video attach attempt runs
+                attachTokenRef.current += 1;
+                setAttachVersion(v => v + 1);
+              }
               const others = [
                 ...participants.filter(p => p.user_id !== speakerId),
                 ...((!participants.some(p => p.user_id === userId) && speakerId !== userId) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
@@ -1864,7 +1955,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div className="flex-shrink-0 w-full md:w-[480px]">
                     {speaker && (
                       <div key={speaker.id} className="relative bg-green-900 rounded-lg overflow-hidden border-4 border-green-400 aspect-video min-h-[180px] w-full">
-                        {!speaker.camera_off ? (
+                        {!cameraOverlay[speaker.id] ? (
                           <video
                             ref={el => {
                               if (speaker.user_id === userId) {
@@ -1897,7 +1988,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
                     {others.map(participant => (
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
-                        {!participant.camera_off ? (
+                        {!cameraOverlay[participant.id] ? (
                           <video
                             ref={participant.self ? localVideoRef : el => { setRemoteVideoElement(participant.id, el); }}
                             autoPlay
@@ -1919,7 +2010,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                             <span>
                               {participant.self ? 'You' : participant.name}
                               {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                              {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                              {!cameraOverlay[participant.id] && <span className="text-green-400 ml-1">(Camera On)</span>}
                               {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                               {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                             </span>
@@ -1948,7 +2039,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               <div className="grid gap-3 justify-center items-start w-full" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(220px, 1fr))` }}>
                 {allTiles.map(tile => (
                   <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ aspectRatio: '16/9', minHeight: tile.isScreen ? '180px' : '120px' }}>
-                    {!tile.camera_off ? (
+                    {!cameraOverlay[tile.id] ? (
                       <video
                         ref={tile.self ? localVideoRef : el => { setRemoteVideoElement(tile.id, el); }}
                         autoPlay
@@ -1989,7 +2080,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                         <span>
                           {tile.self ? 'You' : tile.name}
                           {tile.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                          {!tile.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                          {!cameraOverlay[tile.id] && <span className="text-green-400 ml-1">(Camera On)</span>}
                           {tile.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                           {tile.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                         </span>
@@ -2081,12 +2172,13 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           {isMuted ? <MicOff className="w-6 h-6 text-white mx-auto" /> : <Mic className="w-6 h-6 text-white mx-auto" />}
         </button>
 
+        {/* Camera on/off toggle */}
         <button
           onClick={toggleCamera}
-          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${isCameraOff ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'}`}
-          title={isCameraOff ? "Turn camera on" : "Turn camera off"}
+          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${localVideoActive ? 'bg-gray-600 hover:bg-gray-700' : 'bg-red-600 hover:bg-red-700'}`}
+          title={localVideoActive ? "Turn camera off" : "Turn camera on"}
         >
-          {isCameraOff ? <VideoOff className="w-6 h-6 text-white mx-auto" /> : <Video className="w-6 h-6 text-white mx-auto" />}
+          {localVideoActive ? <Video className="w-6 h-6 text-white mx-auto" /> : <VideoOff className="w-6 h-6 text-white mx-auto" />}
         </button>
 
         <button
