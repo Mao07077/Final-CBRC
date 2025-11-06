@@ -1,6 +1,7 @@
 import os
 import requests
 import re
+import asyncio
 from fastapi import APIRouter, HTTPException, Request
 from datetime import datetime
 
@@ -8,6 +9,7 @@ from datetime import datetime
 from database import flashcards_collection, db, modules_collection
 from bson import ObjectId
 from config import logger
+from .bytez_flashcard_routes import generate_image_for_prompt
 
 router = APIRouter()
 
@@ -87,16 +89,36 @@ async def generate_flashcards(request: Request):
         raw_text = choices[0]["message"]["content"]
         flashcards = parse_flashcards(raw_text)
 
-        # If the caller provided module_id or generated_by, persist the generated flashcards
+        # Generate an image for each flashcard (concurrently with limit) and persist
         inserted_ids = []
         if flashcards:
             now = datetime.utcnow()
+            # concurrency limit to avoid rate limits
+            sem = asyncio.Semaphore(3)
+
+            async def _attach_image(fc):
+                prompt_img = fc.get('question') or (fc.get('answer') or '')[:120]
+                try:
+                    async with sem:
+                        url = await generate_image_for_prompt(prompt_img)
+                except Exception as e:
+                    logger.warning(f"Image generation failed for prompt '{prompt_img}': {e}")
+                    url = "https://via.placeholder.com/512?text=No+Image"
+                fc['image_url'] = url
+
+            # fetch images in parallel
+            try:
+                await asyncio.gather(*(_attach_image(fc) for fc in flashcards))
+            except Exception as e:
+                logger.warning(f"One or more image generation tasks failed: {e}")
+
             try:
                 for fc in flashcards:
                     doc = {
                         "module_id": module_id,
                         "question": fc.get("question"),
                         "answer": fc.get("answer"),
+                        "image_url": fc.get("image_url"),
                         "created_at": now,
                         "source": "generated_via_gemini",
                         "generated_by": generated_by
