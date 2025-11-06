@@ -37,7 +37,9 @@ const FlashcardPage = () => {
         setLoading(false);
         return;
       }
-      const aiRaw = await generateFlashcardsFromText(text, 3);
+  // include generated_by from local storage (user id) so backend can audit
+  const userIdNumber = localStorage.getItem('userIdNumber') || null;
+  const aiRaw = await generateFlashcardsFromText(text, 3, null, userIdNumber);
       // Parse Q&A pairs from AI output (simple split)
       const cards = aiRaw.split(/\n|\r/)
         .map(line => line.trim())

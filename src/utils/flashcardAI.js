@@ -6,7 +6,7 @@ if (BACKEND_URL && BACKEND_URL.endsWith('/')) {
   BACKEND_URL = BACKEND_URL.slice(0, -1);
 }
 
-export async function generateFlashcardsFromText(text, num = 3) {
+export async function generateFlashcardsFromText(text, num = 3, moduleId = null, generatedBy = null) {
   if (!text || text.trim().length === 0) {
     throw new Error('Input text is empty. Please provide content to generate flashcards.');
   }
@@ -14,10 +14,14 @@ export async function generateFlashcardsFromText(text, num = 3) {
     throw new Error('Backend URL is not set. Please set VITE_API_URL in your environment variables.');
   }
   try {
+    const body = { text, num };
+    if (moduleId) body.module_id = moduleId;
+    if (generatedBy) body.generated_by = generatedBy;
+
     const response = await fetch(`${BACKEND_URL}/generate-flashcards`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, num })
+      body: JSON.stringify(body)
     });
     const data = await response.json();
     // Adjust this depending on Gemini's response format

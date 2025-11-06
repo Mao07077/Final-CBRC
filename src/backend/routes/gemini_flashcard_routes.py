@@ -87,9 +87,10 @@ async def generate_flashcards(request: Request):
         raw_text = choices[0]["message"]["content"]
         flashcards = parse_flashcards(raw_text)
 
-        # If the caller provided module_id or generated_by, persist the generated flashcards
+        # Persist generated flashcards only when a module_id is provided.
+        # This avoids creating audit records with null module information.
         inserted_ids = []
-        if flashcards:
+        if module_id and flashcards:
             now = datetime.utcnow()
             try:
                 for fc in flashcards:
@@ -108,15 +109,14 @@ async def generate_flashcards(request: Request):
                 try:
                     module_title = None
                     module_topic = None
-                    if module_id:
-                        try:
-                            mod = modules_collection.find_one({"_id": ObjectId(module_id)})
-                            if mod:
-                                module_title = mod.get("title")
-                                module_topic = mod.get("topic")
-                        except Exception:
-                            # leave title/topic as None if lookup fails (invalid id format or not found)
-                            pass
+                    try:
+                        mod = modules_collection.find_one({"_id": ObjectId(module_id)})
+                        if mod:
+                            module_title = mod.get("title")
+                            module_topic = mod.get("topic")
+                    except Exception:
+                        # leave title/topic as None if lookup fails (invalid id format or not found)
+                        pass
 
                     gen_log = {
                         "module_id": module_id,
