@@ -3,7 +3,6 @@ import requests
 import re
 from fastapi import APIRouter, HTTPException, Request
 from datetime import datetime
-import base64
 
 # DB collections
 from database import flashcards_collection, db, modules_collection
@@ -11,12 +10,6 @@ from bson import ObjectId
 from config import logger
 
 router = APIRouter()
-
-# Optional Bytez SDK for module-level image generation
-try:
-    from bytez import Bytez
-except Exception:
-    Bytez = None
 
 def parse_flashcards(text: str):
     """
@@ -48,7 +41,6 @@ async def generate_flashcards(request: Request):
     num = data.get("num", 3)
     module_id = data.get("module_id")
     generated_by = data.get("generated_by")
-    attach_module_image = data.get("attach_module_image", False)
 
     api_key = os.getenv("GROQ_API_KEY")
 
@@ -95,54 +87,6 @@ async def generate_flashcards(request: Request):
         raw_text = choices[0]["message"]["content"]
         flashcards = parse_flashcards(raw_text)
 
-        # If requested, generate one module-level image and attach to each flashcard
-        module_image_url = None
-        if attach_module_image or module_id:
-            try:
-                BYTEZ_API_KEY = os.environ.get("BYTEZ_KEY")
-                if Bytez is None or not BYTEZ_API_KEY:
-                    logger.info("Bytez SDK or API key not available; skipping module image generation")
-                else:
-                    # build a concise prompt: prefer module title/topic when available
-                    prompt_source = None
-                    try:
-                        if module_id:
-                            mod = modules_collection.find_one({"_id": ObjectId(module_id)})
-                            if mod:
-                                prompt_source = mod.get('title') or mod.get('topic')
-                    except Exception:
-                        prompt_source = None
-                    if not prompt_source:
-                        # fallback to short excerpt from the provided text
-                        prompt_source = (text or '')[:400]
-
-                    img_prompt = f"A single clean illustrative image representing the following module content or topic: {prompt_source}. Keep it simple and iconic, suitable as a thumbnail."
-                    try:
-                        sdk = Bytez(BYTEZ_API_KEY)
-                        model = sdk.model("dreamlike-art/dreamlike-photoreal-2.0")
-                        img_result = model.run(img_prompt)
-                        # normalize simple shapes: if tuple/list take last, if dict look for url/output, if str use directly
-                        img_output = None
-                        if isinstance(img_result, (list, tuple)):
-                            img_output = img_result[-1]
-                        else:
-                            img_output = img_result
-
-                        if isinstance(img_output, dict):
-                            module_image_url = img_output.get('url') or img_output.get('output') or (img_output.get('outputs')[0] if img_output.get('outputs') and isinstance(img_output.get('outputs'), (list,tuple)) else None)
-                        elif isinstance(img_output, str):
-                            module_image_url = img_output
-                        elif isinstance(img_output, (bytes, bytearray)):
-                            b64 = base64.b64encode(img_output).decode('ascii')
-                            module_image_url = f"data:image/png;base64,{b64}"
-                        else:
-                            module_image_url = None
-                        logger.info(f"Module image generation result: type={type(img_output)}, url_set={bool(module_image_url)}")
-                    except Exception as e:
-                        logger.error("Module image generation failed: %s", e)
-            except Exception as e:
-                logger.error("Unexpected error while attempting module image generation: %s", e)
-
         # If the caller provided module_id or generated_by, persist the generated flashcards
         inserted_ids = []
         if flashcards:
@@ -153,7 +97,6 @@ async def generate_flashcards(request: Request):
                         "module_id": module_id,
                         "question": fc.get("question"),
                         "answer": fc.get("answer"),
-                        "image_url": module_image_url,
                         "created_at": now,
                         "source": "generated_via_gemini",
                         "generated_by": generated_by
@@ -190,7 +133,7 @@ async def generate_flashcards(request: Request):
             except Exception as e:
                 logger.error("Failed to persist Gemini-generated flashcards: %s", e)
 
-        return {"flashcards": flashcards, "inserted_ids": inserted_ids, "module_image_url": module_image_url}
+        return {"flashcards": flashcards, "inserted_ids": inserted_ids}
 
     except requests.exceptions.HTTPError as http_err:
         logger.error("[Groq API] HTTP error: %s", str(http_err))

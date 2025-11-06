@@ -63,13 +63,9 @@ const FlashcardLandingPage = () => {
   // Call Gemini backend to generate flashcards
   const { generateFlashcards } = useFlashcardStore.getState();
   setCurrentModuleId(moduleId);
-  const result = await generateFlashcards(pdfText, 5, moduleId); // include module id for persistence and request module image
+  const result = await generateFlashcards(pdfText, 5, moduleId); // include module id for persistence
       if (result.success) {
         setGeneratedFlashcards(result.flashcards);
-        // if backend returned a single module image URL, store it to display as thumbnail
-        if (result.module_image_url) {
-          setGeneratedFlashcards(prev => prev.map(fc => ({ ...fc, image_url: result.module_image_url })));
-        }
         setModalIndex(0);
         setShowFlashcards(true);
         setPdfStatus({ open: false, message: "", error: false });
@@ -137,16 +133,6 @@ const FlashcardLandingPage = () => {
                 {/* Main, large, responsive flashcard container */}
                 <div className="flex flex-col items-center justify-center w-full h-[80vh] max-h-[90vh]">
                   <div className="relative w-full flex justify-center items-center h-full overflow-visible">
-                    {/* Module-level thumbnail (single image for this generated set) */}
-                    {generatedFlashcards[modalIndex]?.image_url && (
-                      <div className="absolute top-6 right-6 z-30">
-                        <img
-                          src={generatedFlashcards[modalIndex].image_url}
-                          alt="Module thumbnail"
-                          className="w-28 h-20 object-cover rounded-md shadow-md"
-                        />
-                      </div>
-                    )}
                     {/* Previous card peeking */}
                     {modalIndex > 0 && (
                       <div

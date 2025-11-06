@@ -57,11 +57,11 @@ const useFlashcardStore = create((set, get) => ({
       const generatedBy = userData?.id_number || null;
       const response = await apiClient.post(
         "/generate-flashcards",
-        { text: pdfText, num: numCards, module_id: moduleId, generated_by: generatedBy, attach_module_image: !!moduleId }
+        { text: pdfText, num: numCards, module_id: moduleId, generated_by: generatedBy }
       );
       if (response.data.flashcards) {
         set({ isLoading: false });
-        return { success: true, flashcards: response.data.flashcards, module_image_url: response.data.module_image_url };
+        return { success: true, flashcards: response.data.flashcards };
       } else if (response.data.detail) {
         throw new Error(response.data.detail);
       } else {
