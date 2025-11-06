@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, Play, Users } from "lucide-react";
 import useFlashcardStore from "../../store/student/flashcardStore";
+import apiClient from "../../api/axiosClient";
 
 import DeckSelector from "../../features/student/flashcards/components/DeckSelector";
 import Flashcard from "../../features/student/flashcards/components/Flashcard";
@@ -20,6 +21,7 @@ const FlashcardLandingPage = () => {
   const [showFlashcards, setShowFlashcards] = useState(false);
   const [modalIndex, setModalIndex] = useState(0);
   const [currentModuleId, setCurrentModuleId] = useState(null);
+  const [moduleImage, setModuleImage] = useState(null);
 
   useEffect(() => {
     fetchFlashcards();
@@ -67,6 +69,36 @@ const FlashcardLandingPage = () => {
       if (result.success) {
         setGeneratedFlashcards(result.flashcards);
         setModalIndex(0);
+        // Generate a single module-level image (cached) based on module title/topic
+        try {
+          const imgStorageKey = `module_image_${moduleId}`;
+          // check localStorage first
+          let cached = null;
+          try {
+            cached = localStorage.getItem(imgStorageKey);
+          } catch (e) {
+            cached = null;
+          }
+          if (cached) {
+            setModuleImage(cached);
+          } else {
+            const topicForImage = module.title || module.module_name || module.topic || module.description || module.title || "Flashcard topic";
+            const imgRes = await apiClient.post("/api/flashcard/generate-image", { topic: topicForImage });
+            const url = imgRes?.data?.image_url || imgRes?.data?.image_raw || null;
+            if (url) {
+              setModuleImage(url);
+              try {
+                localStorage.setItem(imgStorageKey, url);
+              } catch (e) {
+                /* ignore storage write errors */
+              }
+            }
+          }
+        } catch (e) {
+          // Log but continue — image is optional
+          console.warn("Module image generation failed:", e);
+        }
+
         setShowFlashcards(true);
         setPdfStatus({ open: false, message: "", error: false });
       } else {
@@ -139,7 +171,7 @@ const FlashcardLandingPage = () => {
                         className="absolute left-1/2 -translate-x-[70%] z-0 scale-90 opacity-60 pointer-events-none select-none rotate--8"
                         style={{ maxWidth: '320px', maxHeight: '440px', width: '28vw', height: '38vw', minWidth: '180px', minHeight: '250px' }}
                       >
-                        <Flashcard card={generatedFlashcards[modalIndex - 1]} peek />
+                        <Flashcard card={generatedFlashcards[modalIndex - 1]} peek cachedImage={moduleImage} setCachedImage={setModuleImage} />
                       </div>
                     )}
                     {/* Next card peeking */}
@@ -148,7 +180,7 @@ const FlashcardLandingPage = () => {
                         className="absolute left-1/2 -translate-x-[30%] z-0 scale-90 opacity-60 pointer-events-none select-none rotate-8"
                         style={{ maxWidth: '320px', maxHeight: '440px', width: '28vw', height: '38vw', minWidth: '180px', minHeight: '250px' }}
                       >
-                        <Flashcard card={generatedFlashcards[modalIndex + 1]} peek />
+                        <Flashcard card={generatedFlashcards[modalIndex + 1]} peek cachedImage={moduleImage} setCachedImage={setModuleImage} />
                       </div>
                     )}
                     {/* Main card */}
@@ -156,7 +188,7 @@ const FlashcardLandingPage = () => {
                       className="relative z-10 transition-transform duration-500 w-full flex justify-center"
                       style={{ maxWidth: '340px', maxHeight: '480px', width: '32vw', height: '44vw', minWidth: '200px', minHeight: '270px' }}
                     >
-                      <Flashcard card={generatedFlashcards[modalIndex]} portrait />
+                      <Flashcard card={generatedFlashcards[modalIndex]} portrait cachedImage={moduleImage} setCachedImage={setModuleImage} />
                     </div>
                   </div>
                 </div>
