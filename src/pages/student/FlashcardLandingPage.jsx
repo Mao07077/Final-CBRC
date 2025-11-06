@@ -19,6 +19,7 @@ const FlashcardLandingPage = () => {
   const [generatedFlashcards, setGeneratedFlashcards] = useState([]);
   const [showFlashcards, setShowFlashcards] = useState(false);
   const [modalIndex, setModalIndex] = useState(0);
+  const [currentModuleId, setCurrentModuleId] = useState(null);
 
   useEffect(() => {
     fetchFlashcards();
@@ -59,9 +60,10 @@ const FlashcardLandingPage = () => {
         pdfText = '[PDF.js failed to extract text]';
       }
       setPdfStatus({ open: true, message: "Generating flashcards from PDF...", error: false });
-      // Call Gemini backend to generate flashcards
-      const { generateFlashcards } = useFlashcardStore.getState();
-      const result = await generateFlashcards(pdfText, 5); // You can change 5 to desired number
+  // Call Gemini backend to generate flashcards
+  const { generateFlashcards } = useFlashcardStore.getState();
+  setCurrentModuleId(moduleId);
+  const result = await generateFlashcards(pdfText, 5, moduleId); // include module id for persistence
       if (result.success) {
         setGeneratedFlashcards(result.flashcards);
         setModalIndex(0);
@@ -198,7 +200,7 @@ const FlashcardLandingPage = () => {
                     // Regenerate with a new seed (simulate by adding a random string)
                     const lastText = generatedFlashcards.map(fc => fc.question + fc.answer).join("|");
                     const { generateFlashcards } = useFlashcardStore.getState();
-                    const result = await generateFlashcards(lastText + Math.random().toString(36).slice(2), 5);
+                    const result = await generateFlashcards(lastText + Math.random().toString(36).slice(2), 5, currentModuleId);
                     if (result.success) {
                       setGeneratedFlashcards(result.flashcards);
                       setModalIndex(0);

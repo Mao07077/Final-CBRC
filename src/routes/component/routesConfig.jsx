@@ -38,7 +38,6 @@ import PostTestPage from "../../pages/student/PostTestPage";
 import PostTestResultsPage from "../../pages/student/PostTestResultsPage";
 import NotesPage from "../../pages/student/NotesPage";
 import SchedulerPage from "../../pages/student/SchedulerPage";
-import FlashcardsPage from "../../pages/student/FlashcardPage";
 import FlashcardLandingPage from "../../pages/student/FlashcardLandingPage";
 import LearnTogetherPage from "../../pages/student/LearnTogetherPage";
 import StudySessionPage from "../../pages/student/StudySessionPage";
@@ -193,7 +192,6 @@ export const routesConfig = [
       { path: "notes", element: <NotesPage /> },
       { path: "scheduler", element: <SchedulerPage /> },
       { path: "flashcards", element: <FlashcardLandingPage /> },
-      { path: "flashcards/practice", element: <FlashcardsPage /> },
       { path: "learn-together", element: <LearnTogetherPage /> },
       { path: "study-session/:groupId", element: <StudySessionPage /> },
       { path: "messages", element: <StudentChatPage /> },

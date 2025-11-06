@@ -49,12 +49,15 @@ const useFlashcardStore = create((set, get) => ({
     }
   },
 
-  generateFlashcards: async (pdfText, numCards = 5) => {
+  generateFlashcards: async (pdfText, numCards = 5, moduleId = null) => {
     set({ isLoading: true, error: null });
     try {
+      // include module_id and generated_by for auditing/persistence
+      const { userData } = useAuthStore.getState();
+      const generatedBy = userData?.id_number || null;
       const response = await apiClient.post(
         "/generate-flashcards",
-        { text: pdfText, num: numCards }
+        { text: pdfText, num: numCards, module_id: moduleId, generated_by: generatedBy }
       );
       if (response.data.flashcards) {
         set({ isLoading: false });
