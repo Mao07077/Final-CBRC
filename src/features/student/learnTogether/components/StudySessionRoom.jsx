@@ -167,6 +167,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const peerConnectionsRef = useRef(new Map());
   const remoteVideosRef = useRef(new Map());
   const remoteStreamsRef = useRef(new Map());
+  const repairAttemptsRef = useRef(new Map());
   const attachTokenRef = useRef(0);
   const [attachVersion, setAttachVersion] = useState(0);
 
@@ -925,6 +926,69 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       console.error("WebRTC signaling error:", error);
     }
   }, [createPeerConnection]);
+
+    // Attempt to repair a peer connection for a participant by restarting ICE and renegotiating
+    const attemptRepairConnection = useCallback(async (participantId) => {
+      try {
+        const pc = peerConnectionsRef.current.get(participantId);
+        if (!pc) return;
+
+        const attempts = repairAttemptsRef.current.get(participantId) || 0;
+        if (attempts >= 3) return; // limit retries
+
+        console.log(`Attempting repair for ${participantId}, attempt ${attempts + 1}`);
+        repairAttemptsRef.current.set(participantId, attempts + 1);
+
+        try {
+          if (pc.restartIce) pc.restartIce();
+        } catch (e) {
+          console.warn('restartIce failed', e);
+        }
+
+        // Create an offer to renegotiate media
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+          socketRef.current.send(JSON.stringify({
+            type: 'webrtc_offer',
+            target_participant_id: participantId,
+            data: { offer }
+          }));
+        }
+      } catch (e) {
+        console.warn('Repair attempt failed for', participantId, e);
+      }
+    }, []);
+
+    // Periodically check remote streams for missing/disabled audio and attempt repair
+    useEffect(() => {
+      const iv = setInterval(() => {
+        try {
+          participants.forEach(p => {
+            if (!p || p.self) return;
+            const stream = remoteStreamsRef.current.get(p.id);
+            if (!stream) {
+              // no stream -> try repair
+              attemptRepairConnection(p.id);
+              return;
+            }
+            const aTracks = stream.getAudioTracks ? stream.getAudioTracks() : [];
+            if (aTracks.length === 0) {
+              attemptRepairConnection(p.id);
+              return;
+            }
+            // if audio tracks exist but are disabled/ended, attempt repair
+            const bad = aTracks.every(t => !t || t.readyState === 'ended' || t.enabled === false);
+            if (bad) attemptRepairConnection(p.id);
+          });
+        } catch (e) {
+          // ignore
+        }
+      }, 5000);
+
+      return () => clearInterval(iv);
+    }, [participants, attemptRepairConnection]);
 
   // Audio level monitoring
   const setupAudioLevelMonitoring = useCallback((stream) => {
