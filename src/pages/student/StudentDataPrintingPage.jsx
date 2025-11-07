@@ -31,8 +31,10 @@ const StudentDataPrintingPage = () => {
           name: (profileData && (profileData.firstname || profileData.lastname)) ? `${profileData.firstname || ''} ${profileData.lastname || ''}`.trim() : (actData && (actData.name || actData.fullname)) || null,
           program: (profileData && profileData.program) || (actData && actData.program) || null,
           // Dashboard summary fields (if available)
-          dashboard: dashboardData || null
+          dashboard: dashboardData || null,
+          session_hours: actData?.session_hours ?? 0
         };
+
 
         setActivity(merged);
 
@@ -172,14 +174,14 @@ const StudentDataPrintingPage = () => {
         cursorY = weekY + 86;
       }
 
-      // Bar chart for Notes / Flashcards / Sessions
-      const labels = ['Notes', 'Flashcards', 'Sessions'];
-      const values = [activity?.notes_count ?? 0, activity?.flashcards_count ?? 0, activity?.sessions_count ?? 0];
+  // Bar chart for Flashcards / Sessions (Notes removed per requirement)
+    const labels = ['Flashcards', 'Sessions', 'Learn Together Hours'];
+    const values = [activity?.flashcards_count ?? 0, activity?.sessions_count ?? 0, activity?.session_hours ?? 0];
       const maxVal = Math.max(...values, 1);
 
-      doc.setFontSize(11);
-      doc.text('Study Activity Overview', left, cursorY);
-      cursorY += 12;
+    doc.setFontSize(11);
+    doc.text('Study Activity Overview', left, cursorY);
+    cursorY += 12;
 
       const chartX = left;
       const chartY = cursorY + 6;
@@ -217,11 +219,12 @@ const StudentDataPrintingPage = () => {
       doc.text('Summary Details', left, cursorY);
       cursorY += 12;
       doc.setFontSize(10);
-      doc.text(`Notes: ${activity?.notes_count ?? 0}`, left, cursorY);
-      cursorY += 12;
+  // Notes removed from summary details per requirement
       doc.text(`Flashcards: ${activity?.flashcards_count ?? 0}`, left, cursorY);
       cursorY += 12;
-      doc.text(`Study Sessions: ${activity?.sessions_count ?? 0}`, left, cursorY);
+  doc.text(`Study Sessions: ${activity?.sessions_count ?? 0}`, left, cursorY);
+  cursorY += 12;
+  doc.text(`Learn Together Hours: ${typeof activity?.session_hours === 'number' ? activity.session_hours.toFixed(2) : (activity?.session_hours ?? 0)}`, left, cursorY);
 
       doc.setFontSize(9);
       // place footer near bottom of page
@@ -287,16 +290,16 @@ const StudentDataPrintingPage = () => {
                 <FiFileText className="text-purple-600 mr-3" size={20} />
                 <div>
                   <h3 className="font-medium text-gray-900">Study Activity Report</h3>
-                  <p className="text-sm text-gray-600">Notes, flashcards, and study sessions</p>
+                  <p className="text-sm text-gray-600">Flashcards and study sessions</p>
                   {loading ? (
                     <span className="text-gray-400 text-sm">Loading...</span>
                   ) : error ? (
                     <span className="text-red-500 text-sm">{error}</span>
                   ) : activity ? (
                     <ul className="mt-2 text-sm text-gray-700">
-                      <li>Notes: {activity.notes_count}</li>
                       <li>Flashcards: {activity.flashcards_count}</li>
                       <li>Study Sessions: {activity.sessions_count}</li>
+                        <li>Learn Together Hours: {activity.session_hours}</li>
                     </ul>
                   ) : (
                     <span className="text-gray-500 text-sm">No activity data found.</span>

@@ -158,6 +158,40 @@ const StudentProfilePage = () => {
     );
   }
 
+  // Custom tooltip (outside of JSX tree)
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const data = (payload[0] && payload[0].payload) ? payload[0].payload : {};
+      const mods = Array.isArray(data.modules) ? data.modules : [];
+      return (
+        <div className="p-3 rounded-lg bg-gray-800 text-gray-50 text-sm">
+          <div className="font-semibold mb-1">{label}</div>
+          <div>
+            Study Hours: <span className="font-semibold">{(data.hours ?? 0)}h</span>
+          </div>
+          <div>
+            Learn Together: <span className="font-semibold">{(data.sessionHours ?? 0)}h</span>
+          </div>
+          <div>
+            Flashcards Generated: <span className="font-semibold">{(data.flashcardsGenerated ?? 0)}</span>
+          </div>
+          <div className="mt-1">Modules:</div>
+          {mods.length > 0 ? (
+            <ul className="list-disc list-inside text-xs text-gray-200">
+              {mods.slice(0, 4).map((m, i) => (
+                <li key={i}>{m}</li>
+              ))}
+              {mods.length > 4 && <li>+{mods.length - 4} more…</li>}
+            </ul>
+          ) : (
+            <div className="text-xs text-gray-300">No modules taken</div>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -327,6 +361,8 @@ const StudentProfilePage = () => {
             </h2>
           </div>
 
+          {/* Custom tooltip component (declared outside JSX) */}
+
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -345,16 +381,7 @@ const StudentProfilePage = () => {
                   fontSize={12}
                   fontFamily="Inter, system-ui, sans-serif"
                 />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1f2937",
-                    border: "none",
-                    borderRadius: "8px",
-                    color: "#f9fafb",
-                    fontFamily: "Inter, system-ui, sans-serif",
-                  }}
-                  labelStyle={{ color: "#f9fafb" }}
-                />
+                <Tooltip content={<CustomTooltip />} />
                 <Bar
                   dataKey="hours"
                   fill="#3b82f6"

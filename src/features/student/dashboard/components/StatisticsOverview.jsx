@@ -28,6 +28,8 @@ const StatisticsOverview = () => {
     completedModules,
     totalModules,
     studyHours,
+    weeklySessionHours,
+    weeklyFlashcardHours,
     averageScore,
     learningStreak,
     weeklyProgress,
@@ -38,6 +40,7 @@ const StatisticsOverview = () => {
     assessmentResults,
     preTestCount,
     postTestCount,
+    studyHabits,
   } = useDashboardStore();
 
   // Color palette for pie chart
@@ -102,6 +105,31 @@ const StatisticsOverview = () => {
           subtitle="Keep it up!"
           color="orange"
         />
+      </div>
+
+      {/* Study Habits Summary */}
+      <div className="bg-white p-6 rounded-2xl shadow-md">
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">Study Habits</h3>
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          {(studyHabits?.categories || []).length > 0 ? (
+            studyHabits.categories.map((cat, idx) => (
+              <span key={idx} className="px-3 py-1 text-sm rounded-full bg-blue-50 text-blue-700 border border-blue-200">{cat}</span>
+            ))
+          ) : (
+            <span className="text-gray-500">No habits detected yet</span>
+          )}
+        </div>
+        <div className="text-sm text-gray-600">
+          <span className="mr-4">Flashcards (7d): <strong>{(weeklyFlashcardHours ?? studyHabits?.weeklyFlashcardHours ?? 0)}h</strong></span>
+          <span>Learn Together (7d): <strong>{(weeklySessionHours ?? studyHabits?.weeklySessionHours ?? 0)}h</strong></span>
+        </div>
+        {studyHabits?.suggestions && studyHabits.suggestions.length > 0 && (
+          <ul className="mt-3 list-disc list-inside text-sm text-gray-600">
+            {studyHabits.suggestions.slice(0,2).map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        )}
       </div>
       {/* Strengths & Weaknesses */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">

@@ -58,34 +58,124 @@ def get_profile(id_number: str):
         raise HTTPException(status_code=404, detail="User not found")
 
     # Aggregate daily study activity from scores and flashcard time
-    from database import scores_collection, modules_collection
+    from database import scores_collection, modules_collection, flashcards_collection, session_logs_collection
     import datetime
+    from datetime import timedelta
+
+    # Pull all scores for the user
     scores = list(scores_collection.find({"user_id": id_number}))
+
+    # Prepare helper: map module_id -> title for any referenced modules
+    module_ids = set()
+    for s in scores:
+        try:
+            if s.get("module_id"):
+                module_ids.add(str(s.get("module_id")))
+        except Exception:
+            pass
+    module_title_map = {}
+    try:
+        if module_ids:
+            mods = list(modules_collection.find({"_id": {"$in": [ObjectId(mid) for mid in module_ids if ObjectId.is_valid(mid)]}}))
+            for m in mods:
+                module_title_map[str(m["_id"])] = m.get("title", f"Module {m['_id']}")
+    except Exception:
+        pass
+
+    # Build activity buckets for last 7 days
+    today = datetime.date.today()
+    week_start = today - timedelta(days=6)
     daily_activity = {}
-    flashcard_time = user.get("flashcard_time", 0)
+    for i in range(7):
+        day = (week_start + timedelta(days=i)).isoformat()
+        daily_activity[day] = {
+            "hours": 0.0,
+            "modules": [],
+            "flashcardsGenerated": 0,
+            "sessionHours": 0.0,
+        }
+
+    # From test scores: accumulate hours and modules per day
     for score in scores:
         date_taken = score.get("date_taken")
-        time_spent = min(score.get("time_spent", 0), 600)  # max 10 mins per test
+        time_spent = min(score.get("time_spent", 0), 600)  # cap at 10 mins (0.1667h)
         if date_taken:
             day = date_taken.split("T")[0]
-            daily_activity.setdefault(day, 0)
-            daily_activity[day] += time_spent / 60
-    # Add flashcard time to the most recent day
+            if day in daily_activity:
+                daily_activity[day]["hours"] += time_spent / 60.0
+                module_id = str(score.get("module_id")) if score.get("module_id") is not None else None
+                if module_id:
+                    title = module_title_map.get(module_id, f"Module {module_id}")
+                    if title not in daily_activity[day]["modules"]:
+                        daily_activity[day]["modules"].append(title)
+
+    # From Learn Together session logs: add session hours per day (based on left_at date)
+    try:
+        session_logs = session_logs_collection.find({
+            "user_id": id_number,
+            "left_at": {"$gte": datetime.datetime.combine(week_start, datetime.time.min)}
+        })
+        for log in session_logs:
+            left_at = log.get("left_at")
+            joined_at = log.get("joined_at")
+            duration_seconds = log.get("duration_seconds")
+            # Fallback compute if needed
+            if duration_seconds is None and joined_at and left_at:
+                try:
+                    duration_seconds = int((left_at - joined_at).total_seconds())
+                except Exception:
+                    duration_seconds = 0
+            if not left_at or not duration_seconds:
+                continue
+            day = left_at.date().isoformat()
+            if day in daily_activity:
+                hours = min(duration_seconds, 7200) / 3600.0  # cap single session at 2h
+                daily_activity[day]["sessionHours"] += hours
+                daily_activity[day]["hours"] += hours
+    except Exception as e:
+        print(f"[WARN] Failed to aggregate session logs for profile: {e}")
+
+    # Flashcards generated per day (count by created_at, generated_by)
+    try:
+        flash_logs = flashcards_collection.find({
+            "generated_by": id_number,
+            "created_at": {"$gte": datetime.datetime.combine(week_start, datetime.time.min)}
+        })
+        for fc in flash_logs:
+            created_at = fc.get("created_at")
+            if not created_at:
+                continue
+            day = created_at.date().isoformat()
+            if day in daily_activity:
+                daily_activity[day]["flashcardsGenerated"] += 1
+    except Exception as e:
+        print(f"[WARN] Failed to aggregate flashcard generation logs for profile: {e}")
+
+    # Add flashcard_time (cumulative) to most recent day as before to maintain legacy behavior
+    flashcard_time = user.get("flashcard_time", 0)
     if daily_activity:
         latest_day = max(daily_activity.keys())
-        daily_activity[latest_day] += flashcard_time / 60
+        daily_activity[latest_day]["hours"] += flashcard_time / 60.0
 
     # Prepare graph data: last 7 days
-    today = datetime.date.today()
+    # Prepare graph data from structured daily_activity
     graph_data = []
-    total_week = 0
-    peak_hour = 0
+    total_week = 0.0
+    peak_hour = 0.0
     peak_day = ""
     active_days = 0
     for i in range(6, -1, -1):
         day = (today - datetime.timedelta(days=i)).isoformat()
-        hours = round(daily_activity.get(day, 0), 2)
-        graph_data.append({"day": day, "hours": hours})
+        data = daily_activity.get(day, {"hours": 0.0, "modules": [], "flashcardsGenerated": 0, "sessionHours": 0.0})
+        hours = round(float(data.get("hours", 0.0)), 2)
+        entry = {
+            "day": day,
+            "hours": hours,
+            "modules": data.get("modules", []),
+            "flashcardsGenerated": int(data.get("flashcardsGenerated", 0)),
+            "sessionHours": round(float(data.get("sessionHours", 0.0)), 2),
+        }
+        graph_data.append(entry)
         total_week += hours
         if hours > peak_hour:
             peak_hour = hours

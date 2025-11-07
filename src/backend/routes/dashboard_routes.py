@@ -1,5 +1,12 @@
 from fastapi import APIRouter, HTTPException, Query, Request
-from database import users_collection, modules_collection, scores_collection, pre_test_collection, post_test_collection
+from database import (
+    users_collection,
+    modules_collection,
+    scores_collection,
+    pre_test_collection,
+    post_test_collection,
+    session_logs_collection,  # Added for collaborative session hour aggregation
+)
 from bson import ObjectId
 from config import logger
 from typing import Optional
@@ -97,6 +104,8 @@ def dashboard(id_number: str):
     total_questions = 0
     correct_answers = 0
     flashcard_time = user.get("flashcard_time", 0)
+    weekly_flashcard_hours = flashcard_time / 60  # We'll attribute current flashcard time to today's bucket
+    weekly_session_hours = 0  # Aggregate of Learn Together sessions for the week
 
     print("[DEBUG] All scores for user:", scores)
     for module in modules:
@@ -194,8 +203,46 @@ def dashboard(id_number: str):
             subject_scores[module_title]["score"] += post_score.get("correct", 0)
             subject_scores[module_title]["count"] += post_score.get("total_questions", 0)
 
-    # Add flashcard time to study hour (once, after loop)
-    study_hour += flashcard_time / 60
+    # Add flashcard time to study hour (once, after loop) and distribute it to today's daily progress bucket
+    study_hour += weekly_flashcard_hours
+
+    # Ensure today's bucket exists and add flashcard hours there for weekly progress visibility
+    today_str = datetime.date.today().isoformat()
+    daily_progress.setdefault(today_str, {"hours": 0, "score": 0, "count": 0})
+    daily_progress[today_str]["hours"] += weekly_flashcard_hours
+
+    # ---- Collaborative Session Time Aggregation ----
+    # Aggregate per-user session logs (join/leave durations) for the last 7 days and inject into daily_progress
+    try:
+        from datetime import timedelta
+        week_start_dt = datetime.datetime.utcnow() - timedelta(days=6)
+        # session_logs store left_at & joined_at as datetimes; filter by user and left_at >= week_start
+        session_logs_cursor = session_logs_collection.find({
+            "user_id": id_number,
+            "left_at": {"$gte": week_start_dt}
+        })
+        for log in session_logs_cursor:
+            left_at = log.get("left_at")
+            joined_at = log.get("joined_at")
+            duration_seconds = log.get("duration_seconds")
+            # Fallback compute if missing
+            if duration_seconds is None and joined_at and left_at:
+                try:
+                    duration_seconds = int((left_at - joined_at).total_seconds())
+                except Exception:
+                    duration_seconds = 0
+            if not left_at or not duration_seconds:
+                continue
+            # Cap any single session at 2 hours to avoid inflating (safeguard)
+            capped_seconds = min(duration_seconds, 7200)
+            hours = capped_seconds / 3600.0
+            day_str = left_at.date().isoformat()
+            daily_progress.setdefault(day_str, {"hours": 0, "score": 0, "count": 0})
+            daily_progress[day_str]["hours"] += hours
+            weekly_session_hours += hours
+            study_hour += hours  # Contribute to overall study hour total
+    except Exception as e:
+        print(f"[WARN] Failed session hour aggregation: {e}")
 
     # Module completion: only modules with post-test done
     completed_modules = len(module_completion)
@@ -259,11 +306,34 @@ def dashboard(id_number: str):
     else:
         recommended_pages = ["notes", "scheduler", "flashcards"]
 
+    # ---- Study Habit Classification ----
+    habit_categories = []
+    if weekly_flashcard_hours >= 0.5:  # >= 30 minutes
+        habit_categories.append("Active Recall")
+    if weekly_session_hours >= 0.5:  # >= 30 minutes collaborative sessions
+        habit_categories.append("Collaborative Study")
+    if streak >= 3:
+        habit_categories.append("Consistent Streak")
+    if "Active Recall" in habit_categories and "Collaborative Study" in habit_categories:
+        habit_categories.append("Balanced Learning")
+
+    habit_suggestions = []
+    if "Active Recall" not in habit_categories:
+        habit_suggestions.append("Try using flashcards for at least 30 minutes this week to strengthen recall.")
+    if "Collaborative Study" not in habit_categories:
+        habit_suggestions.append("Join a Learn Together session to boost engagement and retention.")
+    if streak < 3:
+        habit_suggestions.append("Log in and study daily to build a longer learning streak.")
+    if not habit_suggestions:
+        habit_suggestions.append("Great balance! Maintain your current study habits.")
+
     return {
         "modules": modules_list,
         "completedModules": completed_modules,
         "totalModules": total_modules,
         "studyHours": round(study_hour, 2),
+        "weeklyFlashcardHours": round(weekly_flashcard_hours, 2),
+        "weeklySessionHours": round(weekly_session_hours, 2),
         "learningStreak": streak,
         "weeklyProgress": weekly_progress,
         "subjectPerformance": subject_performance,
@@ -284,6 +354,13 @@ def dashboard(id_number: str):
         "preTests": pre_tests,
         "postTests": post_tests,
         "loginHistory": login_history
+        ,
+        "studyHabits": {
+            "categories": habit_categories,
+            "weeklyFlashcardHours": round(weekly_flashcard_hours, 2),
+            "weeklySessionHours": round(weekly_session_hours, 2),
+            "suggestions": habit_suggestions
+        }
     }
 
 @router.get("/api/instructor/dashboard/{instructor_id}")
