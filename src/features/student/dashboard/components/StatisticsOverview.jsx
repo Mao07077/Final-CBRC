@@ -119,17 +119,48 @@ const StatisticsOverview = () => {
             <span className="text-gray-500">No habits detected yet</span>
           )}
         </div>
-        <div className="text-sm text-gray-600">
-          <span className="mr-4">Flashcards (7d): <strong>{(weeklyFlashcardHours ?? studyHabits?.weeklyFlashcardHours ?? 0)}h</strong></span>
-          <span>Learn Together (7d): <strong>{(weeklySessionHours ?? studyHabits?.weeklySessionHours ?? 0)}h</strong></span>
+        {/* Habits mini chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+          <div className="col-span-1 flex flex-col justify-between">
+            <div className="text-sm text-gray-600 mb-3">
+              <span className="block mb-1">Flashcards (7d): <strong>{studyHabits?.weeklyFlashcardCount ?? 0} cards</strong></span>
+              <span>Learn Together (7d): <strong>{(weeklySessionHours ?? studyHabits?.weeklySessionHours ?? 0)}h</strong></span>
+            </div>
+            {studyHabits?.suggestions && studyHabits.suggestions.length > 0 && (
+              <ul className="mt-1 list-disc list-inside text-xs text-gray-600 space-y-1">
+                {studyHabits.suggestions.slice(0,2).map((s, i) => (
+                  <li key={i}>{s.replace('30 minutes', '10 flashcards').replace('flashcards for at least', 'new flashcards (target:').replace('this week to strengthen recall.', ' this week)')}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="lg:col-span-2 h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={[
+                  { name: 'Flashcards', value: studyHabits?.weeklyFlashcardCount ?? 0, type: 'cards' },
+                  { name: 'Learn Together', value: (weeklySessionHours ?? studyHabits?.weeklySessionHours ?? 0), type: 'hours' }
+                ]}
+                margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#6b7280" />
+                <YAxis tick={{ fontSize: 12 }} stroke="#6b7280" />
+                <Tooltip
+                  formatter={(val, label, props) => {
+                    const unit = props.payload.type === 'cards' ? 'cards' : 'hours';
+                    return [`${val} ${unit}`, label];
+                  }}
+                  contentStyle={{ backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                />
+                <Bar dataKey="value" radius={[6,6,0,0]}>
+                  <Cell fill="#2563eb" />
+                  <Cell fill="#10b981" />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        {studyHabits?.suggestions && studyHabits.suggestions.length > 0 && (
-          <ul className="mt-3 list-disc list-inside text-sm text-gray-600">
-            {studyHabits.suggestions.slice(0,2).map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        )}
       </div>
       {/* Strengths & Weaknesses */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">

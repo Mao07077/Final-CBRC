@@ -79,10 +79,25 @@ const StudentProfilePage = () => {
         setTop3Habits(habitsData.recommendedPages || []);
 
         // Fetch daily activity data from backend
-        if (profileData?.dailyActivity) {
-          setDailyData(profileData.dailyActivity);
+        if (Array.isArray(profileData?.dailyActivity) && profileData.dailyActivity.length > 0) {
+          // Normalize missing numeric fields to 0 to avoid tooltip undefined
+          const normalized = profileData.dailyActivity.map(d => ({
+            day: d.day,
+            hours: typeof d.hours === 'number' ? d.hours : 0,
+            modules: Array.isArray(d.modules) ? d.modules : [],
+            flashcardsGenerated: typeof d.flashcardsGenerated === 'number' ? d.flashcardsGenerated : 0,
+            sessionHours: typeof d.sessionHours === 'number' ? d.sessionHours : 0
+          }));
+          setDailyData(normalized);
         } else {
-          setDailyData([]);
+          // Provide 7-day placeholders when backend returns empty to surface chart structure
+          const today = new Date();
+          const placeholders = Array.from({ length: 7 }).map((_, idx) => {
+            const d = new Date(today.getTime() - (6 - idx) * 86400000);
+            const iso = d.toISOString().split('T')[0];
+            return { day: iso, hours: 0, modules: [], flashcardsGenerated: 0, sessionHours: 0 };
+          });
+          setDailyData(placeholders);
         }
         // Debug log
         console.log('Fetched profile for:', userData.id_number, 'Image URL:', profileData.profileImageUrl);
@@ -366,7 +381,9 @@ const StudentProfilePage = () => {
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={dailyData}
+                data={dailyData && dailyData.length > 0 ? dailyData : [
+                  { day: 'No Data', hours: 0, modules: [], flashcardsGenerated: 0, sessionHours: 0 }
+                ]}
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />

@@ -6,6 +6,7 @@ from database import (
     pre_test_collection,
     post_test_collection,
     session_logs_collection,  # Added for collaborative session hour aggregation
+    flashcards_collection,    # For flashcard generation counts
 )
 from bson import ObjectId
 from config import logger
@@ -104,7 +105,8 @@ def dashboard(id_number: str):
     total_questions = 0
     correct_answers = 0
     flashcard_time = user.get("flashcard_time", 0)
-    weekly_flashcard_hours = flashcard_time / 60  # We'll attribute current flashcard time to today's bucket
+    weekly_flashcard_hours = flashcard_time / 60  # Legacy minutes-based measure (deprecated for habits)
+    weekly_flashcard_count = 0  # New: count of flashcards generated in last 7 days
     weekly_session_hours = 0  # Aggregate of Learn Together sessions for the week
 
     print("[DEBUG] All scores for user:", scores)
@@ -126,10 +128,10 @@ def dashboard(id_number: str):
             date_taken = pre_score.get("date_taken")
             if date_taken:
                 day = date_taken.split("T")[0]
-                daily_progress.setdefault(day, {"hours": 0, "score": 0, "count": 0})
+                daily_progress.setdefault(day, {"hours": 0, "correct": 0, "questions": 0})
                 daily_progress[day]["hours"] += time_spent / 60
-                daily_progress[day]["score"] += (pre_score.get("correct", 0) / max(pre_score.get("total_questions", 1), 1)) * 100
-                daily_progress[day]["count"] += 1
+                daily_progress[day]["correct"] += pre_score.get("correct", 0)
+                daily_progress[day]["questions"] += pre_score.get("total_questions", 0)
             pre_test = pre_test_collection.find_one({"module_id": module_id})
             pre_test_title = pre_test["title"] if pre_test else f"Pre-Test for {module_title}"
             pre_tests.append({
@@ -164,10 +166,10 @@ def dashboard(id_number: str):
             date_taken = post_score.get("date_taken")
             if date_taken:
                 day = date_taken.split("T")[0]
-                daily_progress.setdefault(day, {"hours": 0, "score": 0, "count": 0})
+                daily_progress.setdefault(day, {"hours": 0, "correct": 0, "questions": 0})
                 daily_progress[day]["hours"] += time_spent / 60
-                daily_progress[day]["score"] += (post_score.get("correct", 0) / max(post_score.get("total_questions", 1), 1)) * 100
-                daily_progress[day]["count"] += 1
+                daily_progress[day]["correct"] += post_score.get("correct", 0)
+                daily_progress[day]["questions"] += post_score.get("total_questions", 0)
             post_test = post_test_collection.find_one({"module_id": module_id})
             post_test_title = post_test["title"] if post_test else f"Post-Test for {module_title}"
             post_tests.append({
@@ -208,8 +210,19 @@ def dashboard(id_number: str):
 
     # Ensure today's bucket exists and add flashcard hours there for weekly progress visibility
     today_str = datetime.date.today().isoformat()
-    daily_progress.setdefault(today_str, {"hours": 0, "score": 0, "count": 0})
+    daily_progress.setdefault(today_str, {"hours": 0, "correct": 0, "questions": 0})
     daily_progress[today_str]["hours"] += weekly_flashcard_hours
+
+    # ---- Flashcard Generation Count (last 7 days) ----
+    try:
+        from datetime import timedelta
+        seven_days_ago = datetime.datetime.utcnow() - timedelta(days=6)
+        weekly_flashcard_count = flashcards_collection.count_documents({
+            "generated_by": id_number,
+            "created_at": {"$gte": seven_days_ago}
+        })
+    except Exception as e:
+        print(f"[WARN] Failed flashcard count aggregation: {e}")
 
     # ---- Collaborative Session Time Aggregation ----
     # Aggregate per-user session logs (join/leave durations) for the last 7 days and inject into daily_progress
@@ -237,7 +250,7 @@ def dashboard(id_number: str):
             capped_seconds = min(duration_seconds, 7200)
             hours = capped_seconds / 3600.0
             day_str = left_at.date().isoformat()
-            daily_progress.setdefault(day_str, {"hours": 0, "score": 0, "count": 0})
+            daily_progress.setdefault(day_str, {"hours": 0, "correct": 0, "questions": 0})
             daily_progress[day_str]["hours"] += hours
             weekly_session_hours += hours
             study_hour += hours  # Contribute to overall study hour total
@@ -253,8 +266,8 @@ def dashboard(id_number: str):
     weekly_progress = []
     for i in range(6, -1, -1):
         day = (today_dt - datetime.timedelta(days=i)).isoformat()
-        data = daily_progress.get(day, {"hours": 0, "score": 0, "count": 0})
-        avg_score = (data["score"] / data["count"]) if data["count"] > 0 else 0
+        data = daily_progress.get(day, {"hours": 0, "correct": 0, "questions": 0})
+        avg_score = (data["correct"] / max(data["questions"], 1)) * 100 if data["questions"] > 0 else 0
         weekly_progress.append({"day": day, "hours": round(data["hours"], 2), "score": round(avg_score, 2)})
 
     # Subject performance pie chart
@@ -308,7 +321,8 @@ def dashboard(id_number: str):
 
     # ---- Study Habit Classification ----
     habit_categories = []
-    if weekly_flashcard_hours >= 0.5:  # >= 30 minutes
+    # Active Recall now based on generating at least 10 flashcards in last 7 days
+    if weekly_flashcard_count >= 10:
         habit_categories.append("Active Recall")
     if weekly_session_hours >= 0.5:  # >= 30 minutes collaborative sessions
         habit_categories.append("Collaborative Study")
@@ -319,7 +333,7 @@ def dashboard(id_number: str):
 
     habit_suggestions = []
     if "Active Recall" not in habit_categories:
-        habit_suggestions.append("Try using flashcards for at least 30 minutes this week to strengthen recall.")
+        habit_suggestions.append("Generate at least 10 new flashcards this week to strengthen recall.")
     if "Collaborative Study" not in habit_categories:
         habit_suggestions.append("Join a Learn Together session to boost engagement and retention.")
     if streak < 3:
@@ -332,7 +346,8 @@ def dashboard(id_number: str):
         "completedModules": completed_modules,
         "totalModules": total_modules,
         "studyHours": round(study_hour, 2),
-        "weeklyFlashcardHours": round(weekly_flashcard_hours, 2),
+    "weeklyFlashcardHours": round(weekly_flashcard_hours, 2),  # retained for backward compatibility
+    "weeklyFlashcardCount": weekly_flashcard_count,
         "weeklySessionHours": round(weekly_session_hours, 2),
         "learningStreak": streak,
         "weeklyProgress": weekly_progress,

@@ -95,19 +95,30 @@ def get_profile(id_number: str):
             "sessionHours": 0.0,
         }
 
-    # From test scores: accumulate hours and modules per day
+    # From test scores: accumulate hours and modules per day (robust date handling)
     for score in scores:
-        date_taken = score.get("date_taken")
+        raw_date = score.get("date_taken") or score.get("submitted_at") or score.get("created_at") or score.get("createdAt")
         time_spent = min(score.get("time_spent", 0), 600)  # cap at 10 mins (0.1667h)
-        if date_taken:
-            day = date_taken.split("T")[0]
-            if day in daily_activity:
-                daily_activity[day]["hours"] += time_spent / 60.0
-                module_id = str(score.get("module_id")) if score.get("module_id") is not None else None
-                if module_id:
-                    title = module_title_map.get(module_id, f"Module {module_id}")
-                    if title not in daily_activity[day]["modules"]:
-                        daily_activity[day]["modules"].append(title)
+        day = None
+        try:
+            if raw_date is None:
+                day = None
+            elif isinstance(raw_date, datetime):
+                day = raw_date.date().isoformat()
+            elif isinstance(raw_date, str):
+                # Expected ISO with 'T', otherwise assume yyyy-mm-dd
+                day = raw_date.split("T")[0]
+            else:
+                day = None
+        except Exception:
+            day = None
+        if day and day in daily_activity:
+            daily_activity[day]["hours"] += time_spent / 60.0
+            module_id = str(score.get("module_id")) if score.get("module_id") is not None else None
+            if module_id:
+                title = module_title_map.get(module_id, f"Module {module_id}")
+                if title not in daily_activity[day]["modules"]:
+                    daily_activity[day]["modules"].append(title)
 
     # From Learn Together session logs: add session hours per day (based on left_at date)
     try:
