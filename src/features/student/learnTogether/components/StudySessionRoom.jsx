@@ -161,6 +161,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
   // Autoplay unlock guard for remote media on first user interaction
   const autoplayUnlockedRef = useRef(false);
+  // Track last successfully attached stream id per participant to dedupe attachment attempts
+  const remoteAttachStateRef = useRef(new Map()); // participantId -> stream.id
+  // Track in-flight attachment promises so we don't start parallel play() calls
+  const remoteAttachInFlightRef = useRef(new Map()); // participantId -> boolean
   const attemptPlayAllRemote = useCallback(() => {
     try {
       remoteVideosRef.current.forEach((el, pid) => {
@@ -188,6 +192,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         const existingStream = remoteStreamsRef.current.get(participantId);
         if (!existingStream) return;
 
+        // Skip if already attached & playing same stream
+        const alreadyId = remoteAttachStateRef.current.get(participantId);
+        if (alreadyId === existingStream.id && el.srcObject === existingStream && !el.paused) {
+          return; // no work needed
+        }
+
         // Attempt to attach and play with a small retry/backoff loop.
         // On some browsers autoplay with audio is blocked; temporarily muting
         // the element for the play() attempt often allows playback to start.
@@ -195,40 +205,53 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
         const tryAttach = async (attempt = 1) => {
           if (cancelled) return;
+          if (remoteAttachInFlightRef.current.get(participantId)) return; // guard parallel
+          remoteAttachInFlightRef.current.set(participantId, true);
           console.debug('[attach] attempt', attempt, 'for', participantId);
           try {
             // Assign stream
-            try {
-              el.srcObject = existingStream;
-            } catch (srcErr) {
-              try { el.src = URL.createObjectURL(existingStream); } catch (e) {}
+            if (el.srcObject !== existingStream) {
+              try {
+                el.srcObject = existingStream;
+              } catch (srcErr) {
+                try { el.src = URL.createObjectURL(existingStream); } catch (e) {}
+              }
             }
 
             const prevMuted = el.muted;
 
             try {
-              await el.play();
+              if (el.paused) {
+                await el.play();
+              }
               // restore muted state shortly after successful play
               setTimeout(() => {
                 try { el.muted = prevMuted; } catch (e) {}
               }, 300);
               console.debug('[attach] success', participantId, 'attempt', attempt);
+              remoteAttachStateRef.current.set(participantId, existingStream.id);
+              remoteAttachInFlightRef.current.delete(participantId);
               return;
             } catch (playErr) {
               console.debug('[attach] play failed', attempt, participantId, playErr);
               // Try again with muted=true (may satisfy autoplay policy)
               try {
                 el.muted = true;
-                await el.play();
+                if (el.paused) {
+                  await el.play();
+                }
                 setTimeout(() => {
                   try { el.muted = prevMuted; } catch (e) {}
                 }, 300);
                 console.debug('[attach] success (muted) ', participantId, 'attempt', attempt);
+                remoteAttachStateRef.current.set(participantId, existingStream.id);
+                remoteAttachInFlightRef.current.delete(participantId);
                 return;
               } catch (mutedErr) {
                 console.debug('[attach] muted play failed', attempt, participantId, mutedErr);
-                if (attempt < 3) {
-                  const backoff = attempt === 1 ? 200 : attempt === 2 ? 500 : 1000;
+                remoteAttachInFlightRef.current.delete(participantId);
+                if (attempt < 2) { // fewer retries to reduce flicker
+                  const backoff = attempt === 1 ? 350 : 800;
                   setTimeout(() => tryAttach(attempt + 1), backoff);
                 } else {
                   console.warn('[attach] failed to play after attempts for', participantId);
@@ -237,6 +260,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             }
           } catch (e) {
             console.warn('[attach] unexpected error attaching stream for', participantId, e);
+            remoteAttachInFlightRef.current.delete(participantId);
           }
         };
 
@@ -265,11 +289,20 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     try {
       remoteStreamsRef.current.forEach((stream, participantId) => {
         const el = remoteVideosRef.current.get(participantId);
-        if (el && (!el.srcObject || el.srcObject !== stream)) {
-          console.debug('[reconcile] attaching stored stream to element', participantId);
+        if (!el) return;
+        const attachedId = remoteAttachStateRef.current.get(participantId);
+        const needsAttach = el.srcObject !== stream || attachedId !== stream.id;
+        const needsPlay = el.paused && el.readyState >= 2;
+        if (needsAttach || needsPlay) {
+          console.debug('[reconcile] attaching/playing stream for', participantId, { needsAttach, needsPlay });
           try {
-            el.srcObject = stream;
-            el.play().catch(() => {});
+            if (needsAttach) {
+              el.srcObject = stream;
+              remoteAttachStateRef.current.set(participantId, stream.id);
+            }
+            if (needsPlay) {
+              el.play().catch(() => {});
+            }
           } catch (e) {
             try { el.src = URL.createObjectURL(stream); } catch (e2) {}
           }
@@ -721,6 +754,31 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   }, [participants]);
 
   // WebRTC functions
+  // Renegotiation scheduler to coalesce multiple changes into one offer per peer
+  const renegotiateTimersRef = useRef(new Map()); // participantId -> timeoutId
+  const scheduleRenegotiation = useCallback((participantId) => {
+    if (renegotiateTimersRef.current.has(participantId)) return;
+    const t = setTimeout(async () => {
+      renegotiateTimersRef.current.delete(participantId);
+      const pc = peerConnectionsRef.current.get(participantId);
+      if (!pc) return;
+      try {
+        if (pc.signalingState !== 'stable') return;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+          socketRef.current.send(JSON.stringify({
+            type: 'webrtc_offer',
+            target_participant_id: participantId,
+            data: { offer }
+          }));
+        }
+      } catch (e) {
+        console.warn('Renegotiation error for', participantId, e);
+      }
+    }, 200);
+    renegotiateTimersRef.current.set(participantId, t);
+  }, []);
   const createPeerConnection = useCallback((participantId) => {
     const peerConnection = new RTCPeerConnection({
       iceServers: [
@@ -742,12 +800,21 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       console.debug('[ontrack] received remote stream for', participantId, remoteStream);
       const videoElement = remoteVideosRef.current.get(participantId);
       if (videoElement) {
-        console.debug('[ontrack] attaching stream to existing element', participantId);
-        try {
-          videoElement.srcObject = remoteStream;
-          videoElement.play().catch(() => {});
-        } catch (e) {
-          try { videoElement.src = URL.createObjectURL(remoteStream); } catch (e2) {}
+        // Dedupe attachment if same stream already applied
+        const currentId = remoteAttachStateRef.current.get(participantId);
+        if (currentId === remoteStream.id && videoElement.srcObject === remoteStream) {
+          if (videoElement.paused) { videoElement.play().catch(()=>{}); }
+        } else {
+          console.debug('[ontrack] attaching stream to existing element', participantId);
+          try {
+            if (videoElement.srcObject !== remoteStream) {
+              videoElement.srcObject = remoteStream;
+            }
+            if (videoElement.paused) { videoElement.play().catch(() => {}); }
+            remoteAttachStateRef.current.set(participantId, remoteStream.id);
+          } catch (e) {
+            try { videoElement.src = URL.createObjectURL(remoteStream); } catch (e2) {}
+          }
         }
       }
     };
@@ -778,23 +845,34 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     const currentParticipantIds = new Set(participants.map(p => p.id));
     const newParticipantIds = new Set(newParticipants.map(p => p.id));
 
-    for (const participant of newParticipants) {
-      if (participant.user_id !== userId && !currentParticipantIds.has(participant.id)) {
-        try {
-          const peerConnection = createPeerConnection(participant.id);
-          const offer = await peerConnection.createOffer();
-          await peerConnection.setLocalDescription(offer);
+    // Debounce map for outbound offers: participantId -> timestamp
+    if (!window.__outboundOffersTS) window.__outboundOffersTS = new Map();
+    const OFFER_DEBOUNCE_MS = 5000;
 
-          if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current.send(JSON.stringify({
-              type: "webrtc_offer",
-              target_participant_id: participant.id,
-              data: { offer }
-            }));
-          }
-        } catch (error) {
-          console.error("Error creating offer:", error);
+    for (const participant of newParticipants) {
+      if (participant.user_id === userId) continue; // skip self
+      // Skip if we already have a connection object
+      if (peerConnectionsRef.current.has(participant.id)) continue;
+      // Offer debounce guard
+      const lastTs = window.__outboundOffersTS.get(participant.id) || 0;
+      const now = Date.now();
+      if (now - lastTs < OFFER_DEBOUNCE_MS) continue;
+      try {
+        const peerConnection = createPeerConnection(participant.id);
+        // Only create offer if signalingState is stable
+        if (peerConnection.signalingState !== 'stable') continue;
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        window.__outboundOffersTS.set(participant.id, now);
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+          socketRef.current.send(JSON.stringify({
+            type: "webrtc_offer",
+            target_participant_id: participant.id,
+            data: { offer }
+          }));
         }
+      } catch (error) {
+        console.error("Error creating offer:", error);
       }
     }
 
@@ -1023,20 +1101,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 peerConnection.addTrack(stream.getAudioTracks()[0], stream);
                 console.log(`Added audio track for participant ${participantId}`);
               }
-              
-              if (peerConnection.signalingState === 'stable') {
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-
-                if (socketRef.current?.readyState === WebSocket.OPEN) {
-                  socketRef.current.send(JSON.stringify({
-                    type: "webrtc_offer",
-                    target_participant_id: participantId,
-                    data: { offer }
-                  }));
-                }
-                console.log(`Sent renegotiation offer to participant ${participantId} for audio track change`);
-              }
+              scheduleRenegotiation(participantId);
             } catch (error) {
               console.error(`Error updating audio track for participant ${participantId}:`, error);
             }
@@ -1110,6 +1175,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           peerConnectionsRef.current.forEach(pc => {
             const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
             if (sender) sender.replaceTrack(vTrack); else pc.addTrack(vTrack, existingStream);
+            // schedule for this peer
+            const id = [...peerConnectionsRef.current.entries()].find(([id, p]) => p === pc)?.[0];
+            if (id) scheduleRenegotiation(id);
           });
           attachTokenRef.current += 1; setAttachVersion(v => v + 1);
         } else {
@@ -1162,20 +1230,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               peerConnection.addTrack(screenStream.getVideoTracks()[0], screenStream);
               console.log(`Added screen share track for participant ${participantId}`);
             }
-            
-                if (peerConnection.signalingState === 'stable') {
-                  const offer = await peerConnection.createOffer();
-                  await peerConnection.setLocalDescription(offer);
-
-                  if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.send(JSON.stringify({
-                      type: "webrtc_offer",
-                      target_participant_id: participantId,
-                      data: { offer }
-                    }));
-                  }
-                  console.log(`Sent renegotiation offer to participant ${participantId} for screen share`);
-                }
+            scheduleRenegotiation(participantId);
           } catch (error) {
             console.error(`Error starting screen share for participant ${participantId}:`, error);
           }
@@ -1209,19 +1264,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                     await videoSender.replaceTrack(cameraStream.getVideoTracks()[0]);
                     console.log(`Switched back to camera for participant ${participantId}`);
                     
-                    if (peerConnection.signalingState === 'stable') {
-                      const offer = await peerConnection.createOffer();
-                      await peerConnection.setLocalDescription(offer);
-
-                      if (socketRef.current?.readyState === WebSocket.OPEN) {
-                        socketRef.current.send(JSON.stringify({
-                          type: "webrtc_offer",
-                          target_participant_id: participantId,
-                          data: { offer }
-                        }));
-                      }
-                      console.log(`Sent renegotiation offer to participant ${participantId} for camera switch`);
-                    }
+                    scheduleRenegotiation(participantId);
                   }
                 } catch (error) {
                   console.error(`Error switching back to camera for participant ${participantId}:`, error);
@@ -1244,19 +1287,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   await videoSender.replaceTrack(null);
                   console.log(`Removed video track for participant ${participantId}`);
                   
-                  if (peerConnection.signalingState === 'stable') {
-                    const offer = await peerConnection.createOffer();
-                    await peerConnection.setLocalDescription(offer);
-
-                    if (socketRef.current?.readyState === WebSocket.OPEN) {
-                      socketRef.current.send(JSON.stringify({
-                        type: "webrtc_offer",
-                        target_participant_id: participantId,
-                        data: { offer }
-                      }));
-                    }
-                    console.log(`Sent renegotiation offer to participant ${participantId} for video removal`);
-                  }
+                  scheduleRenegotiation(participantId);
                 }
               } catch (error) {
                 console.error(`Error removing video track for participant ${participantId}:`, error);
@@ -1295,19 +1326,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 await videoSender.replaceTrack(cameraStream.getVideoTracks()[0]);
                 console.log(`Manual switch back to camera for participant ${participantId}`);
                 
-                  if (peerConnection.signalingState === 'stable') {
-                    const offer = await peerConnection.createOffer();
-                    await peerConnection.setLocalDescription(offer);
-
-                    if (socketRef.current?.readyState === WebSocket.OPEN) {
-                      socketRef.current.send(JSON.stringify({
-                        type: "webrtc_offer",
-                        target_participant_id: participantId,
-                        data: { offer }
-                      }));
-                    }
-                    console.log(`Sent renegotiation offer to participant ${participantId} for manual camera switch`);
-                  }
+                  scheduleRenegotiation(participantId);
               }
             } catch (error) {
               console.error(`Error manually switching back to camera for participant ${participantId}:`, error);
@@ -1327,19 +1346,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 await videoSender.replaceTrack(null);
                 console.log(`Manual video track removal for participant ${participantId}`);
                 
-                  if (peerConnection.signalingState === 'stable') {
-                    const offer = await peerConnection.createOffer();
-                    await peerConnection.setLocalDescription(offer);
-
-                    if (socketRef.current?.readyState === WebSocket.OPEN) {
-                      socketRef.current.send(JSON.stringify({
-                        type: "webrtc_offer",
-                        target_participant_id: participantId,
-                        data: { offer }
-                      }));
-                    }
-                    console.log(`Sent renegotiation offer to participant ${participantId} for manual video removal`);
-                  }
+                  scheduleRenegotiation(participantId);
               }
             } catch (error) {
               console.error(`Error manually removing video track for participant ${participantId}:`, error);
