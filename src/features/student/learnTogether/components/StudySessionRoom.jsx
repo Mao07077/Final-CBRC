@@ -112,8 +112,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   
   // Local media state
   const [isMuted, setIsMuted] = useState(true);
-  // Camera is enabled by default; remove ability to turn it off from the UI
-  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [mediaError, setMediaError] = useState(null);
@@ -279,9 +278,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   useEffect(() => {
     const initializeMedia = async () => {
       try {
-        // Always request camera + microphone so camera cannot be turned off
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: false,
           audio: true
         });
         
@@ -2083,7 +2081,13 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           {isMuted ? <MicOff className="w-6 h-6 text-white mx-auto" /> : <Mic className="w-6 h-6 text-white mx-auto" />}
         </button>
 
-            {/* Camera toggle removed: camera remains on by default for LearnTogether sessions */}
+        <button
+          onClick={toggleCamera}
+          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${isCameraOff ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+          title={isCameraOff ? "Turn camera on" : "Turn camera off"}
+        >
+          {isCameraOff ? <VideoOff className="w-6 h-6 text-white mx-auto" /> : <Video className="w-6 h-6 text-white mx-auto" />}
+        </button>
 
         <button
           onClick={toggleScreenShare}
