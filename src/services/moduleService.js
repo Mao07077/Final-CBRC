@@ -45,7 +45,9 @@ const moduleService = {
   },
 
   generateFlashcards: async (moduleId, numCards = 5) => {
-    const response = await apiClient.post(`/api/generate-flashcards/${moduleId}?num_cards=${numCards}`);
+    const idNumber = typeof window !== 'undefined' ? localStorage.getItem('id_number') : null;
+    const qs = `num_cards=${numCards}` + (idNumber ? `&generated_by=${encodeURIComponent(idNumber)}` : '');
+    const response = await apiClient.post(`/api/generate-flashcards/${moduleId}?${qs}`);
     return response.data;
   }
 };

@@ -20,7 +20,7 @@ const useDashboardStore = create((set) => ({
   correctAnswers: 0,
   accuracy: 0,
   assessmentResults: [],
-  studyHabits: { categories: [], weeklyFlashcardHours: 0, weeklySessionHours: 0, suggestions: [] },
+  studyHabits: { categories: [], weeklyFlashcardHours: 0, weeklyFlashcardCount: 0, weeklySessionHours: 0, suggestions: [] },
   weeklySessionHours: 0,
   weeklyFlashcardHours: 0,
   preTestCount: 0,
@@ -60,7 +60,13 @@ const useDashboardStore = create((set) => ({
         correctAnswers: data.detailedMetrics?.correctAnswers || 0,
         accuracy: data.detailedMetrics?.accuracy || 0,
         assessmentResults: data.assessmentBreakdown || [],
-        studyHabits: data.studyHabits || { categories: [], weeklyFlashcardHours: 0, weeklySessionHours: 0, suggestions: [] },
+        studyHabits: data.studyHabits ? { 
+          categories: data.studyHabits.categories || [],
+          weeklyFlashcardHours: data.studyHabits.weeklyFlashcardHours || 0,
+          weeklyFlashcardCount: data.weeklyFlashcardCount || data.studyHabits.weeklyFlashcardCount || 0,
+          weeklySessionHours: data.studyHabits.weeklySessionHours || 0,
+          suggestions: data.studyHabits.suggestions || []
+        } : { categories: [], weeklyFlashcardHours: 0, weeklyFlashcardCount: 0, weeklySessionHours: 0, suggestions: [] },
         preTestCount: data.preTestCount || 0,
         postTestCount: data.postTestCount || 0,
         detailedMetrics: data.detailedMetrics || { totalQuestions: 0, correctAnswers: 0, accuracy: 0 },
@@ -88,7 +94,7 @@ const useDashboardStore = create((set) => ({
         correctAnswers: 0,
         accuracy: 0,
         assessmentResults: [],
-        studyHabits: { categories: [], weeklyFlashcardHours: 0, weeklySessionHours: 0, suggestions: [] },
+  studyHabits: { categories: [], weeklyFlashcardHours: 0, weeklyFlashcardCount: 0, weeklySessionHours: 0, suggestions: [] },
         isLoading: false,
         error: "Failed to load dashboard data. Please try again later.",
       });

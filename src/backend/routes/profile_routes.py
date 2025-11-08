@@ -103,7 +103,8 @@ def get_profile(id_number: str):
         try:
             if raw_date is None:
                 day = None
-            elif isinstance(raw_date, datetime):
+            # raw_date can be a datetime.datetime in Mongo; ensure correct isinstance check
+            elif isinstance(raw_date, datetime.datetime):
                 day = raw_date.date().isoformat()
             elif isinstance(raw_date, str):
                 # Expected ISO with 'T', otherwise assume yyyy-mm-dd
@@ -146,19 +147,37 @@ def get_profile(id_number: str):
     except Exception as e:
         print(f"[WARN] Failed to aggregate session logs for profile: {e}")
 
-    # Flashcards generated per day (count by created_at, generated_by)
+    # Flashcards generated per day (count by created_at, generated_by) with robust date handling
     try:
-        flash_logs = flashcards_collection.find({
+        week_start_dt = datetime.datetime.combine(week_start, datetime.time.min)
+        # First try direct query by created_at >= start
+        flash_logs = list(flashcards_collection.find({
             "generated_by": id_number,
-            "created_at": {"$gte": datetime.datetime.combine(week_start, datetime.time.min)}
-        })
+            "created_at": {"$gte": week_start_dt}
+        }))
+        # If none found, fallback to scanning and parsing potential alternate fields or string timestamps
+        if not flash_logs:
+            flash_logs = list(flashcards_collection.find({"generated_by": id_number}))
         for fc in flash_logs:
-            created_at = fc.get("created_at")
-            if not created_at:
+            ts = fc.get("created_at") or fc.get("createdAt") or fc.get("timestamp")
+            if not ts:
                 continue
-            day = created_at.date().isoformat()
-            if day in daily_activity:
-                daily_activity[day]["flashcardsGenerated"] += 1
+            if isinstance(ts, datetime.datetime):
+                dt_val = ts
+            elif isinstance(ts, str):
+                dt_val = None
+                for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                    try:
+                        dt_val = datetime.datetime.strptime(ts, fmt)
+                        break
+                    except Exception:
+                        continue
+            else:
+                dt_val = None
+            if dt_val and dt_val >= week_start_dt:
+                day = dt_val.date().isoformat()
+                if day in daily_activity:
+                    daily_activity[day]["flashcardsGenerated"] += 1
     except Exception as e:
         print(f"[WARN] Failed to aggregate flashcard generation logs for profile: {e}")
 
