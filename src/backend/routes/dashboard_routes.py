@@ -125,9 +125,20 @@ def dashboard(id_number: str):
             study_hour += time_spent / 60
             total_questions += pre_score.get("total_questions", 0)
             correct_answers += pre_score.get("correct", 0)
-            date_taken = pre_score.get("date_taken")
-            if date_taken:
-                day = date_taken.split("T")[0]
+            # Robust date handling (supports datetime and alt fields)
+            raw_date = pre_score.get("date_taken") or pre_score.get("submitted_at") or pre_score.get("created_at") or pre_score.get("createdAt")
+            day = None
+            try:
+                import datetime as _dt
+                if raw_date is None:
+                    day = None
+                elif isinstance(raw_date, _dt.datetime):
+                    day = raw_date.date().isoformat()
+                elif isinstance(raw_date, str):
+                    day = raw_date.split("T")[0]
+            except Exception:
+                day = None
+            if day:
                 daily_progress.setdefault(day, {"hours": 0, "correct": 0, "questions": 0})
                 daily_progress[day]["hours"] += time_spent / 60
                 daily_progress[day]["correct"] += pre_score.get("correct", 0)
@@ -163,9 +174,20 @@ def dashboard(id_number: str):
             study_hour += time_spent / 60
             total_questions += post_score.get("total_questions", 0)
             correct_answers += post_score.get("correct", 0)
-            date_taken = post_score.get("date_taken")
-            if date_taken:
-                day = date_taken.split("T")[0]
+            # Robust date handling (supports datetime and alt fields)
+            raw_date = post_score.get("date_taken") or post_score.get("submitted_at") or post_score.get("created_at") or post_score.get("createdAt")
+            day = None
+            try:
+                import datetime as _dt
+                if raw_date is None:
+                    day = None
+                elif isinstance(raw_date, _dt.datetime):
+                    day = raw_date.date().isoformat()
+                elif isinstance(raw_date, str):
+                    day = raw_date.split("T")[0]
+            except Exception:
+                day = None
+            if day:
                 daily_progress.setdefault(day, {"hours": 0, "correct": 0, "questions": 0})
                 daily_progress[day]["hours"] += time_spent / 60
                 daily_progress[day]["correct"] += post_score.get("correct", 0)
@@ -421,12 +443,22 @@ async def get_instructor_dashboard(instructor_id: str, program: Optional[str] = 
             scores = list(scores_collection.find({"user_id": student["id_number"]}))
             streak_days = set()
             for score in scores:
-                date_taken = score.get("date_taken")
+                # Robust date handling for attendance
+                raw_date = score.get("date_taken") or score.get("submitted_at") or score.get("created_at") or score.get("createdAt")
+                day = None
+                try:
+                    import datetime as _dt
+                    if raw_date is None:
+                        day = None
+                    elif isinstance(raw_date, _dt.datetime):
+                        day = raw_date.date().isoformat()
+                    elif isinstance(raw_date, str):
+                        day = raw_date.split("T")[0]
+                except Exception:
+                    day = None
                 time_spent = min(score.get("time_spent", 0), 600)
-                if date_taken:
-                    day = date_taken.split("T")[0]
-                    if time_spent >= 60:
-                        streak_days.add(day)
+                if day and time_spent >= 60:
+                    streak_days.add(day)
             attendance_count = len(streak_days)
             attendance_data.append({
                 "studentName": f"{student.get('firstname', '')} {student.get('lastname', '')}".strip(),
