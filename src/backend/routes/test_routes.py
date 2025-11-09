@@ -80,6 +80,14 @@ def get_pre_test(module_id: str):
 
 @router.post("/api/pre-test/submit/{module_id}")
 def submit_pre_test(module_id: str, submission: PostTestSubmission):
+    # Block duplicate attempt per user/module for pre-test
+    existing = scores_collection.find_one({
+        "module_id": module_id,
+        "user_id": submission.user_id,
+        "test_type": "pretest"
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Pre-test already submitted for this module.")
     pre_test = pre_test_collection.find_one({"module_id": module_id})
     if not pre_test:
         raise HTTPException(status_code=404, detail="Pre-test not found for this module")
@@ -181,6 +189,14 @@ async def get_post_test(module_id: str):
 
 @router.post("/api/post-test/submit/{module_id}")
 async def submit_post_test(module_id: str, submission: PostTestSubmission):
+    # Block duplicate attempt per user/module for post-test
+    existing = scores_collection.find_one({
+        "module_id": module_id,
+        "user_id": submission.user_id,
+        "test_type": "posttest"
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Post-test already submitted for this module.")
     # For post-test submission, we need to get the correct answers from the pre-test
     # since the post-test is dynamically generated with paraphrased questions
     pre_test = pre_test_collection.find_one({"module_id": module_id})
@@ -209,7 +225,9 @@ async def submit_post_test(module_id: str, submission: PostTestSubmission):
         time_spent=submission.time_spent,
         test_type="posttest"
     )
-    scores_collection.insert_one(score_data.dict())
+    doc = score_data.dict()
+    doc["submitted_at"] = datetime.utcnow()
+    scores_collection.insert_one(doc)
     
     return {
         "success": True,
@@ -231,10 +249,157 @@ def get_module_status(module_id: str, user_id: str):
         "user_id": user_id,
         "test_type": "posttest"
     })
+    module_completed = bool(pre_test_score) and bool(post_test_score)
+    # Compute whether all modules are completed (both pre and post)
+    total_modules = modules_collection.count_documents({})
+    user_scores = scores_collection.find({"user_id": user_id})
+    per_module = {}
+    for s in user_scores:
+        mid = s.get("module_id")
+        if not mid:
+            continue
+        entry = per_module.setdefault(mid, {"pre": False, "post": False})
+        if s.get("test_type") == "pretest":
+            entry["pre"] = True
+        elif s.get("test_type") == "posttest":
+            entry["post"] = True
+    completed_count = sum(1 for v in per_module.values() if v["pre"] and v["post"])
+    all_modules_completed = total_modules > 0 and (completed_count >= total_modules)
     return {
         "pre_test_completed": bool(pre_test_score),
-        "post_test_completed": bool(post_test_score)
+        "post_test_completed": bool(post_test_score),
+        "module_completed": module_completed,
+        "all_modules_completed": all_modules_completed,
+        "retake_allowed": False
     }
+
+@router.get("/api/all-modules-completed/{user_id}")
+def all_modules_completed_status(user_id: str):
+    total_modules = modules_collection.count_documents({})
+    user_scores = scores_collection.find({"user_id": user_id})
+    per_module = {}
+    for s in user_scores:
+        mid = s.get("module_id")
+        if not mid:
+            continue
+        entry = per_module.setdefault(mid, {"pre": False, "post": False})
+        if s.get("test_type") == "pretest":
+            entry["pre"] = True
+        elif s.get("test_type") == "posttest":
+            entry["post"] = True
+    completed_count = sum(1 for v in per_module.values() if v["pre"] and v["post"])
+    return {
+        "totalModules": total_modules,
+        "completedModules": completed_count,
+        "allModulesCompleted": total_modules > 0 and (completed_count >= total_modules)
+    }
+
+@router.post("/api/reset-all-modules/{user_id}")
+def reset_all_modules(user_id: str):
+    # Only allow reset if all modules completed
+    status = all_modules_completed_status(user_id)
+    if not status.get("allModulesCompleted"):
+        raise HTTPException(status_code=400, detail="Cannot reset: Not all modules are completed yet.")
+    res = scores_collection.delete_many({"user_id": user_id})
+    return {"success": True, "deleted": res.deleted_count}
+
+@router.get("/api/students/{user_id}/module-attempts")
+def get_module_attempts(user_id: str):
+    # Build attempts summary per module
+    modules = list(modules_collection.find({}))
+    attempts = []
+    from bson import ObjectId as _ObjectId
+    import datetime as _dt
+    def _score_percent(doc):
+        try:
+            return (doc.get("correct", 0) / max(doc.get("total_questions", 1), 1)) * 100
+        except Exception:
+            return 0.0
+    for m in modules:
+        mid = str(m.get("_id"))
+        title = m.get("title", f"Module {mid}")
+        pre_scores = list(scores_collection.find({"user_id": user_id, "module_id": mid, "test_type": "pretest"}))
+        post_scores = list(scores_collection.find({"user_id": user_id, "module_id": mid, "test_type": "posttest"}))
+        def _key(doc):
+            ts = doc.get("submitted_at") or doc.get("created_at") or doc.get("date_taken") or doc.get("createdAt")
+            if isinstance(ts, _dt.datetime):
+                return ts
+            if isinstance(ts, str):
+                try:
+                    return _dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                except Exception:
+                    return doc.get("_id").generation_time if isinstance(doc.get("_id"), _ObjectId) else _dt.datetime.min
+            return doc.get("_id").generation_time if isinstance(doc.get("_id"), _ObjectId) else _dt.datetime.min
+        pre_scores_sorted = sorted(pre_scores, key=_key)
+        post_scores_sorted = sorted(post_scores, key=_key)
+        pre_attempts = len(pre_scores_sorted)
+        post_attempts = len(post_scores_sorted)
+        last_pre = pre_scores_sorted[-1] if pre_scores_sorted else None
+        last_post = post_scores_sorted[-1] if post_scores_sorted else None
+        best_pre = max(((_score_percent(d), d) for d in pre_scores_sorted), default=(0, None))[1]
+        best_post = max(((_score_percent(d), d) for d in post_scores_sorted), default=(0, None))[1]
+        attempts.append({
+            "moduleId": mid,
+            "title": title,
+            "preAttempts": pre_attempts,
+            "postAttempts": post_attempts,
+            "lastPrePercent": round(_score_percent(last_pre), 2) if last_pre else 0,
+            "lastPostPercent": round(_score_percent(last_post), 2) if last_post else 0,
+            "bestPrePercent": round(_score_percent(best_pre), 2) if best_pre else 0,
+            "bestPostPercent": round(_score_percent(best_post), 2) if best_post else 0,
+        })
+    return {"moduleAttempts": attempts}
+
+@router.get("/api/students/{user_id}/module-attempts-history")
+def get_module_attempts_history(user_id: str):
+    """Return per-module attempt history with date and percent for both pre and post tests."""
+    import datetime as _dt
+    # Build module title map
+    modules = list(modules_collection.find({}))
+    title_map = {str(m.get("_id")): m.get("title", f"Module {m.get('_id')}") for m in modules}
+    # Fetch all scores for user
+    scores = list(scores_collection.find({"user_id": user_id}))
+    def _percent(s):
+        try:
+            return (s.get("correct", 0) / max(s.get("total_questions", 1), 1)) * 100
+        except Exception:
+            return 0.0
+    def _dt_key(s):
+        ts = s.get("submitted_at") or s.get("created_at") or s.get("date_taken") or s.get("createdAt")
+        if isinstance(ts, _dt.datetime):
+            return ts
+        if isinstance(ts, str):
+            try:
+                return _dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            except Exception:
+                pass
+        try:
+            return s.get("_id").generation_time
+        except Exception:
+            return _dt.datetime.min
+    grouped = {}
+    for s in scores:
+        mid = s.get("module_id")
+        if not mid:
+            continue
+        arr = grouped.setdefault(mid, [])
+        arr.append({
+            "type": s.get("test_type"),
+            "submittedAt": (_dt_key(s).isoformat()),
+            "percent": round(_percent(s), 2)
+        })
+    # Sort each module's attempts by date
+    for mid, arr in grouped.items():
+        arr.sort(key=lambda x: x["submittedAt"])  # ISO sorts lexicographically by date correctly
+    # Format response
+    result = []
+    for mid, arr in grouped.items():
+        result.append({
+            "moduleId": mid,
+            "title": title_map.get(mid, f"Module {mid}"),
+            "attempts": arr
+        })
+    return {"history": result}
 @router.put("/api/pre-test/{module_id}")
 def update_pre_test(module_id: str, data: dict = Body(...)):
     pre_test = pre_test_collection.find_one({"module_id": module_id})

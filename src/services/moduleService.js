@@ -44,6 +44,26 @@ const moduleService = {
     return response.data;
   },
 
+  getAllModulesCompletedStatus: async (userId) => {
+    const response = await apiClient.get(`/api/all-modules-completed/${userId}`);
+    return response.data;
+  },
+
+  resetAllModules: async (userId) => {
+    const response = await apiClient.post(`/api/reset-all-modules/${userId}`);
+    return response.data;
+  },
+
+  getModuleAttempts: async (userId) => {
+    const response = await apiClient.get(`/api/students/${userId}/module-attempts`);
+    return response.data;
+  },
+
+  getModuleAttemptsHistory: async (userId) => {
+    const response = await apiClient.get(`/api/students/${userId}/module-attempts-history`);
+    return response.data;
+  },
+
   generateFlashcards: async (moduleId, numCards = 5) => {
     const idNumber = typeof window !== 'undefined' ? localStorage.getItem('id_number') : null;
     const qs = `num_cards=${numCards}` + (idNumber ? `&generated_by=${encodeURIComponent(idNumber)}` : '');

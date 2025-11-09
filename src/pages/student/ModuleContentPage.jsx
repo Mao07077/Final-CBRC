@@ -9,12 +9,31 @@ const ModuleContentPage = () => {
   const [showFileModal, setShowFileModal] = useState(false);
   const navigate = useNavigate();
   const [module, setModule] = useState(null);
+  const [status, setStatus] = useState({ pre_test_completed: false, post_test_completed: false, module_completed: false, all_modules_completed: false });
+  const [loadingStatus, setLoadingStatus] = useState(false);
+  const [showAllCompleteModal, setShowAllCompleteModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchModuleContent();
+    fetchStatus();
   }, [moduleId]);
+
+  const fetchStatus = async () => {
+    try {
+      if (!moduleId) return;
+      setLoadingStatus(true);
+      const userId = localStorage.getItem('id_number') || JSON.parse(localStorage.getItem('userData')||'{}').id_number;
+      if (!userId) return;
+      const data = await moduleService.getModuleStatus(moduleId, userId);
+      setStatus(data);
+    } catch (e) {
+      console.warn('Failed to fetch module status', e);
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
 
   const fetchModuleContent = async () => {
     try {
@@ -30,7 +49,34 @@ const ModuleContentPage = () => {
   };
 
   const handleTakePostTest = () => {
+    if (status?.module_completed) return; // safety
     navigate(`/post-test/${moduleId}`);
+  };
+
+  const handleCheckAllCompleted = async () => {
+    try {
+      const userId = localStorage.getItem('id_number') || JSON.parse(localStorage.getItem('userData')||'{}').id_number;
+      if (!userId) return;
+      const full = await moduleService.getAllModulesCompletedStatus(userId);
+      if (full.allModulesCompleted) {
+        setShowAllCompleteModal(true);
+      }
+    } catch (e) {
+      console.warn('Failed to check all modules completion', e);
+    }
+  };
+
+  const handleResetAll = async () => {
+    try {
+      const userId = localStorage.getItem('id_number') || JSON.parse(localStorage.getItem('userData')||'{}').id_number;
+      if (!userId) return;
+      await moduleService.resetAllModules(userId);
+      setShowAllCompleteModal(false);
+      await fetchStatus();
+      await fetchModuleContent();
+    } catch (e) {
+      alert('Reset failed: '+ (e?.response?.data?.detail || e.message));
+    }
   };
 
   const handleBackToDashboard = () => {
@@ -115,7 +161,15 @@ const ModuleContentPage = () => {
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="font-semibold text-gray-700 mb-2">Status</h3>
-                  <p className="text-green-600 font-medium">In Progress</p>
+                  <p className="font-medium">
+                    {status.module_completed ? (
+                      <span className="text-green-600">Completed</span>
+                    ) : status.pre_test_completed ? (
+                      <span className="text-blue-600">Pre-Test Done</span>
+                    ) : (
+                      <span className="text-gray-600">Not Started</span>
+                    )}
+                  </p>
                 </div>
               </div>
             </div>
@@ -206,23 +260,52 @@ const ModuleContentPage = () => {
             {/* Progress and Actions */}
             <div className="border-t pt-6">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="text-sm text-gray-600">
-                  <p>You've completed the pre-test for this module.</p>
-                  <p>Study the content above, then take the post-test when ready.</p>
+                <div className="text-sm text-gray-600 space-y-1">
+                  {status.pre_test_completed ? (
+                    <>
+                      <p>Pre-test completed.</p>
+                      {!status.post_test_completed && <p>Study the content then take the post-test.</p>}
+                      {status.post_test_completed && <p>Post-test completed.</p>}
+                    </>
+                  ) : (
+                    <p>Take the pre-test to begin this module.</p>
+                  )}
+                  {status.module_completed && <p className="text-green-700 font-semibold">Module fully completed.</p>}
                 </div>
                 <div className="flex gap-3">
                   <button
                     onClick={handleTakePostTest}
-                    className="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors"
+                    disabled={!status.pre_test_completed || status.post_test_completed}
+                    className={`px-6 py-2 rounded-lg font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-colors ${(!status.pre_test_completed || status.post_test_completed) ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'}`}
                   >
-                    Take Post-Test
+                    {status.post_test_completed ? 'Post-Test Done' : 'Take Post-Test'}
                   </button>
+                  {status.module_completed && (
+                    <button
+                      onClick={handleCheckAllCompleted}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                    >
+                      Check All Modules
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+      {showAllCompleteModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
+          <h2 className="text-xl font-bold text-gray-800">Congratulations! 🎉</h2>
+          <p className="text-gray-700">You've completed all modules. Press OK to reset and retake everything, or Cancel to keep your results.</p>
+          <div className="flex justify-end gap-3 pt-2">
+            <button onClick={() => setShowAllCompleteModal(false)} className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">Cancel</button>
+            <button onClick={handleResetAll} className="px-4 py-2 rounded bg-primary text-white hover:bg-primary-dark">OK Retake All</button>
+          </div>
+        </div>
+      </div>
+      )}
     </div>
   );
 };
