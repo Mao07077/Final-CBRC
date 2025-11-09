@@ -20,6 +20,15 @@ const ModuleContentPage = () => {
     fetchStatus();
   }, [moduleId]);
 
+  // Auto-check when a module becomes completed
+  const [hasAutoChecked, setHasAutoChecked] = useState(false);
+  useEffect(() => {
+    if (status?.module_completed && !hasAutoChecked) {
+      setHasAutoChecked(true);
+      handleCheckAllCompleted();
+    }
+  }, [status?.module_completed]);
+
   const fetchStatus = async () => {
     try {
       if (!moduleId) return;

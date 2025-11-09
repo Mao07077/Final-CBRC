@@ -9,15 +9,16 @@ import StatisticsOverview from "../../features/student/dashboard/components/Stat
 
 const DashboardPage = () => {
   const { fetchDashboardData, isLoading, error } = useDashboardStore();
+  const [mode, setMode] = useState('current');
   const [attempts, setAttempts] = useState([]);
   const [loadingAttempts, setLoadingAttempts] = useState(false);
   const [attemptsError, setAttemptsError] = useState(null);
   const [historyModal, setHistoryModal] = useState({ open: false, moduleId: null, title: '', items: [] });
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(mode);
     fetchAttempts();
-  }, [fetchDashboardData]);
+  }, [fetchDashboardData, mode]);
 
   const fetchAttempts = async () => {
     try {
@@ -71,6 +72,21 @@ const DashboardPage = () => {
 
       {/* Enhanced Statistics Overview */}
       <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <div />
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">View:</span>
+            <select
+              className="border rounded px-2 py-1 text-sm"
+              value={mode}
+              onChange={(e) => setMode(e.target.value)}
+            >
+              <option value="current">Current</option>
+              <option value="previous">Previous</option>
+              <option value="combined">Combined</option>
+            </select>
+          </div>
+        </div>
         <StatisticsOverview />
       </div>
 
@@ -112,6 +128,8 @@ const DashboardPage = () => {
                   <th className="px-3 py-2 text-center">Last Post%</th>
                   <th className="px-3 py-2 text-center">Best Pre%</th>
                   <th className="px-3 py-2 text-center">Best Post%</th>
+                  <th className="px-3 py-2 text-center">Prev Best Pre%</th>
+                  <th className="px-3 py-2 text-center">Prev Best Post%</th>
                 </tr>
               </thead>
               <tbody>
@@ -132,6 +150,8 @@ const DashboardPage = () => {
                         View
                       </button>
                     </td>
+                    <td className="px-3 py-2 text-center text-gray-700">{a.prevBestPrePercent ?? 0}%</td>
+                    <td className="px-3 py-2 text-center text-gray-700">{a.prevBestPostPercent ?? 0}%</td>
                   </tr>
                 ))}
               </tbody>
@@ -167,6 +187,7 @@ const DashboardPage = () => {
                     <th className="px-3 py-2 text-left">Date</th>
                     <th className="px-3 py-2 text-center">Type</th>
                     <th className="px-3 py-2 text-center">Percent</th>
+                    <th className="px-3 py-2 text-center">Cycle</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -175,6 +196,13 @@ const DashboardPage = () => {
                       <td className="px-3 py-2">{new Date(it.submittedAt).toLocaleString()}</td>
                       <td className="px-3 py-2 text-center capitalize">{it.type}</td>
                       <td className="px-3 py-2 text-center">{it.percent}%</td>
+                      <td className="px-3 py-2 text-center">
+                        {it.archived ? (
+                          <span className="inline-block px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-800 border border-yellow-300">Previous</span>
+                        ) : (
+                          <span className="inline-block px-2 py-1 text-xs rounded bg-emerald-100 text-emerald-800 border border-emerald-300">Current</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -29,7 +29,7 @@ const useDashboardStore = create((set) => ({
   isLoading: false,
   error: null,
 
-  fetchDashboardData: async () => {
+  fetchDashboardData: async (mode = 'current') => {
     set({ isLoading: true, error: null });
     try {
       const { userData } = useAuthStore.getState();
@@ -38,7 +38,7 @@ const useDashboardStore = create((set) => ({
       }
 
       // Fetch all dashboard data from backend
-      const data = await dashboardService.getDashboardData(userData.id_number);
+      const data = await dashboardService.getDashboardData(userData.id_number, mode);
 
       set({
         recommendedPages: data.recommendedPages || [],

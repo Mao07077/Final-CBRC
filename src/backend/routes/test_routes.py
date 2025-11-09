@@ -84,7 +84,8 @@ def submit_pre_test(module_id: str, submission: PostTestSubmission):
     existing = scores_collection.find_one({
         "module_id": module_id,
         "user_id": submission.user_id,
-        "test_type": "pretest"
+        "test_type": "pretest",
+        "archived": {"$ne": True}
     })
     if existing:
         raise HTTPException(status_code=400, detail="Pre-test already submitted for this module.")
@@ -193,7 +194,8 @@ async def submit_post_test(module_id: str, submission: PostTestSubmission):
     existing = scores_collection.find_one({
         "module_id": module_id,
         "user_id": submission.user_id,
-        "test_type": "posttest"
+        "test_type": "posttest",
+        "archived": {"$ne": True}
     })
     if existing:
         raise HTTPException(status_code=400, detail="Post-test already submitted for this module.")
@@ -239,20 +241,24 @@ async def submit_post_test(module_id: str, submission: PostTestSubmission):
 
 @router.get("/api/module-status/{module_id}/{user_id}")
 def get_module_status(module_id: str, user_id: str):
+    # Only consider non-archived scores for active cycle status
     pre_test_score = scores_collection.find_one({
         "module_id": module_id,
         "user_id": user_id,
-        "test_type": "pretest"
+        "test_type": "pretest",
+        "archived": {"$ne": True}
     })
     post_test_score = scores_collection.find_one({
         "module_id": module_id,
         "user_id": user_id,
-        "test_type": "posttest"
+        "test_type": "posttest",
+        "archived": {"$ne": True}
     })
     module_completed = bool(pre_test_score) and bool(post_test_score)
     # Compute whether all modules are completed (both pre and post)
     total_modules = modules_collection.count_documents({})
-    user_scores = scores_collection.find({"user_id": user_id})
+    # Build completion map using only non-archived scores
+    user_scores = scores_collection.find({"user_id": user_id, "archived": {"$ne": True}})
     per_module = {}
     for s in user_scores:
         mid = s.get("module_id")
@@ -276,7 +282,8 @@ def get_module_status(module_id: str, user_id: str):
 @router.get("/api/all-modules-completed/{user_id}")
 def all_modules_completed_status(user_id: str):
     total_modules = modules_collection.count_documents({})
-    user_scores = scores_collection.find({"user_id": user_id})
+    # Only non-archived scores count toward current full completion
+    user_scores = scores_collection.find({"user_id": user_id, "archived": {"$ne": True}})
     per_module = {}
     for s in user_scores:
         mid = s.get("module_id")
@@ -300,12 +307,17 @@ def reset_all_modules(user_id: str):
     status = all_modules_completed_status(user_id)
     if not status.get("allModulesCompleted"):
         raise HTTPException(status_code=400, detail="Cannot reset: Not all modules are completed yet.")
-    res = scores_collection.delete_many({"user_id": user_id})
-    return {"success": True, "deleted": res.deleted_count}
+    # Archive all existing scores instead of deleting so historical progress remains visible
+    now = datetime.utcnow()
+    result = scores_collection.update_many(
+        {"user_id": user_id, "archived": {"$ne": True}},
+        {"$set": {"archived": True, "archived_at": now}}
+    )
+    return {"success": True, "archived": result.modified_count}
 
 @router.get("/api/students/{user_id}/module-attempts")
 def get_module_attempts(user_id: str):
-    # Build attempts summary per module
+    # Build attempts summary per module separating current (non-archived) vs previous (archived) cycle
     modules = list(modules_collection.find({}))
     attempts = []
     from bson import ObjectId as _ObjectId
@@ -318,8 +330,11 @@ def get_module_attempts(user_id: str):
     for m in modules:
         mid = str(m.get("_id"))
         title = m.get("title", f"Module {mid}")
-        pre_scores = list(scores_collection.find({"user_id": user_id, "module_id": mid, "test_type": "pretest"}))
-        post_scores = list(scores_collection.find({"user_id": user_id, "module_id": mid, "test_type": "posttest"}))
+        # Separate current vs archived attempts
+        pre_scores_current = list(scores_collection.find({"user_id": user_id, "module_id": mid, "test_type": "pretest", "archived": {"$ne": True}}))
+        post_scores_current = list(scores_collection.find({"user_id": user_id, "module_id": mid, "test_type": "posttest", "archived": {"$ne": True}}))
+        pre_scores_archived = list(scores_collection.find({"user_id": user_id, "module_id": mid, "test_type": "pretest", "archived": True}))
+        post_scores_archived = list(scores_collection.find({"user_id": user_id, "module_id": mid, "test_type": "posttest", "archived": True}))
         def _key(doc):
             ts = doc.get("submitted_at") or doc.get("created_at") or doc.get("date_taken") or doc.get("createdAt")
             if isinstance(ts, _dt.datetime):
@@ -330,14 +345,18 @@ def get_module_attempts(user_id: str):
                 except Exception:
                     return doc.get("_id").generation_time if isinstance(doc.get("_id"), _ObjectId) else _dt.datetime.min
             return doc.get("_id").generation_time if isinstance(doc.get("_id"), _ObjectId) else _dt.datetime.min
-        pre_scores_sorted = sorted(pre_scores, key=_key)
-        post_scores_sorted = sorted(post_scores, key=_key)
-        pre_attempts = len(pre_scores_sorted)
-        post_attempts = len(post_scores_sorted)
-        last_pre = pre_scores_sorted[-1] if pre_scores_sorted else None
-        last_post = post_scores_sorted[-1] if post_scores_sorted else None
-        best_pre = max(((_score_percent(d), d) for d in pre_scores_sorted), default=(0, None))[1]
-        best_post = max(((_score_percent(d), d) for d in post_scores_sorted), default=(0, None))[1]
+        pre_current_sorted = sorted(pre_scores_current, key=_key)
+        post_current_sorted = sorted(post_scores_current, key=_key)
+        pre_arch_sorted = sorted(pre_scores_archived, key=_key)
+        post_arch_sorted = sorted(post_scores_archived, key=_key)
+        pre_attempts = len(pre_current_sorted)
+        post_attempts = len(post_current_sorted)
+        last_pre = pre_current_sorted[-1] if pre_current_sorted else None
+        last_post = post_current_sorted[-1] if post_current_sorted else None
+        best_pre = max(((_score_percent(d), d) for d in pre_current_sorted), default=(0, None))[1]
+        best_post = max(((_score_percent(d), d) for d in post_current_sorted), default=(0, None))[1]
+        prev_best_pre = max(((_score_percent(d), d) for d in pre_arch_sorted), default=(0, None))[1]
+        prev_best_post = max(((_score_percent(d), d) for d in post_arch_sorted), default=(0, None))[1]
         attempts.append({
             "moduleId": mid,
             "title": title,
@@ -347,6 +366,10 @@ def get_module_attempts(user_id: str):
             "lastPostPercent": round(_score_percent(last_post), 2) if last_post else 0,
             "bestPrePercent": round(_score_percent(best_pre), 2) if best_pre else 0,
             "bestPostPercent": round(_score_percent(best_post), 2) if best_post else 0,
+            "prevBestPrePercent": round(_score_percent(prev_best_pre), 2) if prev_best_pre else 0,
+            "prevBestPostPercent": round(_score_percent(prev_best_post), 2) if prev_best_post else 0,
+            "archivedPreAttempts": len(pre_arch_sorted),
+            "archivedPostAttempts": len(post_arch_sorted)
         })
     return {"moduleAttempts": attempts}
 
@@ -386,7 +409,8 @@ def get_module_attempts_history(user_id: str):
         arr.append({
             "type": s.get("test_type"),
             "submittedAt": (_dt_key(s).isoformat()),
-            "percent": round(_percent(s), 2)
+            "percent": round(_percent(s), 2),
+            "archived": bool(s.get("archived", False))
         })
     # Sort each module's attempts by date
     for mid, arr in grouped.items():

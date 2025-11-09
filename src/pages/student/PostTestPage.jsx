@@ -17,6 +17,8 @@ const PostTestPage = () => {
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [startTime] = useState(Date.now());
+  const [showAllCompleteModal, setShowAllCompleteModal] = useState(false);
+  const [pendingResults, setPendingResults] = useState(null);
 
   useEffect(() => {
     // Fetch server-generated post-test (paraphrased on backend)
@@ -95,9 +97,10 @@ const PostTestPage = () => {
       const response = await moduleService.submitPostTest(moduleId, answers, userData.id_number, timeSpent);
       // Refresh dashboard data after submitting post-test
       await refreshDashboard();
-      // Navigate to results page with the test results
-      navigate("/post-test-results", { 
-        state: { 
+      // Check if all modules are completed and show modal if yes
+      try {
+        const all = await moduleService.getAllModulesCompletedStatus(userData.id_number);
+        const resultsPayload = {
           results: {
             correct: response.correct,
             incorrect: response.incorrect,
@@ -106,8 +109,29 @@ const PostTestPage = () => {
           },
           moduleTitle: postTest.title.replace("Post-Test for ", ""),
           moduleId: moduleId
+        };
+        if (all && all.allModulesCompleted) {
+          setPendingResults(resultsPayload);
+          setShowAllCompleteModal(true);
+        } else {
+          // Navigate to results page with the test results
+          navigate("/post-test-results", { state: resultsPayload });
         }
-      });
+      } catch (e) {
+        // Fallback: proceed to results on error
+        navigate("/post-test-results", { 
+          state: { 
+            results: {
+              correct: response.correct,
+              incorrect: response.incorrect,
+              total_questions: response.total_questions,
+              time_spent: timeSpent
+            },
+            moduleTitle: postTest.title.replace("Post-Test for ", ""),
+            moduleId: moduleId
+          }
+        });
+      }
     } catch (error) {
       console.error("Failed to submit post-test:", error);
       setError("Failed to submit post-test. Please try again.");
@@ -258,6 +282,40 @@ const PostTestPage = () => {
           </div>
         </div>
       </div>
+      {showAllCompleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
+            <h2 className="text-xl font-bold text-gray-800">Congratulations! 🎉</h2>
+            <p className="text-gray-700">You've completed all modules. Press OK to reset and retake everything, or Cancel to keep your results and view this test's outcome.</p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => {
+                  // Go to results without reset
+                  if (pendingResults) navigate("/post-test-results", { state: pendingResults });
+                  setShowAllCompleteModal(false);
+                }}
+                className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await moduleService.resetAllModules(userData.id_number);
+                    setShowAllCompleteModal(false);
+                    navigate("/student/dashboard");
+                  } catch (e) {
+                    alert('Reset failed: ' + (e?.response?.data?.detail || e.message));
+                  }
+                }}
+                className="px-4 py-2 rounded bg-primary text-white hover:bg-primary-dark"
+              >
+                OK Retake All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

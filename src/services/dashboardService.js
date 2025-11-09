@@ -1,9 +1,9 @@
 import apiClient from "../api/axiosClient";
 
 const dashboardService = {
-  getDashboardData: async (idNumber) => {
+  getDashboardData: async (idNumber, mode = 'current') => {
     try {
-      const response = await apiClient.get(`/api/dashboard/${idNumber}`);
+      const response = await apiClient.get(`/api/dashboard/${idNumber}?mode=${encodeURIComponent(mode)}`);
       return response.data;
     } catch (error) {
       console.error("Failed to get dashboard data:", error);

@@ -38,7 +38,7 @@ async def get_instructor_modules(request: Request):
     return modules_list
 
 @router.get("/api/dashboard/{id_number}")
-def dashboard(id_number: str):
+def dashboard(id_number: str, mode: Optional[str] = Query("current", description="Score set: current | previous | combined")):
     import datetime  # Move any other imports up if needed
     user = users_collection.find_one({"id_number": str(id_number)})
     if not user:
@@ -58,7 +58,15 @@ def dashboard(id_number: str):
     if program and program != "All Programs":
         query["program"] = program
     modules_in_program = list(modules_collection.find(query))
-    scores = list(scores_collection.find({"user_id": id_number}))
+    # Determine score filtering based on mode
+    mode_norm = (mode or "current").lower()
+    score_filter = {"user_id": id_number}
+    if mode_norm == "current":
+        score_filter["archived"] = {"$ne": True}
+    elif mode_norm == "previous":
+        score_filter["archived"] = True
+    # combined -> no archived filter (both current + previous)
+    scores = list(scores_collection.find(score_filter))
     # Collect all module_ids from scores (pretest or posttest)
     answered_module_ids = set(str(s["module_id"]) for s in scores)
     # Get all modules the user has answered (even if not in program)
@@ -310,9 +318,9 @@ def dashboard(id_number: str):
     # Detailed metrics
     accuracy = (correct_answers / max(total_questions, 1)) * 100
 
-    # Assessment breakdown
-    pre_test_count = len(pre_tests)
-    post_test_count = len(post_tests)
+    # Assessment counts (non-archived only)
+    pre_test_count = sum(1 for s in scores if s.get("test_type") == "pretest")
+    post_test_count = sum(1 for s in scores if s.get("test_type") == "posttest")
 
     # Generate recommended pages based on user's study habits
     recommended_pages = []
@@ -363,7 +371,7 @@ def dashboard(id_number: str):
     if not habit_suggestions:
         habit_suggestions.append("Great balance! Maintain your current study habits.")
 
-    return {
+    response = {
         "modules": modules_list,
         "completedModules": completed_modules,
         "totalModules": total_modules,
@@ -399,6 +407,21 @@ def dashboard(id_number: str):
             "suggestions": habit_suggestions
         }
     }
+    response["mode"] = mode_norm
+    # If combined, also include separated current vs previous summary for comparison
+    if mode_norm == "combined":
+        current_scores = list(scores_collection.find({"user_id": id_number, "archived": {"$ne": True}}))
+        previous_scores = list(scores_collection.find({"user_id": id_number, "archived": True}))
+        def _aggregate(score_list):
+            tq = sum(s.get("total_questions", 0) for s in score_list)
+            ca = sum(s.get("correct", 0) for s in score_list)
+            acc = (ca / max(tq, 1)) * 100 if tq > 0 else 0
+            return {"totalQuestions": tq, "correctAnswers": ca, "accuracy": round(acc, 2)}
+        response["cycleComparison"] = {
+            "current": _aggregate(current_scores),
+            "previous": _aggregate(previous_scores)
+        }
+    return response
 
 @router.get("/api/instructor/dashboard/{instructor_id}")
 async def get_instructor_dashboard(instructor_id: str, program: Optional[str] = Query(None)):
