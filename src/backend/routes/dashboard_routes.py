@@ -58,6 +58,8 @@ def dashboard(id_number: str, mode: Optional[str] = Query("current", description
     if program and program != "All Programs":
         query["program"] = program
     modules_in_program = list(modules_collection.find(query))
+    # Collect ALL scores (for all-time average that never resets)
+    all_scores = list(scores_collection.find({"user_id": id_number}))
     # Determine score filtering based on mode
     mode_norm = (mode or "current").lower()
     score_filter = {"user_id": id_number}
@@ -315,8 +317,13 @@ def dashboard(id_number: str, mode: Optional[str] = Query("current", description
     if failed:
         weaknesses = [min(failed, key=lambda x: x["score"])]
 
-    # Detailed metrics
+    # Detailed metrics for current mode filter
     accuracy = (correct_answers / max(total_questions, 1)) * 100
+
+    # All-time (combined) average score (never resets): based on all_scores
+    total_questions_all = sum(s.get("total_questions", 0) for s in all_scores)
+    correct_answers_all = sum(s.get("correct", 0) for s in all_scores)
+    all_time_accuracy = (correct_answers_all / max(total_questions_all, 1)) * 100 if total_questions_all > 0 else 0
 
     # Assessment counts (non-archived only)
     pre_test_count = sum(1 for s in scores if s.get("test_type") == "pretest")
@@ -387,6 +394,8 @@ def dashboard(id_number: str, mode: Optional[str] = Query("current", description
         "totalQuestions": total_questions,
         "correctAnswers": correct_answers,
         "accuracy": round(accuracy, 2),
+        # All assessments (all cycles) average score that never resets
+        "averageScore": round(all_time_accuracy, 2),
         "detailedMetrics": {
             "totalQuestions": total_questions,
             "correctAnswers": correct_answers,
