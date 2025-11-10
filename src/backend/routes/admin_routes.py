@@ -164,12 +164,7 @@ async def delete_admin_post(post_id: str):
         return {"success": False, "error": "Post not found"}
 
 
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Dict, Any
-from bson import ObjectId
-from database import get_user_collection, get_reports_collection
-
-router = APIRouter()
+# (Removed duplicate router redefinition to ensure all routes are registered on a single router)
 
 @router.get("/api/admin/dashboard")
 async def get_admin_dashboard():
