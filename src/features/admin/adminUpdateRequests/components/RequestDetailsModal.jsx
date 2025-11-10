@@ -18,7 +18,7 @@ const DetailRow = ({ label, oldValue, newValue }) => (
 );
 
 const RequestDetailsModal = () => {
-  const { selectedRequest, closeModal, acceptRequest, declineRequest } = useRequestStore();
+  const { selectedRequest, selectedCurrentProfile, closeModal, acceptRequest, declineRequest } = useRequestStore();
 
   if (!selectedRequest) return null;
 
@@ -27,6 +27,7 @@ const RequestDetailsModal = () => {
   const updatePayload = selectedRequest.update_data || selectedRequest.requested_changes || {};
   // Remove 'username' field and show real current values
   const filteredKeys = Object.keys(updatePayload).filter((key) => key !== "username");
+  const currentData = selectedCurrentProfile || selectedRequest; // fallback if profile fetch failed
   return (
     <Modal
       isOpen={!!selectedRequest}
@@ -44,7 +45,7 @@ const RequestDetailsModal = () => {
               <DetailRow
                 key={key}
                 label={key.charAt(0).toUpperCase() + key.slice(1)}
-                oldValue={selectedRequest[key]}
+                oldValue={currentData[key]}
                 newValue={updatePayload[key]}
               />
             ))

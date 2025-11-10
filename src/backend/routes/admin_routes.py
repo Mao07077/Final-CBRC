@@ -18,32 +18,43 @@ router = APIRouter()
 
 
 
-# Fetch account update requests with current user data
+# Unified account update requests endpoint (supports legacy and new collections)
 @router.get("/api/admin/account-requests")
 async def get_account_update_requests():
-    user_collection = get_user_collection()
-    from database import account_update_requests_collection
-    requests = list(account_update_requests_collection.find({}))
-    result = []
-    for req in requests:
-        user = user_collection.find_one({"id_number": req["id_number"]})
-        # Support both update_data and requested_changes
-        changes = req.get("update_data") or req.get("requested_changes") or {}
-        req_data = {
-            "_id": str(req["_id"]),
-            "id_number": req["id_number"],
-            "update_data": changes,
-        }
-        # Add current values for each requested field
-        if user:
-            for field in changes.keys():
-                req_data[field] = user.get(field, "N/A")
-            # Always include firstname and lastname for modal display
-            req_data["firstname"] = user.get("firstname", "N/A")
-            req_data["lastname"] = user.get("lastname", "N/A")
-            req_data["program"] = user.get("program", "N/A")
-        result.append(req_data)
-    return {"success": True, "requests": result}
+    """Get all account update requests for admin (legacy + new schema)."""
+    try:
+        from database import request_collection, get_user_collection, db as mongo_db
+        user_collection = get_user_collection()
+        legacy_requests = list(mongo_db["account_update_requests"].find({}))
+        new_requests = list(request_collection.find({}))
+        combined = []
+        for raw in legacy_requests + new_requests:
+            changes = raw.get("update_data") or raw.get("requested_changes") or {}
+            id_number = raw.get("id_number", "")
+            user = user_collection.find_one({"id_number": id_number}) or {}
+            current_data = {field: user.get(field, "") for field in changes.keys()}
+            firstname = user.get("firstname", raw.get("firstname", ""))
+            lastname = user.get("lastname", raw.get("lastname", ""))
+            program = user.get("program", raw.get("program", ""))
+            created_at = raw.get("created_at") or raw.get("createdAt")
+            combined.append({
+                "_id": str(raw.get("_id")),
+                "id_number": id_number,
+                "firstname": firstname,
+                "lastname": lastname,
+                "program": program,
+                "email": user.get("email", raw.get("email", "")),
+                "contact_number": user.get("contact_number", raw.get("contact_number", "")),
+                "role": user.get("role", raw.get("role", "")),
+                "request_type": raw.get("request_type", "account_update"),
+                "current_data": current_data,
+                "update_data": changes,
+                "requested_changes": raw.get("requested_changes", {}),
+                "createdAt": created_at,
+            })
+        return {"success": True, "requests": combined}
+    except Exception as e:
+        return {"success": False, "error": str(e), "requests": []}
 
 # Student: Submit account update request
 @router.post("/api/admin/account-requests")
@@ -417,30 +428,7 @@ async def get_student_performance(student_id: str):
         return {"success": True, "details": details}
     except Exception as e:
         return {"success": False, "error": str(e)}
-@router.get("/api/admin/account-requests")
-async def get_account_update_requests():
-    """Get all account update requests for admin"""
-    try:
-        from database import request_collection
-        requests = list(request_collection.find({}))
-        formatted_requests = []
-        for req in requests:
-            formatted_requests.append({
-                "_id": str(req.get("_id")),
-                "id_number": req.get("id_number", ""),
-                "firstname": req.get("firstname", ""),
-                "lastname": req.get("lastname", ""),
-                "email": req.get("email", ""),
-                "contact_number": req.get("contact_number", ""),
-                "role": req.get("role", ""),
-                "request_type": req.get("request_type", ""),
-                "current_data": req.get("current_data", {}),
-                "update_data": req.get("update_data", {}),
-                "createdAt": req.get("createdAt", None),
-            })
-        return {"success": True, "requests": formatted_requests}
-    except Exception as e:
-        return {"success": False, "error": str(e), "requests": []}
+# (Removed duplicate second definition of /api/admin/account-requests)
     
 @router.get("/api/student/{id_number}/study-activity-report")
 async def get_study_activity_report(id_number: str):

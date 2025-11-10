@@ -6,6 +6,7 @@ import axios from "../../api/axiosClient";
 const useRequestStore = create((set, get) => ({
   requests: [],
   selectedRequest: null,
+  selectedCurrentProfile: null,
   isLoading: false,
   error: null,
 
@@ -71,7 +72,19 @@ const useRequestStore = create((set, get) => ({
   },
 
   // --- Modal Control ---
-  viewRequest: (request) => set({ selectedRequest: request }),
+  viewRequest: async (request) => {
+    set({ selectedRequest: request, selectedCurrentProfile: null });
+    // Fetch the student's current profile to show "Current" (previous) values
+    try {
+      if (request?.id_number) {
+        const res = await axios.get(`/api/profile/${request.id_number}`);
+        set({ selectedCurrentProfile: res.data || null });
+      }
+    } catch (e) {
+      // Keep modal open even if profile fails; UI will fallback gracefully
+      set({ selectedCurrentProfile: null });
+    }
+  },
   closeModal: () => set({ selectedRequest: null }),
 }));
 
