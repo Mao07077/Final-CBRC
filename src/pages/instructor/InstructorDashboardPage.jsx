@@ -1,14 +1,15 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { FiPlusCircle } from "react-icons/fi";
+import { FiPlusCircle, FiUsers, FiActivity, FiTrendingUp, FiClock } from "react-icons/fi";
 import useInstructorDashboardStore from "../../store/instructor/instructorDashboardStore";
 import useAuthStore from "../../store/authStore";
 import StatCard from "../../features/instructor/instructorDashboard/components/StatCard";
 import AttendanceChart from "../../features/instructor/instructorDashboard/components/AttendanceChart";
-import ModuleList from "../../features/instructor/instructorDashboard/components/ModuleList";
+import StudyHoursHistogram from "../../features/instructor/instructorDashboard/components/StudyHoursHistogram";
+import ModuleCompletionChart from "../../features/instructor/instructorDashboard/components/ModuleCompletionChart";
 
 const InstructorDashboardPage = () => {
-  const { stats, modules, attendanceData, isLoading, fetchDashboardData } = useInstructorDashboardStore();
+  const { stats, attendanceData, hoursHistogram, moduleCompletions, isLoading, fetchDashboardData } = useInstructorDashboardStore();
   const { userData } = useAuthStore();
 
   useEffect(() => {
@@ -24,16 +25,34 @@ const InstructorDashboardPage = () => {
       </h1>
 
       {/* Top Row: Stats & Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <StatCard
           title="Total Students"
           value={stats.totalStudents}
           isLoading={isLoading}
+          color="indigo"
+          icon={FiUsers}
         />
         <StatCard
           title="Engagement Rate"
           value={`${stats.engagementRate}%`}
           isLoading={isLoading}
+          color="emerald"
+          icon={FiActivity}
+        />
+        <StatCard
+          title="Class Avg Accuracy"
+          value={`${stats.classAverageAccuracy}%`}
+          isLoading={isLoading}
+          color="sky"
+          icon={FiTrendingUp}
+        />
+        <StatCard
+          title="Avg Study Hours (7d)"
+          value={`${stats.avgStudyHours7d}h`}
+          isLoading={isLoading}
+          color="amber"
+          icon={FiClock}
         />
         <div className="md:col-span-2 lg:col-span-1 p-6 bg-white rounded-lg shadow-md">
           <div className="mb-3">
@@ -61,13 +80,17 @@ const InstructorDashboardPage = () => {
         </div>
       </div>
 
-      {/* Bottom Row: Charts & Lists */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+      {/* Attendance (Full Width Now) */}
+      <div className="mt-6">
+        <AttendanceChart data={attendanceData} isLoading={isLoading} />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mt-6">
         <div className="xl:col-span-3">
-          <AttendanceChart data={attendanceData} isLoading={isLoading} />
+          <ModuleCompletionChart data={moduleCompletions} isLoading={isLoading} />
         </div>
         <div className="xl:col-span-2">
-          <ModuleList modules={modules} isLoading={isLoading} />
+          <StudyHoursHistogram data={hoursHistogram} isLoading={isLoading} />
         </div>
       </div>
     </div>

@@ -458,52 +458,160 @@ async def get_instructor_dashboard(instructor_id: str, program: Optional[str] = 
                 "program": module.get("program", ""),
             } for module in modules
         ]
+        module_ids = [str(m["_id"]) for m in modules]
 
-        # Calculate engagement rate: (total submissions / total questions) for posttests
-        total_submissions = 0
-        total_questions = 0
+        # Calculate engagement rate: completed current post-tests / (total students * total modules)
+        # A completion is counted once per (student, module) pair where a non-archived posttest exists
+        completed_pairs = set()
         for student in students:
-            scores = scores_collection.find({"user_id": student["id_number"], "test_type": "posttest"})
-            for score in scores:
-                total_submissions += score.get("correct", 0) + score.get("incorrect", 0)
-                total_questions += score.get("total_questions", 0)
-        engagement_rate = (total_submissions / total_questions * 100) if total_questions > 0 else 0
-
-        # Attendance: streak days for each student
-        attendance_data = []
-        for student in students:
-            scores = list(scores_collection.find({"user_id": student["id_number"]}))
-            streak_days = set()
-            for score in scores:
-                # Robust date handling for attendance
-                raw_date = score.get("date_taken") or score.get("submitted_at") or score.get("created_at") or score.get("createdAt")
-                day = None
-                try:
-                    import datetime as _dt
-                    if raw_date is None:
-                        day = None
-                    elif isinstance(raw_date, _dt.datetime):
-                        day = raw_date.date().isoformat()
-                    elif isinstance(raw_date, str):
-                        day = raw_date.split("T")[0]
-                except Exception:
-                    day = None
-                time_spent = min(score.get("time_spent", 0), 600)
-                if day and time_spent >= 60:
-                    streak_days.add(day)
-            attendance_count = len(streak_days)
-            attendance_data.append({
-                "studentName": f"{student.get('firstname', '')} {student.get('lastname', '')}".strip(),
-                "attendanceDays": attendance_count,
-                "attendanceHours": attendance_count,  # 1 streak = 1hr
+            cursor = scores_collection.find({
+                "user_id": student["id_number"],
+                "test_type": "posttest",
+                "archived": {"$ne": True},
+                "module_id": {"$in": module_ids}
             })
+            for score in cursor:
+                completed_pairs.add((student["id_number"], str(score.get("module_id"))))
+        total_possible = (len(students) * len(module_ids)) if module_ids else 0
+        engagement_rate = (len(completed_pairs) / total_possible * 100) if total_possible > 0 else 0
+
+        # Attendance & study hours per student (last 7 days) using sessions + test durations
+        import datetime as _dt
+        from datetime import timedelta
+        week_start_dt = _dt.datetime.utcnow() - timedelta(days=6)
+        attendance_data = []
+        hours_hist_buckets = {"<0.5h": 0, "0.5-2h": 0, "2-5h": 0, ">5h": 0}
+        top_module_counts = {mid: 0 for mid in module_ids}
+        class_acc_sum = 0.0
+        class_acc_count = 0
+
+        for student in students:
+            sid = student.get("id_number")
+            # Study hours from session logs
+            study_hours_7d = 0.0
+            daily_hours = {}
+            # Session logs
+            try:
+                sessions = session_logs_collection.find({
+                    "user_id": sid,
+                    "left_at": {"$gte": week_start_dt}
+                })
+                for log in sessions:
+                    left_at = log.get("left_at")
+                    joined_at = log.get("joined_at")
+                    dur = log.get("duration_seconds")
+                    if dur is None and joined_at and left_at:
+                        try:
+                            dur = int((left_at - joined_at).total_seconds())
+                        except Exception:
+                            dur = 0
+                    if not left_at or not dur:
+                        continue
+                    dur = min(dur, 2*60*60)
+                    day = left_at.date().isoformat()
+                    daily_hours[day] = daily_hours.get(day, 0) + (dur/3600.0)
+            except Exception:
+                pass
+
+            # Test durations
+            try:
+                recent_scores = scores_collection.find({
+                    "user_id": sid,
+                    "$or": [
+                        {"created_at": {"$gte": week_start_dt}},
+                        {"createdAt": {"$gte": week_start_dt}},
+                        {"submitted_at": {"$gte": week_start_dt}},
+                        {"date_taken": {"$gte": week_start_dt}},
+                    ]
+                })
+                for sc in recent_scores:
+                    raw_date = sc.get("date_taken") or sc.get("submitted_at") or sc.get("created_at") or sc.get("createdAt")
+                    day = None
+                    try:
+                        import datetime as _dt2
+                        if raw_date is None:
+                            day = None
+                        elif isinstance(raw_date, _dt2.datetime):
+                            day = raw_date.date().isoformat()
+                        elif isinstance(raw_date, str):
+                            day = raw_date.split("T")[0]
+                    except Exception:
+                        day = None
+                    tsec = min(sc.get("time_spent", 0), 600)
+                    if day and tsec:
+                        daily_hours[day] = daily_hours.get(day, 0) + (tsec/3600.0)
+            except Exception:
+                pass
+
+            # Tally
+            study_hours_7d = round(sum(daily_hours.values()), 2)
+            attendance_days = sum(1 for h in daily_hours.values() if h >= 0.5)
+
+            # Current accuracy for class average (non-archived)
+            try:
+                cur_scores = list(scores_collection.find({"user_id": sid, "archived": {"$ne": True}}))
+                tq = sum(s.get("total_questions", 0) for s in cur_scores)
+                ca = sum(s.get("correct", 0) for s in cur_scores)
+                acc = (ca / max(tq,1))*100 if tq>0 else 0
+                class_acc_sum += acc
+                class_acc_count += 1
+            except Exception:
+                pass
+
+            # Top modules by completion (current post-test)
+            try:
+                cur_posts = scores_collection.find({
+                    "user_id": sid,
+                    "test_type": "posttest",
+                    "archived": {"$ne": True},
+                    "module_id": {"$in": module_ids}
+                })
+                for sc in cur_posts:
+                    mid = str(sc.get("module_id"))
+                    if mid in top_module_counts:
+                        top_module_counts[mid] += 1
+            except Exception:
+                pass
+
+            # Hours histogram bucket
+            if study_hours_7d < 0.5:
+                hours_hist_buckets["<0.5h"] += 1
+            elif study_hours_7d < 2:
+                hours_hist_buckets["0.5-2h"] += 1
+            elif study_hours_7d < 5:
+                hours_hist_buckets["2-5h"] += 1
+            else:
+                hours_hist_buckets[">5h"] += 1
+
+            attendance_data.append({
+                "studentName": f"{student.get('firstname','')} {student.get('lastname','')}".strip(),
+                "attendanceDays": int(attendance_days),
+                "studyHours7d": study_hours_7d,
+            })
+
+        # Build module completions list
+        module_completions = []
+        mid_to_title = {str(m["_id"]): m.get("title", "") for m in modules}
+        for mid, count in top_module_counts.items():
+            module_completions.append({"moduleId": mid, "title": mid_to_title.get(mid, f"Module {mid}"), "completions": count})
+        # Sort desc and take top 10
+        module_completions.sort(key=lambda x: x["completions"], reverse=True)
+        module_completions = module_completions[:10]
+
+        class_avg_acc = round((class_acc_sum / class_acc_count), 2) if class_acc_count else 0
+        avg_hours_7d = round(sum(a["studyHours7d"] for a in attendance_data) / len(attendance_data), 2) if attendance_data else 0
+
         return {
             "stats": {
                 "totalStudents": total_students,
                 "engagementRate": round(engagement_rate, 2),
+                "classAverageAccuracy": class_avg_acc,
+                "avgStudyHours7d": avg_hours_7d,
             },
             "modules": modules_list,
             "attendance": attendance_data,
+            "hoursHistogram": [{"bucket": k, "count": v} for k,v in hours_hist_buckets.items()],
+            "moduleCompletions": module_completions,
         }
     except Exception as e:
         logger.error(f"Error fetching instructor dashboard data: {e}")
