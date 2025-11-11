@@ -4,6 +4,7 @@ import useMusicPlayerStore from '../../../../store/student/musicPlayerStore';
 import EmbeddedSongs from './EmbeddedSongs';
 import UserPlaylists from './UserPlaylists';
 import CreatePlaylist from './CreatePlaylist';
+import PlayerControls from './PlayerControls';
 
 const EnhancedMusicPlayer = () => {
   const [activeTab, setActiveTab] = useState('embedded');
@@ -118,7 +119,15 @@ const EnhancedMusicPlayer = () => {
         )}
       </div>
 
-      {/* PlayerControls moved to App-level for persistence across routes */}
+      {/* Fixed Player Controls at Bottom */}
+      {showPlayer && (
+        <div className="fixed bottom-0 left-0 right-0 z-40">
+          <PlayerControls />
+        </div>
+      )}
+
+      {/* Add bottom padding to content to account for fixed player */}
+      {showPlayer && <div className="h-32"></div>}
 
       {/* Create Playlist Modal */}
       <CreatePlaylist

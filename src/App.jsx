@@ -6,8 +6,6 @@ import Footer from "./components/layout/Footer";
 import GlobalAuth from "./components/auth/GlobalAuth";
 import { ChatProvider } from "./context/ChatProvider";
 import useAuthStore from "./store/authStore";
-import PlayerControls from "./features/student/musicPlayer/components/PlayerControls";
-import useMusicPlayerStore from "./store/student/musicPlayerStore";
 
 
 // Notification sound
@@ -18,7 +16,6 @@ function App() {
   const { isAuthenticated, userRole } = useAuthStore();
   const { events, fetchEvents } = useSchedulerStore();
   const notifiedEventsRef = useRef({});
-  const { showPlayer } = useMusicPlayerStore();
 
   // Only fetch events and run notifications for students
   useEffect(() => {
@@ -72,12 +69,6 @@ function App() {
             <AppRoutes />
           </main>
           {!isAuthenticated && <Footer />}
-          {/* Global music player controls to persist playback across route changes */}
-          <div className="fixed bottom-0 left-0 right-0 z-40">
-            <PlayerControls />
-          </div>
-          {/* Spacer so content doesn't sit under the fixed player */}
-          {showPlayer && <div className="h-32" />}
         </div>
       </ChatProvider>
     </GlobalAuth>
