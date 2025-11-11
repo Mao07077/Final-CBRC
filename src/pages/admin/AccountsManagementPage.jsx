@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import useAccountStore from "../../store/admin/accountStore";
 import AccountsToolbar from "../../features/admin/adminAccounts/components/AccountsToolbar";
 import AccountsTable from "../../features/admin/adminAccounts/components/AccountsTable";
-import AccountForm from "../../features/admin/adminAccounts/components/AccountForm";
+import SignupForm from "../../features/authentication/components/SignupForm";
 import Modal from "../../components/common/Modal";
 
 const AccountsManagementPage = () => {
@@ -65,7 +65,15 @@ const AccountsManagementPage = () => {
         onClose={closeModal}
         title={editingAccount ? "Edit Account" : "Create New Account"}
       >
-        <AccountForm />
+        {/* Use Signup form inside modal in admin mode (no auto-login or redirect) */}
+        <SignupForm
+          asAdmin
+          onCancel={closeModal}
+          onSuccess={async () => {
+            await fetchAccounts();
+            closeModal();
+          }}
+        />
       </Modal>
     </div>
   );
