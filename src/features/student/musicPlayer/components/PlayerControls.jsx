@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Music, X } from 'lucide-react';
 import useMusicPlayerStore from '../../../../store/student/musicPlayerStore';
 import AudioOnlyYouTubePlayer from './AudioOnlyYouTubePlayer';
@@ -8,6 +8,7 @@ const PlayerControls = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const ytTimerRef = useRef(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
@@ -47,11 +48,31 @@ const PlayerControls = () => {
   };
 
   const currentTrack = getCurrentTrack();
+  // Determine YouTube videoId early for effects and handlers
+  const isYouTubeUrl = currentTrack?.url && (currentTrack.url.includes('youtube.com') || currentTrack.url.includes('youtu.be'));
+  let videoId = null;
+  if (currentTrack && (currentTrack.source === 'youtube' || isYouTubeUrl) && (currentTrack.url || currentTrack.audio_url)) {
+    const sourceUrl = currentTrack.url || currentTrack.audio_url;
+    try {
+      const urlObj = new URL(sourceUrl);
+      if (urlObj.hostname.includes('youtu.be')) {
+        videoId = urlObj.pathname.replace('/', '').split('?')[0];
+      } else if (urlObj.searchParams.has('v')) {
+        videoId = urlObj.searchParams.get('v');
+      } else {
+        const match = sourceUrl.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
+        if (match) videoId = match[1];
+      }
+    } catch {
+      const match = sourceUrl.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
+      if (match) videoId = match[1];
+    }
+  }
 
   useEffect(() => {
     if (!audio) return;
-    const updateTime = () => setCurrentTime(audio.currentTime);
-    const updateDuration = () => setDuration(audio.duration);
+    const updateTime = () => setCurrentTime(audio.currentTime || 0);
+    const updateDuration = () => setDuration(audio.duration || 0);
     const handleEnded = () => nextTrack();
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
@@ -62,6 +83,32 @@ const PlayerControls = () => {
       audio.removeEventListener('ended', handleEnded);
     };
   }, [audio, nextTrack]);
+
+  // Poll YouTube current time/duration when using YouTube source
+  useEffect(() => {
+    if (!videoId || !window._audioYTPlayer) {
+      if (ytTimerRef.current) {
+        clearInterval(ytTimerRef.current);
+        ytTimerRef.current = null;
+      }
+      return;
+    }
+    // Start interval to update every 500ms
+    ytTimerRef.current = setInterval(() => {
+      try {
+        const t = window._audioYTPlayer.getCurrentTime?.() || 0;
+        const d = window._audioYTPlayer.getDuration?.() || 0;
+        setCurrentTime(t);
+        setDuration(d);
+      } catch {}
+    }, 500);
+    return () => {
+      if (ytTimerRef.current) {
+        clearInterval(ytTimerRef.current);
+        ytTimerRef.current = null;
+      }
+    };
+  }, [videoId]);
 
   useEffect(() => {
     if (audio) {
@@ -95,12 +142,17 @@ const PlayerControls = () => {
   };
 
   const handleSeek = (e) => {
-    if (!audio || !duration) return;
+    if (!duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const percentage = clickX / rect.width;
+    const clickX = (e.clientX ?? e.touches?.[0]?.clientX) - rect.left;
+    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
     const newTime = percentage * duration;
-    audio.currentTime = newTime;
+    // Seek for YouTube or HTMLAudio
+    if (videoId && window._audioYTPlayer && typeof window._audioYTPlayer.seekTo === 'function') {
+      try { window._audioYTPlayer.seekTo(newTime, true); } catch {}
+    } else if (audio) {
+      audio.currentTime = newTime;
+    }
     setCurrentTime(newTime);
   };
 
@@ -159,35 +211,57 @@ const PlayerControls = () => {
     }
   };
 
+  // Note: Do not early-return before all hooks are declared (to keep hooks order stable)
+
+  // Debug log for videoId
+  console.log('[PlayerControls] videoId:', videoId, 'track:', currentTrack);
+
+  // Media Session API for lockscreen/notification controls (mobile-friendly)
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.metadata = new window.MediaMetadata({
+        title: currentTrack?.title || 'Unknown',
+        artist: currentTrack?.artist || 'Unknown',
+        album: 'CBRC Study Music',
+        artwork: currentTrack?.thumbnail ? [
+          { src: currentTrack.thumbnail, sizes: '96x96', type: 'image/png' },
+          { src: currentTrack.thumbnail, sizes: '192x192', type: 'image/png' }
+        ] : []
+      });
+      navigator.mediaSession.setActionHandler('play', async () => {
+        if (videoId && window._audioYTPlayer) {
+          window._audioYTPlayer.playVideo?.();
+        } else {
+          await play();
+        }
+      });
+      navigator.mediaSession.setActionHandler('pause', async () => {
+        if (videoId && window._audioYTPlayer) {
+          window._audioYTPlayer.pauseVideo?.();
+        } else {
+          await pause();
+        }
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack());
+      navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack());
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (typeof details.seekTime === 'number') {
+          if (videoId && window._audioYTPlayer) {
+            window._audioYTPlayer.seekTo?.(details.seekTime, true);
+          } else if (audio) {
+            audio.currentTime = details.seekTime;
+          }
+          setCurrentTime(details.seekTime);
+        }
+      });
+    } catch {}
+  }, [currentTrack, videoId, audio, play, pause, prevTrack, nextTrack]);
+
+  // Safe early return AFTER all hooks are set up to preserve hooks order between renders
   if (!currentTrack || !showPlayer) {
     return null;
   }
-
-  // Only show one player at a time
-  const isYouTubeUrl = currentTrack.url && (currentTrack.url.includes('youtube.com') || currentTrack.url.includes('youtu.be'));
-  let videoId = null;
-  if ((currentTrack.source === 'youtube' || isYouTubeUrl) && currentTrack.url) {
-    try {
-      const urlObj = new URL(currentTrack.url);
-      if (urlObj.hostname.includes('youtu.be')) {
-        videoId = urlObj.pathname.replace('/', '').split('?')[0];
-      } else if (urlObj.searchParams.has('v')) {
-        videoId = urlObj.searchParams.get('v');
-      } else {
-        const match = currentTrack.url.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
-        if (match) videoId = match[1];
-      }
-    } catch {
-      const match = currentTrack.url.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
-      if (match) videoId = match[1];
-    }
-    if (!videoId && currentTrack.audio_url) {
-      const m2 = currentTrack.audio_url.match(/(?:v=|\/embed\/|youtu\.be\/)([\w-]{11})/);
-      if (m2) videoId = m2[1];
-    }
-  }
-  // Debug log for videoId
-  console.log('[PlayerControls] videoId:', videoId, 'track:', currentTrack);
 
   return (
     <div className="bg-white border-t border-gray-200 p-4 shadow-lg ml-0 lg:ml-64">
@@ -223,7 +297,7 @@ const PlayerControls = () => {
             )}
           </div>
         </div>
-        {/* Only show one player at a time */}
+  {/* Only show one player at a time */}
         {(currentTrack.source === 'youtube' || isYouTubeUrl) ? (
           videoId ? (
             <AudioOnlyYouTubePlayer
@@ -237,18 +311,24 @@ const PlayerControls = () => {
               <div className="text-xs text-red-400 mt-2">Check the track URL or try another song.</div>
             </div>
           )
-        ) : (
-          <audio
-            src={currentTrack.url || currentTrack.audio_url}
-            controls
-            autoPlay
-            style={{ width: '100%' }}
-            onTimeUpdate={e => setCurrentTime(e.target.currentTime)}
-            onLoadedMetadata={e => setDuration(e.target.duration)}
-            onEnded={nextTrack}
-            volume={isMuted ? 0 : volume}
-          />
-        )}
+        ) : null}
+        {/* Progress bar and time indicator */}
+        <div className="mt-2">
+          <div
+            className="w-full h-2 bg-gray-200 rounded cursor-pointer relative"
+            onClick={handleSeek}
+            onTouchStart={handleSeek}
+          >
+            <div
+              className="h-2 bg-blue-600 rounded"
+              style={{ width: `${duration ? Math.min(100, (currentTime / duration) * 100) : 0}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-xs text-gray-600 mt-1">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
         {/* Playback Controls (common) */}
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center space-x-4 flex-shrink-0">
