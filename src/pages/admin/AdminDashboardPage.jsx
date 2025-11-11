@@ -4,6 +4,8 @@ import useAdminDashboardStore from "../../store/admin/adminDashboardStore";
 import StatCard from "../../features/admin/adminDashboard/components/StatCard";
 import AttendanceStats from "../../features/admin/adminDashboard/components/AttendanceStats";
 import PerformanceGraph from "../../features/admin/adminDashboard/components/PerformanceGraph";
+import TopModulesChart from "../../features/admin/adminDashboard/components/TopModulesChart";
+import ScoreDistribution from "../../features/admin/adminDashboard/components/ScoreDistribution";
 import StudentPerformanceList from "../../features/admin/adminStudentPerformance/components/StudentPerformanceList";
 import UserList from "../../features/admin/adminDashboard/components/UserList";
 
@@ -34,23 +36,37 @@ const AdminDashboardPage = () => {
         <p className="text-red-500 bg-red-100 p-3 rounded-lg mb-4">{error}</p>
       )}
 
-      {/* Statistics Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-6">
-        <StatCard
-          title="Total Students"
-          value={stats.totalStudents}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Total Instructors"
-          value={stats.totalInstructors}
-          isLoading={isLoading}
-        />
+      {/* Statistics Section (Colorful) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <StatCard title="Total Students" value={stats.totalStudents} isLoading={isLoading} color="indigo" />
+        <StatCard title="Total Instructors" value={stats.totalInstructors} isLoading={isLoading} color="emerald" />
+        {stats.totalAdmins !== undefined && (
+          <StatCard title="Total Admins" value={stats.totalAdmins} isLoading={isLoading} color="sky" />
+        )}
+        {stats.reportsThisWeek !== undefined && (
+          <StatCard title="Reports This Week" value={stats.reportsThisWeek} isLoading={isLoading} color="amber" />
+        )}
       </div>
 
-  {/* Overall Stats Section */}
-  <AttendanceStats />
-  <PerformanceGraph />
+  {/* Attendance & Performance Row */}
+  <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-6">
+    <div className="xl:col-span-3">
+      <AttendanceStats />
+    </div>
+    <div className="xl:col-span-2">
+      <PerformanceGraph />
+    </div>
+  </div>
+
+  {/* Monitoring Charts */}
+  <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-10">
+    <div className="xl:col-span-3">
+      <TopModulesChart />
+    </div>
+    <div className="xl:col-span-2">
+      <ScoreDistribution />
+    </div>
+  </div>
 
   {/* Student Performance List with PDF Download */}
   {stats && stats.students && (
