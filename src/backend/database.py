@@ -21,6 +21,7 @@ scores_collection = db["scores"]
 playlists_collection = db["playlists"]
 user_playlists_collection = db["user_playlists"]
 flashcards_collection = db["flashcards"]
+account_update_requests_collection = db["account_update_requests"]  # Legacy account update requests
 request_collection = db["requests"]
 messages_collection = db["messages"]
 schedule_collection = db["schedules"]
@@ -44,3 +45,6 @@ def get_message_collection():
 
 def get_reports_collection():
     return reports_collection
+
+def get_account_update_requests_collection():
+    return account_update_requests_collection

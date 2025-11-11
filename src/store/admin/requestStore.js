@@ -31,42 +31,44 @@ const useRequestStore = create((set, get) => ({
       const response = await axios.post(`/api/admin/account-requests/${requestId}/accept`);
       if (response.data.success) {
         await get().fetchRequests();
+        // Trigger success toast
+        window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'success', message: 'Request accepted & profile updated.' } }));
         set({ isLoading: false, selectedRequest: null });
       } else {
         set({ isLoading: false });
-        alert('Failed to accept request');
+        window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'error', message: 'Failed to accept request.' } }));
       }
     } catch (error) {
       set({ isLoading: false });
       if (error?.response?.status === 404) {
-        alert('Request not found. It may have already been processed.');
+        window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'warning', message: 'Request not found. It may have been processed already.' } }));
         await get().fetchRequests();
       } else {
-        alert('Failed to accept request');
+        window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'error', message: 'Failed to accept request.' } }));
       }
     }
   },
 
   declineRequest: async (requestId) => {
-    if (!window.confirm("Are you sure you want to decline this request?"))
-      return;
+    if (!window.confirm("Are you sure you want to decline this request?")) return;
     set({ isLoading: true });
     try {
       const response = await axios.post(`/api/admin/account-requests/${requestId}/decline`);
       if (response.data.success) {
         await get().fetchRequests();
+        window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'success', message: 'Request declined.' } }));
         set({ isLoading: false, selectedRequest: null });
       } else {
         set({ isLoading: false });
-        alert('Failed to decline request');
+        window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'error', message: 'Failed to decline request.' } }));
       }
     } catch (error) {
       set({ isLoading: false });
       if (error?.response?.status === 404) {
-        alert('Request not found. It may have already been processed.');
+        window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'warning', message: 'Request not found. It may have been processed already.' } }));
         await get().fetchRequests();
       } else {
-        alert('Failed to decline request');
+        window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'error', message: 'Failed to decline request.' } }));
       }
     }
   },

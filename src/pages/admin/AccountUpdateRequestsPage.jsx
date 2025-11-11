@@ -1,10 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import useRequestStore from "../../store/admin/requestStore";
 import RequestsTable from "../../features/admin/adminUpdateRequests/components/RequestsTable";
 import RequestDetailsModal from "../../features/admin/adminUpdateRequests/components/RequestDetailsModal";
+import Toast from "../../components/common/Toast";
 
 const AccountUpdateRequestsPage = () => {
   const { fetchRequests, isLoading, error } = useRequestStore();
+  const [toastMessage, setToastMessage] = useState("");
+
+  useEffect(() => {
+    const handler = (e) => {
+      const { type, message } = e.detail || {};
+      if (message) {
+        setToastMessage(message);
+      }
+    };
+    window.addEventListener('toast', handler);
+    return () => window.removeEventListener('toast', handler);
+  }, []);
 
   useEffect(() => {
     fetchRequests();
@@ -22,6 +35,7 @@ const AccountUpdateRequestsPage = () => {
       {isLoading ? <p>Loading requests...</p> : <RequestsTable />}
 
       <RequestDetailsModal />
+      <Toast message={toastMessage} onClose={() => setToastMessage("")} />
     </div>
   );
 };

@@ -72,40 +72,86 @@ async def submit_account_update_request(id_number: str = Body(...), update_data:
     req["_id"] = str(result.inserted_id)
     return {"success": True, "request": req}
 
-# Accept account update request
+# Accept account update request (supports legacy and new collections, string/ObjectId _id)
 @router.post("/api/admin/account-requests/{request_id}/accept")
 async def accept_account_update_request(request_id: str):
     print(f"[ACCEPT] Incoming request_id: {request_id}")
-    from database import account_update_requests_collection, get_user_collection
-    all_ids = [str(r['_id']) for r in account_update_requests_collection.find({})]
-    print(f"[ACCEPT] All request IDs in DB: {all_ids}")
-    from database import account_update_requests_collection, get_user_collection
-    # Always find by string _id
-    req = account_update_requests_collection.find_one({"_id": request_id})
+    from database import account_update_requests_collection, request_collection, get_user_collection
+
+    def find_in_collection(coll):
+        # Try ObjectId first
+        if ObjectId.is_valid(request_id):
+            obj_id = ObjectId(request_id)
+            doc = coll.find_one({"_id": obj_id})
+            if doc:
+                return doc, obj_id
+        # Then try plain string id (some legacy docs may have string _id)
+        doc = coll.find_one({"_id": request_id})
+        if doc:
+            return doc, request_id
+        return None, None
+
+    # Try legacy collection
+    req, delete_id = find_in_collection(account_update_requests_collection)
+    source = "account_update_requests"
+    if not req:
+        # Try new requests collection
+        req, delete_id = find_in_collection(request_collection)
+        source = "requests"
+
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
-    user_collection = get_user_collection()
-    changes = req.get("update_data") or req.get("requested_changes") or {}
-    user_collection.update_one({"id_number": req["id_number"]}, {"$set": changes})
-    # Remove request
-    deleted = account_update_requests_collection.delete_one({"_id": request_id})
-    if deleted.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Request not found (delete)")
-    return {"success": True}
 
-# Decline account update request
+    user_collection = get_user_collection()
+    id_number = req.get("id_number")
+    if not id_number:
+        raise HTTPException(status_code=400, detail="Request missing id_number")
+
+    # Determine changes field name
+    changes = req.get("update_data") or req.get("requested_changes") or {}
+    if not isinstance(changes, dict) or not changes:
+        raise HTTPException(status_code=400, detail="No changes to apply")
+
+    # Apply updates
+    user_collection.update_one({"id_number": id_number}, {"$set": changes})
+
+    # Delete the processed request
+    coll = account_update_requests_collection if source == "account_update_requests" else request_collection
+    result = coll.delete_one({"_id": delete_id})
+    if result.deleted_count == 0:
+        # Fallback: attempt delete by alternate id type
+        alt_id = request_id if isinstance(delete_id, ObjectId) else (ObjectId(request_id) if ObjectId.is_valid(request_id) else None)
+        if alt_id is not None:
+            coll.delete_one({"_id": alt_id})
+
+    return {"success": True, "source": source}
+
+# Decline account update request (supports legacy and new collections, string/ObjectId _id)
 @router.post("/api/admin/account-requests/{request_id}/decline")
 async def decline_account_update_request(request_id: str):
     print(f"[DECLINE] Incoming request_id: {request_id}")
-    from database import account_update_requests_collection
-    all_ids = [str(r['_id']) for r in account_update_requests_collection.find({})]
-    print(f"[DECLINE] All request IDs in DB: {all_ids}")
-    from database import account_update_requests_collection
-    # Always delete by string _id
-    result = account_update_requests_collection.delete_one({"_id": request_id})
-    if result.deleted_count == 0:
+    from database import account_update_requests_collection, request_collection
+
+    def delete_from_collection(coll):
+        # Try ObjectId first
+        if ObjectId.is_valid(request_id):
+            obj_id = ObjectId(request_id)
+            result = coll.delete_one({"_id": obj_id})
+            if result.deleted_count:
+                return True
+        # Then string id
+        result = coll.delete_one({"_id": request_id})
+        return result.deleted_count > 0
+
+    deleted = delete_from_collection(account_update_requests_collection)
+    source = "account_update_requests" if deleted else None
+    if not deleted:
+        deleted = delete_from_collection(request_collection)
+        source = "requests" if deleted else None
+
+    if not deleted:
         raise HTTPException(status_code=404, detail="Request not found")
-    return {"success": True}
+    return {"success": True, "source": source}
 from fastapi import APIRouter, Body, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Any
