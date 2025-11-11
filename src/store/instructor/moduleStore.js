@@ -9,11 +9,16 @@ const useModuleStore = create((set, get) => ({
   editingModule: null,
 
   // --- Actions ---
-  fetchModules: () => {
+  fetchModules: (instructorId = null, program = null) => {
     set({ isLoading: true });
-    apiClient.get('/api/instructor/modules')
+    const params = instructorId ? `?instructor_id=${encodeURIComponent(instructorId)}` : "";
+    apiClient.get(`/api/instructor/modules${params}`)
       .then(response => {
-        set({ modules: response.data, isLoading: false });
+        let list = response.data || [];
+        if (program && program !== "All Programs") {
+          list = list.filter(m => (m.program || "") === program);
+        }
+        set({ modules: list, isLoading: false });
       })
       .catch(error => {
         set({ error: error.message, isLoading: false });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { FiX } from 'react-icons/fi';
 
-const Modal = ({ isOpen, onClose, children, title }) => {
+const Modal = ({ isOpen, onClose, children, title, maxWidth, contentClassName }) => {
   if (!isOpen) return null;
 
   return (
@@ -10,7 +10,7 @@ const Modal = ({ isOpen, onClose, children, title }) => {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl relative transform transition-all duration-300 ease-in-out" // Increased max-w-2xl
+        className={`bg-white rounded-lg shadow-xl p-6 w-full ${maxWidth || 'max-w-2xl'} mx-4 sm:mx-6 relative transform transition-all duration-300 ease-in-out max-h-[85vh] overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center pb-3 border-b border-gray-200">
@@ -22,7 +22,7 @@ const Modal = ({ isOpen, onClose, children, title }) => {
             <FiX className="h-6 w-6" />
           </button>
         </div>
-        <div className="mt-4">{children}</div>
+        <div className={`mt-4 ${contentClassName || ''}`}>{children}</div>
       </div>
     </div>
   );

@@ -44,12 +44,12 @@ const ModuleForm = () => {
   };
 
   return (
-    <div className="card max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">
+    <div className="card max-w-2xl mx-auto p-6 sm:p-8">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">
         {editingModule ? "Edit Module" : "Create New Module"}
       </h2>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  <form onSubmit={handleSubmit} className="space-y-6">
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title <span className="text-red-500">*</span></label>
             <input
@@ -117,7 +117,7 @@ const ModuleForm = () => {
           name="id_number"
           value={formData.id_number}
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
           <div>
             <label className="block text-sm font-medium text-gray-700">Attachment (required)</label>
             <div className="mt-1 flex items-center gap-2">
@@ -147,11 +147,11 @@ const ModuleForm = () => {
             <p className="text-xs text-gray-500 mt-2">Recommended size: 800x450px (landscape).</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button type="submit" className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" disabled={isLoading}>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <button type="submit" className="inline-flex justify-center items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-auto" disabled={isLoading}>
             {isLoading ? 'Saving...' : editingModule ? 'Update Module' : 'Create Module'}
           </button>
-          <button type="button" onClick={closeModal} className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50">
+          <button type="button" onClick={closeModal} className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50 w-full sm:w-auto">
             Cancel
           </button>
         </div>

@@ -61,19 +61,22 @@ const TestBuilderForm = ({ moduleId }) => {
   return (
     <>
       <Toast message={success} onClose={handleToastClose} />
-      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-  <h2 className="text-2xl font-bold mb-6">
+    <div className="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+  <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">
         {editingTest ? "Edit Pre-Test" : "Create New Pre-Test"}
       </h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Test Title"
-          className="form-input mb-4"
-          required
-        />
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Test Title<span className="text-red-500"> *</span></label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Cardiovascular Basics Pre-Test"
+            className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm px-3 py-2"
+            required
+          />
+        </div>
         <div className="space-y-4">
           {questions.map((q, i) => (
             <QuestionBuilder
@@ -87,31 +90,33 @@ const TestBuilderForm = ({ moduleId }) => {
             />
           ))}
         </div>
-        <button
-          type="button"
-          onClick={addQuestion}
-          className="btn btn-secondary mt-4"
-        >
-          + Add Question
-        </button>
-        <div className="flex justify-end space-x-4 mt-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="inline-flex items-center justify-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-md text-sm font-medium hover:bg-indigo-100"
+          >
+            + Add Question
+          </button>
+          <div className="flex justify-end gap-3">
           <button
             type="button"
             onClick={closeModal}
-            className="btn btn-secondary"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            className="btn btn-primary"
+            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             {isLoading ? "Saving..." : "Save Test"}
           </button>
+          </div>
         </div>
       </form>
-      </div>
+    </div>
     </>
   );
 };
