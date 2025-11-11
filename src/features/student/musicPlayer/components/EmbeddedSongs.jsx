@@ -71,14 +71,17 @@ const EmbeddedSongs = () => {
         <h3 className="text-lg font-semibold text-gray-800">Study Music Playlists</h3>
       </div>
       
+      <div className="space-y-8">
       {Object.entries(playlists).map(([playlistId, playlist]) => (
         <div key={playlistId} className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-100">
-            <h4 className="font-semibold text-gray-800 mb-1">{playlist.name}</h4>
-            <p className="text-sm text-gray-600">{playlist.description}</p>
+          <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h4 className="font-semibold text-gray-800 mb-1 leading-tight">{playlist.name}</h4>
+              <p className="text-sm text-gray-600 line-clamp-2 max-w-prose">{playlist.description}</p>
+            </div>
+            <span className="text-xs text-gray-500">{playlist.tracks.length} tracks</span>
           </div>
-          
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
             {playlist.tracks.map((track, index) => {
               const isCurrentTrack = activePlaylistId === playlistId && 
                                    activePlaylistType === "embedded" && 
@@ -88,11 +91,11 @@ const EmbeddedSongs = () => {
               return (
                 <div
                   key={track.id}
-                  className={`p-3 flex items-center justify-between hover:bg-gray-50 transition-colors ${
+                  className={`p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-gray-50 transition-colors ${
                     isCurrentTrack ? 'bg-blue-50' : ''
                   }`}
                 >
-                  <div className="flex items-center space-x-3 flex-1">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
                     <button
                       onClick={() => handlePlayPause(playlistId, index)}
                       className={`p-2 rounded-full transition-colors ${
@@ -107,19 +110,20 @@ const EmbeddedSongs = () => {
                         <Play className="w-4 h-4" />
                       )}
                     </button>
-                    
-                    <div className="flex-1">
-                      <h5 className={`font-medium ${
+                    <div className="flex-1 min-w-0">
+                      <h5 className={`font-medium truncate ${
                         isCurrentTrack ? 'text-blue-700' : 'text-gray-800'
-                      }`}>
+                      }`} title={track.title}>
                         {track.title}
                       </h5>
-                      <p className="text-sm text-gray-500">{track.artist}</p>
+                      <p className="text-sm text-gray-500 truncate" title={track.artist}>{track.artist}</p>
                     </div>
                   </div>
-                  
-                  <div className="text-sm text-gray-500">
-                    {track.duration}
+                  <div className="text-xs sm:text-sm text-gray-500 flex items-center gap-4 pl-9 sm:pl-0">
+                    <span>{track.duration}</span>
+                    {isCurrentTrack && (
+                      <span className="text-blue-600 font-medium hidden sm:inline">{isCurrentlyPlaying ? 'Playing' : 'Paused'}</span>
+                    )}
                   </div>
                 </div>
               );
@@ -127,6 +131,7 @@ const EmbeddedSongs = () => {
           </div>
         </div>
       ))}
+      </div>
       
       {Object.keys(playlists).length === 0 && (
         <div className="text-center py-8 text-gray-500">

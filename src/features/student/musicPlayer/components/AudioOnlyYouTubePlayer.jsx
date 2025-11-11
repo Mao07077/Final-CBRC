@@ -1,7 +1,10 @@
 
 import React, { useRef, useEffect, useState } from 'react';
+import useMusicPlayerStore from '../../../../store/student/musicPlayerStore';
 
 const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
+  const { nextTrack } = useMusicPlayerStore();
+
   useEffect(() => {
     console.log('[AudioOnlyYouTubePlayer] videoId:', videoId);
     // Auto-play when videoId changes (track selected)
@@ -35,8 +38,8 @@ const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
   useEffect(() => {
     if (!apiReady || !playerRef.current) return;
     const player = new window.YT.Player(playerRef.current, {
-      height: '1',
-      width: '1',
+      height: '0',
+      width: '0',
       videoId,
       playerVars: {
         autoplay: 0,
@@ -48,8 +51,19 @@ const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
       events: {
         onStateChange: (event) => {
           console.log('[AudioOnlyYouTubePlayer] YouTube Player State:', event.data);
-          if (event.data === window.YT.PlayerState.PLAYING) setIsPlaying(true);
-          if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) setIsPlaying(false);
+          if (event.data === window.YT.PlayerState.PLAYING) {
+            setIsPlaying(true);
+            try { useMusicPlayerStore.setState({ isPlaying: true }); } catch {}
+          }
+          if (event.data === window.YT.PlayerState.PAUSED) {
+            setIsPlaying(false);
+            try { useMusicPlayerStore.setState({ isPlaying: false }); } catch {}
+          }
+          if (event.data === window.YT.PlayerState.ENDED) {
+            setIsPlaying(false);
+            try { useMusicPlayerStore.setState({ isPlaying: false }); } catch {}
+            try { nextTrack(); } catch (e) { console.error('Next track error (YouTube ended):', e); }
+          }
         },
         onError: (event) => {
           console.error('[AudioOnlyYouTubePlayer] YouTube Player Error:', event);
@@ -73,37 +87,10 @@ const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
   };
 
   return (
-    <div className="flex items-center space-x-4 p-4 bg-white rounded shadow">
-      <div className="flex-1 min-w-0">
-        <div className="font-semibold text-gray-800 truncate">{title}</div>
-        <div className="text-sm text-gray-500 truncate">{artist}</div>
-        <span className="inline-block text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded mt-1">YouTube</span>
-      </div>
-      {/* Visible YouTube Player for debugging */}
-      <div style={{ width: 400, height: 225 }}>
-        <div ref={el => {
-          playerRef.current = el;
-          if (el && el.parentElement) {
-            const parent = el.parentElement;
-            const style = window.getComputedStyle(parent);
-            console.log('[AudioOnlyYouTubePlayer] Parent container:', parent);
-            console.log('[AudioOnlyYouTubePlayer] Parent computed style:', style);
-          }
-        }} />
-      </div>
-      {/* Custom Play/Pause Controls */}
-      <div className="flex items-center space-x-2">
-        <button
-          onClick={handlePlay}
-          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-          disabled={isPlaying}
-        >Play</button>
-        <button
-          onClick={handlePause}
-          className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-          disabled={!isPlaying}
-        >Pause</button>
-      </div>
+    <div className="sr-only">
+      {/* Hidden audio-only YouTube iframe */}
+      <div ref={(el) => { playerRef.current = el; }} />
+      {/* Title/artist exposed via PlayerControls */}
     </div>
   );
 };

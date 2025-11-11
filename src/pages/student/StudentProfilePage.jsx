@@ -9,15 +9,6 @@ import {
   TrendingUp,
   Edit3,
 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import useAuthStore from "../../store/authStore";
 import profileService from "../../services/profileService";
 
@@ -27,7 +18,6 @@ const StudentProfilePage = () => {
 
   const [profile, setProfile] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
-  const [dailyData, setDailyData] = useState([]);
   const [top3Habits, setTop3Habits] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,27 +68,6 @@ const StudentProfilePage = () => {
         );
         setTop3Habits(habitsData.recommendedPages || []);
 
-        // Fetch daily activity data from backend
-        if (Array.isArray(profileData?.dailyActivity) && profileData.dailyActivity.length > 0) {
-          // Normalize missing numeric fields to 0 to avoid tooltip undefined
-          const normalized = profileData.dailyActivity.map(d => ({
-            day: d.day,
-            hours: typeof d.hours === 'number' ? d.hours : 0,
-            modules: Array.isArray(d.modules) ? d.modules : [],
-            flashcardsGenerated: typeof d.flashcardsGenerated === 'number' ? d.flashcardsGenerated : 0,
-            sessionHours: typeof d.sessionHours === 'number' ? d.sessionHours : 0
-          }));
-          setDailyData(normalized);
-        } else {
-          // Provide 7-day placeholders when backend returns empty to surface chart structure
-          const today = new Date();
-          const placeholders = Array.from({ length: 7 }).map((_, idx) => {
-            const d = new Date(today.getTime() - (6 - idx) * 86400000);
-            const iso = d.toISOString().split('T')[0];
-            return { day: iso, hours: 0, modules: [], flashcardsGenerated: 0, sessionHours: 0 };
-          });
-          setDailyData(placeholders);
-        }
         // Debug log
         console.log('Fetched profile for:', userData.id_number, 'Image URL:', profileData.profileImageUrl);
       } catch (err) {
@@ -173,39 +142,7 @@ const StudentProfilePage = () => {
     );
   }
 
-  // Custom tooltip (outside of JSX tree)
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const data = (payload[0] && payload[0].payload) ? payload[0].payload : {};
-      const mods = Array.isArray(data.modules) ? data.modules : [];
-      return (
-        <div className="p-3 rounded-lg bg-gray-800 text-gray-50 text-sm">
-          <div className="font-semibold mb-1">{label}</div>
-          <div>
-            Study Hours: <span className="font-semibold">{(data.hours ?? 0)}h</span>
-          </div>
-          <div>
-            Learn Together: <span className="font-semibold">{(data.sessionHours ?? 0)}h</span>
-          </div>
-          <div>
-            Flashcards Generated: <span className="font-semibold">{(data.flashcardsGenerated ?? 0)}</span>
-          </div>
-          <div className="mt-1">Modules:</div>
-          {mods.length > 0 ? (
-            <ul className="list-disc list-inside text-xs text-gray-200">
-              {mods.slice(0, 4).map((m, i) => (
-                <li key={i}>{m}</li>
-              ))}
-              {mods.length > 4 && <li>+{mods.length - 4} more…</li>}
-            </ul>
-          ) : (
-            <div className="text-xs text-gray-300">No modules taken</div>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
+  // Daily Study Activity chart removed per request
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -367,52 +304,7 @@ const StudentProfilePage = () => {
           )}
         </div>
 
-        {/* Daily Activity Chart */}
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <TrendingUp className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-bold text-gray-900">
-              Daily Study Activity
-            </h2>
-          </div>
-
-          {/* Custom tooltip component (declared outside JSX) */}
-
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={dailyData && dailyData.length > 0 ? dailyData : [
-                  { day: 'No Data', hours: 0, modules: [], flashcardsGenerated: 0, sessionHours: 0 }
-                ]}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis
-                  dataKey="day"
-                  stroke="#6b7280"
-                  fontSize={12}
-                  fontFamily="Inter, system-ui, sans-serif"
-                />
-                <YAxis
-                  stroke="#6b7280"
-                  fontSize={12}
-                  fontFamily="Inter, system-ui, sans-serif"
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar
-                  dataKey="hours"
-                  fill="#3b82f6"
-                  radius={[4, 4, 0, 0]}
-                  name="Study Hours"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Stats already shown above, remove duplicate */}
-          </div>
-        </div>
+        {/* Daily Study Activity section removed */}
   </div>
   {/* Profile Update Request Modal */}
   <ProfileUpdateRequestModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />

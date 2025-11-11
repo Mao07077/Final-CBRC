@@ -73,10 +73,25 @@ const PlayerControls = () => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
     setIsMuted(newVolume === 0);
+    // Apply to YouTube player if present
+    if (window._audioYTPlayer && typeof window._audioYTPlayer.setVolume === 'function') {
+      try { window._audioYTPlayer.setVolume(Math.round(newVolume * 100)); } catch {}
+    }
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    const next = !isMuted;
+    setIsMuted(next);
+    if (window._audioYTPlayer) {
+      try {
+        if (next) {
+          window._audioYTPlayer.mute?.();
+        } else {
+          window._audioYTPlayer.unMute?.();
+          window._audioYTPlayer.setVolume?.(Math.round(volume * 100));
+        }
+      } catch {}
+    }
   };
 
   const handleSeek = (e) => {
@@ -124,10 +139,18 @@ const PlayerControls = () => {
     if (isToggling) return;
     setIsToggling(true);
     try {
-      if (isPlaying) {
-        await pause();
+      if (videoId && window._audioYTPlayer) {
+        if (isPlaying) {
+          window._audioYTPlayer.pauseVideo();
+        } else {
+          window._audioYTPlayer.playVideo();
+        }
       } else {
-        await play();
+        if (isPlaying) {
+          await pause();
+        } else {
+          await play();
+        }
       }
     } catch (error) {
       console.error("Play/pause error:", error);
@@ -203,13 +226,11 @@ const PlayerControls = () => {
         {/* Only show one player at a time */}
         {(currentTrack.source === 'youtube' || isYouTubeUrl) ? (
           videoId ? (
-            <div style={{ width: '100%', minHeight: 250 }}>
-              <AudioOnlyYouTubePlayer
-                videoId={videoId}
-                title={currentTrack.title}
-                artist={currentTrack.artist}
-              />
-            </div>
+            <AudioOnlyYouTubePlayer
+              videoId={videoId}
+              title={currentTrack.title}
+              artist={currentTrack.artist}
+            />
           ) : (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 my-4 text-center">
               <span className="text-red-600 font-bold">Error: Invalid or missing YouTube video ID.</span>
@@ -228,71 +249,69 @@ const PlayerControls = () => {
             volume={isMuted ? 0 : volume}
           />
         )}
-        {/* Playback Controls (for local audio) */}
-        {!videoId && (
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center space-x-4 flex-shrink-0">
-              <button
-                onClick={handlePrevTrack}
-                disabled={isNavigating}
-                className={`p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors ${
-                  isNavigating ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                title="Previous track"
-              >
-                <SkipBack className="w-5 h-5" />
-              </button>
-              <button
-                onClick={handlePlayPauseToggle}
-                disabled={isToggling}
-                className={`p-3 bg-blue-600 text-white hover:bg-blue-700 rounded-full transition-colors ${
-                  isToggling ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                title={isPlaying ? "Pause" : "Play"}
-              >
-                {isPlaying ? (
-                  <Pause className="w-6 h-6" />
-                ) : (
-                  <Play className="w-6 h-6" />
-                )}
-              </button>
-              <button
-                onClick={handleNextTrack}
-                disabled={isNavigating}
-                className={`p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors ${
-                  isNavigating ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                title="Next track"
-              >
-                <SkipForward className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
-              <button
-                onClick={toggleMute}
-                className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                {isMuted || volume === 0 ? (
-                  <VolumeX className="w-5 h-5" />
-                ) : (
-                  <Volume2 className="w-5 h-5" />
-                )}
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={isMuted ? 0 : volume}
-                onChange={handleVolumeChange}
-                className="w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                style={{
-                  background: `linear-gradient(to right, #2563eb 0%, #2563eb ${(isMuted ? 0 : volume) * 100}%, #e5e7eb ${(isMuted ? 0 : volume) * 100}%, #e5e7eb 100%)`
-                }}
-              />
-            </div>
+        {/* Playback Controls (common) */}
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center space-x-4 flex-shrink-0">
+            <button
+              onClick={handlePrevTrack}
+              disabled={isNavigating}
+              className={`p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors ${
+                isNavigating ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title="Previous track"
+            >
+              <SkipBack className="w-5 h-5" />
+            </button>
+            <button
+              onClick={handlePlayPauseToggle}
+              disabled={isToggling}
+              className={`p-3 bg-blue-600 text-white hover:bg-blue-700 rounded-full transition-colors ${
+                isToggling ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? (
+                <Pause className="w-6 h-6" />
+              ) : (
+                <Play className="w-6 h-6" />
+              )}
+            </button>
+            <button
+              onClick={handleNextTrack}
+              disabled={isNavigating}
+              className={`p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors ${
+                isNavigating ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title="Next track"
+            >
+              <SkipForward className="w-5 h-5" />
+            </button>
           </div>
-        )}
+          <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
+            <button
+              onClick={toggleMute}
+              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              {isMuted || volume === 0 ? (
+                <VolumeX className="w-5 h-5" />
+              ) : (
+                <Volume2 className="w-5 h-5" />
+              )}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={isMuted ? 0 : volume}
+              onChange={handleVolumeChange}
+              className="w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, #2563eb 0%, #2563eb ${(isMuted ? 0 : volume) * 100}%, #e5e7eb ${(isMuted ? 0 : volume) * 100}%, #e5e7eb 100%)`
+              }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
