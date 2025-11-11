@@ -88,18 +88,12 @@ const LoginForm = () => {
         >
           {isLoading ? "Signing In..." : "Sign In"}
         </button>
-        <div className="flex justify-between items-center mt-6 text-sm">
-                    <Link
+        <div className="flex justify-center items-center mt-6 text-sm">
+          <Link
             to="/forgot-password"
             className="text-primary hover:underline"
           >
             Forgot Password?
-          </Link>
-                    <Link
-            to="/signup"
-            className="text-primary-dark font-semibold hover:underline"
-          >
-            Sign Up
           </Link>
         </div>
       </form>

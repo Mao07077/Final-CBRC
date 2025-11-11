@@ -86,12 +86,6 @@ const HomePage = () => {
             </p>
             <div className="mt-8 flex justify-center gap-4">
               <RouterLink
-                to="/signup"
-                className="inline-block py-3 px-8 bg-accent-medium text-white font-bold rounded-lg shadow-lg hover:bg-accent-dark transition-transform transform hover:scale-105"
-              >
-                Get Started
-              </RouterLink>
-              <RouterLink
                 to="/login"
                 className="inline-block py-3 px-8 bg-transparent text-white border-2 border-white font-bold rounded-lg shadow-lg hover:bg-white hover:text-primary-dark transition-all transform hover:scale-105"
               >

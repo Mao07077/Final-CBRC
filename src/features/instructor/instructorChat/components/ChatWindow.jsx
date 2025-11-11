@@ -8,7 +8,7 @@ import { FiArrowLeft } from 'react-icons/fi';
 const ChatWindow = () => {
   const { conversations, activeConversationId, setActiveConversation } = useChatStore();
   const { userData } = useAuthStore();
-  const { messages, markAsSeen, userType } = useChat();
+  const { messages, markAsSeen, userType, typingMap, sendTyping } = useChat();
   const selectedConversation = activeConversationId
     ? conversations[activeConversationId]
     : null;
@@ -55,6 +55,17 @@ const ChatWindow = () => {
     setAutoScroll(atBottom);
   };
 
+  // Typing indicator (debounced)
+  const typingTimeoutRef = useRef(null);
+  const handleTypingActivity = () => {
+    if (!activeConversationId) return;
+    sendTyping(activeConversationId, true);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTyping(activeConversationId, false);
+    }, 1500);
+  };
+
   if (!selectedConversation) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-full bg-gray-50 text-gray-500">
@@ -99,11 +110,23 @@ const ChatWindow = () => {
           );
         })}
         <div ref={endOfMessagesRef} />
+        {activeConversationId && typingMap[activeConversationId] && Object.keys(typingMap[activeConversationId]).filter(uid => uid !== userData?.id_number).length > 0 && (
+          <div className="flex justify-start mb-4">
+            <div className="py-2 px-4 rounded-2xl max-w-sm bg-gray-200 text-gray-700 text-sm flex items-center gap-2">
+              <span className="inline-flex space-x-1">
+                <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay:'0ms'}}></span>
+                <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay:'150ms'}}></span>
+                <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay:'300ms'}}></span>
+              </span>
+              <span>Typing...</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Message Input */}
       <div className="flex-shrink-0">
-        <MessageInput />
+        <MessageInput onTyping={handleTypingActivity} />
       </div>
     </div>
   );

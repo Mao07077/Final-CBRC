@@ -10,7 +10,19 @@ const ConversationList = () => {
   } = useChatStore();
 
   const conversationArray = Object.entries(conversations);
-  const { isUserOnline, unread } = useChat();
+  const { isUserOnline, unread, messages, lastSeenText } = useChat();
+
+  // helper to get latest preview text merging websocket messages
+  const getLastMessageText = (id, convo) => {
+    const wsForChat = messages.filter(m => m.chat_id === id);
+    const lastFromWs = wsForChat.length ? wsForChat[wsForChat.length - 1] : null;
+    const lastFromConvo = (convo.messages && convo.messages.length) ? convo.messages[convo.messages.length - 1] : null;
+    const last = [lastFromConvo, lastFromWs]
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+      .pop();
+    return last ? last.message : "No messages yet";
+  };
 
   return (
     <div className="h-full flex flex-col bg-white border-r border-gray-200">
@@ -28,17 +40,18 @@ const ConversationList = () => {
               className={`p-4 cursor-pointer hover:bg-gray-100 ${
                 activeConversationId === id ? "bg-gray-200" : ""
               }`}
+              title={lastSeenText(convo.user_id)}
             >
               <div className="flex items-center gap-2">
-                <span className={`inline-block w-2 h-2 rounded-full ${online ? "bg-green-500" : "bg-gray-400"}`}></span>
+                <span
+                  className={`inline-block w-2 h-2 rounded-full ${online ? "bg-green-500" : "bg-gray-400"}`}
+                  aria-label={lastSeenText(convo.user_id)}
+                  title={lastSeenText(convo.user_id)}
+                ></span>
                 <p className="font-semibold text-gray-800">{convo.name}</p>
                 {hasUnread && <span className="ml-2 text-xs bg-blue-500 text-white rounded-full px-2">New</span>}
               </div>
-              <p className="text-sm text-gray-600 truncate">
-                {convo.messages.length > 0
-                  ? convo.messages[convo.messages.length - 1].message
-                  : "No messages yet"}
-              </p>
+              <p className="text-sm text-gray-600 truncate">{getLastMessageText(id, convo)}</p>
             </li>
           );
         })}

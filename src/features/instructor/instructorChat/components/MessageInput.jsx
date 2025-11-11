@@ -5,7 +5,7 @@ import { useChat } from "../../../../context/ChatProvider";
 import useAuthStore from "../../../../store/authStore";
 import messageService from "../../../../services/messageService";
 
-const MessageInput = () => {
+const MessageInput = ({ onTyping }) => {
   const [text, setText] = useState("");
   const { activeConversationId, conversations } = useChatStore();
   const { sendMessage } = useChat();
@@ -43,6 +43,7 @@ const MessageInput = () => {
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onInput={() => onTyping && onTyping()}
           placeholder="Type your message..."
           className="flex-1 p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-primary"
         />
