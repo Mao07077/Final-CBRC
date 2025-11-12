@@ -1768,7 +1768,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               ];
               return (
                 <div className="flex w-full gap-4 flex-col md:flex-row">
-                  <div className="flex-shrink-0 w-full md:w-[480px]">
+                  <div className="relative flex-shrink-0 w-full md:w-[480px]">
                     {pinned && (
                       <div key={pinned.id} className="relative bg-blue-900 rounded-lg overflow-hidden border-4 border-blue-400 aspect-video min-h-[180px] w-full">
                         {isParticipantCameraOn(pinned) ? (
@@ -1792,6 +1792,21 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                           <span>Pinned</span>
                           {pinned.user_id === userId && <span className="ml-2">(You)</span>}
                         </div>
+
+                        {/* Self mini-preview overlay when someone else is pinned */}
+                        {pinned.user_id !== userId && isParticipantCameraOn({ user_id: userId }) && (
+                          <div className="absolute bottom-2 right-2 z-20 rounded-md overflow-hidden shadow-lg border border-gray-700 bg-black/60">
+                            <video
+                              ref={localVideoRef}
+                              autoPlay
+                              muted
+                              playsInline
+                              className="w-36 h-24 object-cover"
+                              style={{ minWidth: '144px', minHeight: '96px' }}
+                            />
+                            <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 py-0.5 rounded">You</div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1852,7 +1867,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               ];
               return (
                 <div className="flex w-full gap-4 flex-col md:flex-row">
-                  <div className="flex-shrink-0 w-full md:w-[480px]">
+                  <div className="relative flex-shrink-0 w-full md:w-[480px]">
                     {speaker && (
                       <div key={speaker.id} className="relative bg-green-900 rounded-lg overflow-hidden border-4 border-green-400 aspect-video min-h-[180px] w-full">
                         {isParticipantCameraOn(speaker) ? (
@@ -1876,6 +1891,21 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                           <span>Speaking</span>
                           {speaker.user_id === userId && <span className="ml-2">(You)</span>}
                         </div>
+
+                        {/* Self mini-preview overlay when another participant is current speaker */}
+                        {speaker.user_id !== userId && isParticipantCameraOn({ user_id: userId }) && (
+                          <div className="absolute bottom-2 right-2 z-20 rounded-md overflow-hidden shadow-lg border border-gray-700 bg-black/60">
+                            <video
+                              ref={localVideoRef}
+                              autoPlay
+                              muted
+                              playsInline
+                              className="w-36 h-24 object-cover"
+                              style={{ minWidth: '144px', minHeight: '96px' }}
+                            />
+                            <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 py-0.5 rounded">You</div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
