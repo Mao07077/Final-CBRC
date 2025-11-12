@@ -1751,17 +1751,14 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
             if (layoutMode === "spotlight" && pinnedParticipantId) {
               const pinned = participants.find(p => p.id === pinnedParticipantId);
-              const selfPinned = pinned && pinned.user_id === userId;
-              let others = participants
-                .filter(p => (selfPinned ? true : p.id !== pinnedParticipantId))
-                .filter(p => !p.is_screen_sharing)
+              const others = participants
+                .filter(p => p.id !== pinnedParticipantId)
+                .filter(p => !p.is_screen_sharing) // remove camera tile when sharing screen
                 .filter(p => !screenShares.some(s => s.user_id === p.user_id));
-
               return (
                 <div className="flex w-full gap-4 flex-col md:flex-row">
-                  {/* Pinned area (hidden if you pinned yourself; your tile will appear among others) */}
-                  {!selfPinned && pinned && (
-                    <div className="relative flex-shrink-0 w-full md:w-[480px]">
+                  <div className="relative flex-shrink-0 w-full md:w-[480px]">
+                    {pinned && (
                       <div key={pinned.id} className="relative bg-blue-900 rounded-lg overflow-hidden border-4 border-blue-400 aspect-video min-h-[180px] w-full">
                         {isParticipantCameraOn(pinned) ? (
                           <video
@@ -1784,11 +1781,12 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                           <span>Pinned</span>
                           {pinned.user_id === userId && <span className="ml-2">(You)</span>}
                         </div>
-                      </div>
-                    </div>
-                  )}
 
-                  {/* Others column (includes self tile when pinning others or self) */}
+                        {/* Self mini-preview overlay when someone else is pinned */}
+                        {/* self overlay removed per user preference */}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
                     {others.map(participant => (
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
@@ -1816,6 +1814,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                               {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
                               {isParticipantCameraOn(participant) && <span className="text-green-400 ml-1">(Camera On)</span>}
                               {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
+                              {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                             </span>
                             <span className={`text-xs ${getElapsedClass(elapsedMap && elapsedMap[participant.user_id] != null ? elapsedMap[participant.user_id] : null)}`}>{elapsedMap && elapsedMap[participant.user_id] != null ? formatDuration(elapsedMap[participant.user_id]) : ''}</span>
                           </div>
