@@ -1751,10 +1751,15 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
             if (layoutMode === "spotlight" && pinnedParticipantId) {
               const pinned = participants.find(p => p.id === pinnedParticipantId);
-              const others = participants
+              const showSelfOverlay = pinned && pinned.user_id !== userId && isParticipantCameraOn({ user_id: userId });
+              let others = participants
                 .filter(p => p.id !== pinnedParticipantId)
                 .filter(p => !p.is_screen_sharing) // remove camera tile when sharing screen
                 .filter(p => !screenShares.some(s => s.user_id === p.user_id));
+              if (showSelfOverlay) {
+                // Avoid rendering self in the thumbnails if overlay is shown
+                others = others.filter(p => p.user_id !== userId);
+              }
               return (
                 <div className="flex w-full gap-4 flex-col md:flex-row">
                   <div className="relative flex-shrink-0 w-full md:w-[480px]">
@@ -1783,7 +1788,18 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                         </div>
 
                         {/* Self mini-preview overlay when someone else is pinned */}
-                        {/* self overlay removed per user preference */}
+                        {showSelfOverlay && (
+                          <div className="absolute bottom-2 right-2 z-20 rounded-md overflow-hidden shadow-lg border border-gray-700 bg-black/60">
+                            <video
+                              ref={localVideoRef}
+                              autoPlay
+                              muted
+                              playsInline
+                              className="w-28 h-20 md:w-36 md:h-24 object-cover"
+                            />
+                            <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 py-0.5 rounded">You</div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
