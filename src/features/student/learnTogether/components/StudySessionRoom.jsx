@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { 
-  Mic, MicOff, Video, VideoOff, Phone, MessageSquare, Users, Hand, Monitor, MonitorOff, Settings, Volume2
+  Mic, MicOff, Video, VideoOff, Phone, MessageSquare, Users, Monitor, MonitorOff, Settings, Volume2
 } from "lucide-react";
 import useLearnTogetherStore from "../../../../store/student/learnTogetherStore";
 import SessionEndNotification from "../../../../components/common/SessionEndNotification";
@@ -81,8 +81,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   // Layout options (static)
   const LAYOUT_OPTIONS = [
     { value: "grid", label: "Grid View (Equal Tiles)" },
-    { value: "spotlight", label: "Spotlight (Pin Participant)" },
-    { value: "speaker", label: "Focus on Speaker" },
+    { value: "spotlight", label: "Spotlight (Pin Participant)" }
   ];
 
   const [showEndNotification, setShowEndNotification] = useState(false);
@@ -96,7 +95,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const [isMuted, setIsMuted] = useState(true);
   const [isCameraOff, setIsCameraOff] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [handRaised, setHandRaised] = useState(false);
+  // Hand raise removed
   const [mediaError, setMediaError] = useState(null);
   
   // Room state
@@ -473,7 +472,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             muted: isMuted,
             camera_off: isCameraOff,
             is_screen_sharing: isScreenSharing,
-            hand_raised: handRaised
+            // hand_raised removed
           }));
         };
 
@@ -582,9 +581,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
         setChatMessages(data.messages);
         break;
         
-      case "hand_raise_update":
-        console.log(`${data.participant_name} ${data.hand_raised ? 'raised' : 'lowered'} their hand`);
-        break;
+      // hand_raise_update removed
         
       case "status_update":
         console.log("Status update received:", data);
@@ -646,9 +643,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
       case "layout_update": {
         console.log("Layout update received:", data);
-        // Apply layout mode and pinned participant coming from server
+        // Map deprecated 'speaker' to 'grid'
         if (data.layout_mode) {
-          setLayoutMode(data.layout_mode);
+          const next = data.layout_mode === 'speaker' ? 'grid' : data.layout_mode;
+          setLayoutMode(next);
         }
         if (typeof data.pinned_participant_id !== 'undefined') {
           setPinnedParticipantId(data.pinned_participant_id || null);
@@ -1417,17 +1415,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     }
   }, [isScreenSharing, isCameraOff, isMuted]);
 
-  const toggleHandRaise = useCallback(() => {
-    const newHandRaisedState = !handRaised;
-    setHandRaised(newHandRaisedState);
-    
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: "hand_raise",
-        hand_raised: newHandRaisedState
-      }));
-    }
-  }, [handRaised]);
+  // toggleHandRaise removed
 
   // Chat functions
   const sendMessage = useCallback(() => {
@@ -1579,15 +1567,19 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   // to be switched off when layout changes e.g. pin/spotlight). The attachment
   // effect will reapply the local stream if needed.
   const handleLayoutChange = (newLayout) => {
+    // Ignore deprecated speaker layout selections
+    if (newLayout === 'speaker') {
+      setLayoutMode('grid');
+      return;
+    }
     setLayoutMode(newLayout);
-    // No side-effects on camera state to avoid accidental toggles during layout re-render.
   };
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
       {/* Header */}
-      <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
-        <div>
+      <div className="bg-gray-800 text-white p-4 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold">{roomInfo?.group_title}</h1>
           <p className="text-sm text-gray-300">{roomInfo?.group_subject}</p>
           {remainingSeconds !== null && (
@@ -1597,7 +1589,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             <p className={`mt-1 text-lg font-semibold ${getElapsedClass(elapsedMap[userId])}`}>You: {formatDuration(elapsedMap[userId])}</p>
           )}
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 md:gap-4 flex-wrap justify-between md:justify-end w-full md:w-auto">
           <button
             onClick={() => setShowLogs(v => !v)}
             className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
@@ -1611,7 +1603,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             </div>
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-[160px]">
             <Users className="w-5 h-5" />
             <span>{participants.length} participants</span>
           </div>
@@ -1634,7 +1626,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
       {/* Session history panel */}
       {showLogs && (
-        <div className="absolute right-6 top-20 z-50 w-96 max-w-[90vw] bg-white text-gray-900 rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+        <div className="fixed inset-x-4 top-20 z-50 md:inset-auto md:right-6 md:top-20 w-auto md:w-96 bg-white text-gray-900 rounded-lg shadow-lg border border-gray-200 overflow-hidden">
           <div className="p-3 border-b border-gray-100 flex items-center justify-between">
             <div className="font-semibold">Session History</div>
             <div className="text-xs text-gray-500">Recent</div>
@@ -1740,13 +1732,13 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                 </div>
               </>
             )}
-            <span className="text-white font-semibold ml-2">Layout: {LAYOUT_OPTIONS.find(opt => opt.value === layoutMode)?.label}</span>
+            <span className="text-white font-semibold ml-2">Layout: {LAYOUT_OPTIONS.find(opt => opt.value === layoutMode)?.label || 'Grid View (Equal Tiles)'}</span>
           </div>
 
           {(() => {
             const screenShares = [];
             if (isScreenSharing) {
-              screenShares.push({ id: 'self_screen', name: userName, is_screen_sharing: true, camera_off: false, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true });
+              screenShares.push({ id: 'self_screen', name: userName, is_screen_sharing: true, camera_off: false, muted: isMuted, user_id: userId, self: true });
             }
             participants.forEach(p => {
               if (p.is_screen_sharing && p.user_id !== userId) screenShares.push({ ...p, self: false });
@@ -1759,13 +1751,15 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
             if (layoutMode === "spotlight" && pinnedParticipantId) {
               const pinned = participants.find(p => p.id === pinnedParticipantId);
-              const others = [
-                ...participants
-                  .filter(p => p.id !== pinnedParticipantId)
-                  .filter(p => !p.is_screen_sharing) // remove camera tile when sharing screen
-                  .filter(p => !screenShares.some(s => s.user_id === p.user_id)),
-                ...((!participants.some(p => p.user_id === userId) && pinnedParticipantId !== `user_${userId}`) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
-              ];
+              const showSelfOverlay = pinned && pinned.user_id !== userId && isParticipantCameraOn({ user_id: userId });
+              let others = participants
+                .filter(p => p.id !== pinnedParticipantId)
+                .filter(p => !p.is_screen_sharing) // remove camera tile when sharing screen
+                .filter(p => !screenShares.some(s => s.user_id === p.user_id));
+              if (showSelfOverlay) {
+                // Avoid rendering self in the thumbnails if overlay is shown
+                others = others.filter(p => p.user_id !== userId);
+              }
               return (
                 <div className="flex w-full gap-4 flex-col md:flex-row">
                   <div className="relative flex-shrink-0 w-full md:w-[480px]">
@@ -1794,15 +1788,14 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                         </div>
 
                         {/* Self mini-preview overlay when someone else is pinned */}
-                        {pinned.user_id !== userId && isParticipantCameraOn({ user_id: userId }) && (
+                        {showSelfOverlay && (
                           <div className="absolute bottom-2 right-2 z-20 rounded-md overflow-hidden shadow-lg border border-gray-700 bg-black/60">
                             <video
                               ref={localVideoRef}
                               autoPlay
                               muted
                               playsInline
-                              className="w-36 h-24 object-cover"
-                              style={{ minWidth: '144px', minHeight: '96px' }}
+                              className="w-28 h-20 md:w-36 md:h-24 object-cover"
                             />
                             <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 py-0.5 rounded">You</div>
                           </div>
@@ -1855,112 +1848,15 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               );
             }
 
-            if (layoutMode === "speaker") {
-              const speakerId = currentSpeakerId || Array.from(speakingParticipants)[0];
-              const speaker = participants.find(p => p.user_id === speakerId);
-              const others = [
-                ...participants
-                  .filter(p => p.user_id !== speakerId)
-                  .filter(p => !p.is_screen_sharing)
-                  .filter(p => !screenShares.some(s => s.user_id === p.user_id)),
-                ...((!participants.some(p => p.user_id === userId) && speakerId !== userId) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
-              ];
-              return (
-                <div className="flex w-full gap-4 flex-col md:flex-row">
-                  <div className="relative flex-shrink-0 w-full md:w-[480px]">
-                    {speaker && (
-                      <div key={speaker.id} className="relative bg-green-900 rounded-lg overflow-hidden border-4 border-green-400 aspect-video min-h-[180px] w-full">
-                        {isParticipantCameraOn(speaker) ? (
-                          <video
-                            ref={speaker.user_id === userId ? localVideoRef : (el) => { setRemoteVideoElement(speaker.id, el); }}
-                            autoPlay
-                            muted={speaker.user_id === userId}
-                            playsInline
-                            className="w-full h-full object-cover"
-                            style={{ minHeight: '180px' }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                            <div className="text-center">
-                              <VideoOff className="w-12 h-12 mx-auto mb-2" />
-                              <p className="text-base">{speaker.name}</p>
-                            </div>
-                          </div>
-                        )}
-                        <div className="absolute top-2 left-2 bg-green-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
-                          <span>Speaking</span>
-                          {speaker.user_id === userId && <span className="ml-2">(You)</span>}
-                        </div>
-
-                        {/* Self mini-preview overlay when another participant is current speaker */}
-                        {speaker.user_id !== userId && isParticipantCameraOn({ user_id: userId }) && (
-                          <div className="absolute bottom-2 right-2 z-20 rounded-md overflow-hidden shadow-lg border border-gray-700 bg-black/60">
-                            <video
-                              ref={localVideoRef}
-                              autoPlay
-                              muted
-                              playsInline
-                              className="w-36 h-24 object-cover"
-                              style={{ minWidth: '144px', minHeight: '96px' }}
-                            />
-                            <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 py-0.5 rounded">You</div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-3 flex-1 min-w-0">
-                    {others.map(participant => (
-                      <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
-                        {isParticipantCameraOn(participant) ? (
-                          <video
-                            ref={participant.self ? localVideoRef : el => { setRemoteVideoElement(participant.id, el); }}
-                            autoPlay
-                            muted={participant.self}
-                            playsInline
-                            className="w-full h-full object-cover"
-                            style={{ minHeight: '80px' }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                            <div className="text-center">
-                              <VideoOff className="w-8 h-8 mx-auto mb-2" />
-                              <p className="text-xs">{participant.self ? 'You' : participant.name}</p>
-                            </div>
-                          </div>
-                        )}
-                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
-                          <div className="flex flex-col">
-                            <span>
-                              {participant.self ? 'You' : participant.name}
-                              {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                              {isParticipantCameraOn(participant) && <span className="text-green-400 ml-1">(Camera On)</span>}
-                              {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
-                              {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
-                            </span>
-                            <span className={`text-xs ${getElapsedClass(elapsedMap && elapsedMap[participant.user_id] != null ? elapsedMap[participant.user_id] : null)}`}>{elapsedMap && elapsedMap[participant.user_id] != null ? formatDuration(elapsedMap[participant.user_id]) : ''}</span>
-                          </div>
-                          {!participant.muted && (
-                            <SpeakingIndicator 
-                              isActive={speakingParticipants.has(participant.user_id)} 
-                              audioLevel={participant.self ? localAudioLevel : 50} 
-                            />
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            }
+            // Speaker layout removed
 
             const allTiles = [
               ...screenShares.map(s => ({ ...s, isScreen: true })),
-              !isScreenSharing && { id: `user_${userId}`, name: userName, camera_off: isCameraOff, muted: isMuted, hand_raised: handRaised, user_id: userId, self: true },
+              !isScreenSharing && { id: `user_${userId}`, name: userName, camera_off: isCameraOff, muted: isMuted, user_id: userId, self: true },
               ...participantTiles
             ].filter(Boolean);
             return (
-              <div className="grid gap-3 justify-center items-start w-full" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(220px, 1fr))` }}>
+              <div className="grid gap-3 justify-center items-start w-full" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(160px, 1fr))` }}>
                 {allTiles.map(tile => (
                   <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ aspectRatio: '16/9', minHeight: tile.isScreen ? '180px' : '120px' }}>
                     {(tile.isScreen || isParticipantCameraOn(tile)) ? (
@@ -1999,14 +1895,13 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                         <SpeakingIndicator isActive={true} audioLevel={50} />
                       </div>
                     )}
-                    <div className={`absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2 ${tile.self ? 'text-sm' : ''}`}>
+                      <div className={`absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2 ${tile.self ? 'text-sm' : ''}`}>
                       <div className="flex flex-col">
                         <span>
                           {tile.self ? 'You' : tile.name}
                           {tile.muted && <span className="text-red-400 ml-1">(Muted)</span>}
                           {isParticipantCameraOn(tile) && <span className="text-green-400 ml-1">(Camera On)</span>}
-                          {tile.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
-                          {tile.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
+                            {tile.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                         </span>
                         <span className="text-xs text-gray-300">{elapsedMap && elapsedMap[tile.user_id] != null ? formatDuration(elapsedMap[tile.user_id]) : ''}</span>
                       </div>
@@ -2112,13 +2007,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           {isScreenSharing ? <MonitorOff className="w-6 h-6 text-white mx-auto" /> : <Monitor className="w-6 h-6 text-white mx-auto" />}
         </button>
 
-        <button
-          onClick={toggleHandRaise}
-          className={`p-3 rounded-full flex-1 min-w-[48px] max-w-[56px] ${handRaised ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-600 hover:bg-gray-700'}`}
-          title={handRaised ? "Lower hand" : "Raise hand"}
-        >
-          <Hand className="w-6 h-6 text-white mx-auto" />
-        </button>
+        {/* Raise hand button removed */}
 
         <button
           onClick={() => setShowChat(!showChat)}
