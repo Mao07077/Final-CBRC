@@ -14,7 +14,8 @@ const ChatWindow = () => {
     : null;
   const endOfMessagesRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const [autoScroll, setAutoScroll] = useState(true);
+  // Start with autoScroll disabled so instructor can immediately scroll up
+  const [autoScroll, setAutoScroll] = useState(false);
 
   // Always merge old (REST) and new (WebSocket) messages for this conversation
   const oldMessages = selectedConversation?.messages || [];
@@ -32,7 +33,7 @@ const ChatWindow = () => {
     chatMessages = Object.values(allMessagesMap).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   }
 
-  // Only auto-scroll if user is at (or near) the bottom
+  // Auto-scroll only if user was already at (or near) the bottom
   useEffect(() => {
     if (autoScroll) {
       endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -54,6 +55,11 @@ const ChatWindow = () => {
     const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
     setAutoScroll(atBottom);
   };
+
+  // Disable autoScroll when switching conversations until user scrolls to bottom
+  useEffect(() => {
+    setAutoScroll(false);
+  }, [activeConversationId]);
 
   // Typing indicator (debounced)
   const typingTimeoutRef = useRef(null);
@@ -86,7 +92,7 @@ const ChatWindow = () => {
 
       {/* Messages Area */}
   <div
-    className="flex-1 min-h-0 p-4 overflow-y-auto bg-gray-50"
+    className="flex-1 min-h-0 p-4 overflow-y-auto bg-gray-50 relative"
     ref={messagesContainerRef}
     onScroll={handleScroll}
   >
@@ -121,6 +127,16 @@ const ChatWindow = () => {
               <span>Typing...</span>
             </div>
           </div>
+        )}
+        {!autoScroll && (
+          <button
+            onClick={() => {
+              endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="absolute bottom-4 right-4 bg-primary-dark text-white text-xs px-3 py-1 rounded shadow hover:bg-primary-darker"
+          >
+            Jump to latest
+          </button>
         )}
       </div>
 
