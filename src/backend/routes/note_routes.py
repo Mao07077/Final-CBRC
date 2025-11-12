@@ -27,14 +27,15 @@ async def update_note(req: UpdateNoteRequest):
     id_number = req.id_number
     index = req.index
     note = req.note
-    user = notes_collection.find_one({"id_number": id_number})
+    # Use users_collection to keep notes in the same place as get/save
+    user = users_collection.find_one({"id_number": id_number})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     notes = user.get("notes", [])
     if index < 0 or index >= len(notes):
         raise HTTPException(status_code=400, detail="Invalid note index")
     notes[index] = note
-    notes_collection.update_one(
+    users_collection.update_one(
         {"id_number": id_number},
         {"$set": {"notes": notes}}
     )
@@ -44,14 +45,15 @@ async def update_note(req: UpdateNoteRequest):
 async def delete_note(req: DeleteNoteRequest):
     id_number = req.id_number
     index = req.index
-    user = notes_collection.find_one({"id_number": id_number})
+    # Use users_collection to keep notes in the same place as get/save
+    user = users_collection.find_one({"id_number": id_number})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     notes = user.get("notes", [])
     if index < 0 or index >= len(notes):
         raise HTTPException(status_code=400, detail="Invalid note index")
     notes.pop(index)
-    notes_collection.update_one(
+    users_collection.update_one(
         {"id_number": id_number},
         {"$set": {"notes": notes}}
     )

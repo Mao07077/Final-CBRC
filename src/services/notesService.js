@@ -8,7 +8,7 @@ const notesService = {
   },
   
   createNote: async (noteData) => {
-    const response = await apiClient.post('/save_note', {
+    await apiClient.post('/save_note', {
       id_number: noteData.user_id,
       note: {
         _id: Date.now().toString(), // Generate a temporary ID
@@ -18,29 +18,42 @@ const notesService = {
         updated_at: new Date().toISOString()
       }
     });
+    // Return the same note object shape we posted (timestamps may differ slightly; we'll refresh from backend in store)
     return {
-      _id: Date.now().toString(),
+      _id: noteData._id || Date.now().toString(),
       title: noteData.title,
       content: noteData.content,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      created_at: noteData.created_at || new Date().toISOString(),
+      updated_at: noteData.updated_at || new Date().toISOString(),
     };
   },
   
-  updateNote: async (noteId, noteData) => {
-    // For now, return the updated note data
-    // The backend update_note endpoint needs the index, which we don't have
+  updateNote: async (idNumber, index, noteData) => {
+    await apiClient.post('/update_note', {
+      id_number: idNumber,
+      index,
+      note: {
+        _id: noteData._id,
+        title: noteData.title,
+        content: noteData.content,
+        created_at: noteData.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+    });
     return {
-      _id: noteId,
+      _id: noteData._id,
       title: noteData.title,
       content: noteData.content,
-      updated_at: new Date().toISOString()
+      created_at: noteData.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
   },
   
-  deleteNote: async (noteId) => {
-    // For now, just return success
-    // The backend delete_note endpoint needs the index, which we don't have
+  deleteNote: async (idNumber, index) => {
+    await apiClient.post('/delete_note', {
+      id_number: idNumber,
+      index,
+    });
     return { success: true };
   },
 };

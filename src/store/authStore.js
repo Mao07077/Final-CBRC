@@ -119,8 +119,13 @@ const useAuthStore = create((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await authService.sendResetCode(data);
-      set({ isLoading: false });
-      return response.data;
+      const result = response.data;
+      if (!result.success) {
+        set({ error: result.message || 'Failed to send reset code', isLoading: false });
+      } else {
+        set({ isLoading: false });
+      }
+      return result;
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Failed to send reset code';
       set({ error: errorMessage, isLoading: false });

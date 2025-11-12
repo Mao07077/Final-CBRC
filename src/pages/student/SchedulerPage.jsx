@@ -1,6 +1,6 @@
 // Add a notification sound using a public sound link
 const notificationAudio = typeof Audio !== 'undefined' ? new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg') : null;
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 // ...existing code...
 // ...existing code...
 import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
@@ -29,6 +29,13 @@ const SchedulerPage = () => {
   const { events, openModal, fetchEvents } = useSchedulerStore();
   const notifiedEventsRef = useRef({});
   // Removed test browser notification feature
+  const [query, setQuery] = useState("");
+
+  const filteredEvents = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return events;
+    return events.filter((e) => (e.title || "").toLowerCase().includes(q));
+  }, [events, query]);
 
   useEffect(() => {
     fetchEvents();
@@ -92,9 +99,17 @@ const SchedulerPage = () => {
       </h1>
       {/* Test browser notification removed */}
       <div className="bg-white p-4 rounded-lg shadow-md h-[75vh]">
+        <div className="mb-3">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search events by title"
+            className="w-full px-3 py-2 border rounded-md text-sm"
+          />
+        </div>
         <Calendar
           localizer={localizer}
-          events={events}
+          events={filteredEvents}
           startAccessor="start"
           endAccessor="end"
           style={{ height: "100%" }}

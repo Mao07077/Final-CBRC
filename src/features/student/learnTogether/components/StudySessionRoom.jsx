@@ -1211,10 +1211,26 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const toggleScreenShare = useCallback(async () => {
     try {
       if (!isScreenSharing) {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
-          video: true, 
-          audio: true 
-        });
+        // Attempt to capture screen with audio; fallback to video-only then optionally merge mic audio (mobile Safari/Chrome often omit audio)
+        let screenStream;
+        try {
+          screenStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: { echoCancellation: true, noiseSuppression: true }
+          });
+        } catch (err) {
+          console.warn('Screen share with audio failed, retrying without audio', err);
+          screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        }
+        // If user is unmuted and no audio tracks present, try to add microphone track so peers still hear speaker during share
+        if (!isMuted && screenStream.getAudioTracks().length === 0) {
+          try {
+            const micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+            micStream.getAudioTracks().forEach(t => screenStream.addTrack(t));
+          } catch (e) {
+            console.warn('Failed to merge mic audio into screen share', e);
+          }
+        }
         if (localStreamRef.current) {
           localStreamRef.current.getTracks().forEach(track => track.stop());
         }
@@ -1295,7 +1311,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
             });
             
             if (localVideoRef.current) {
-              localVideoRef.current.srcObject = null;
+              try { localVideoRef.current.srcObject = null; } catch (_) {}
             }
           }
           
@@ -1354,7 +1370,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           });
           
           if (localVideoRef.current) {
-            localVideoRef.current.srcObject = null;
+            try { localVideoRef.current.srcObject = null; } catch (_) {}
           }
         }
         
@@ -1727,12 +1743,18 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               if (p.is_screen_sharing && p.user_id !== userId) screenShares.push({ ...p, self: false });
             });
 
-            const participantTiles = participants.filter(p => !screenShares.some(s => s.user_id === p.user_id && s.self)).filter(p => p.user_id !== userId);
+            // Exclude any participant (including self) that currently has a screen share tile to prevent duplicate tiles
+            const participantTiles = participants
+              .filter(p => p.user_id !== userId)
+              .filter(p => !screenShares.some(s => s.user_id === p.user_id));
 
             if (layoutMode === "spotlight" && pinnedParticipantId) {
               const pinned = participants.find(p => p.id === pinnedParticipantId);
               const others = [
-                ...participants.filter(p => p.id !== pinnedParticipantId),
+                ...participants
+                  .filter(p => p.id !== pinnedParticipantId)
+                  .filter(p => !p.is_screen_sharing) // remove camera tile when sharing screen
+                  .filter(p => !screenShares.some(s => s.user_id === p.user_id)),
                 ...((!participants.some(p => p.user_id === userId) && pinnedParticipantId !== `user_${userId}`) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
               ];
               return (
@@ -1819,7 +1841,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               const speakerId = currentSpeakerId || Array.from(speakingParticipants)[0];
               const speaker = participants.find(p => p.user_id === speakerId);
               const others = [
-                ...participants.filter(p => p.user_id !== speakerId),
+                ...participants
+                  .filter(p => p.user_id !== speakerId)
+                  .filter(p => !p.is_screen_sharing)
+                  .filter(p => !screenShares.some(s => s.user_id === p.user_id)),
                 ...((!participants.some(p => p.user_id === userId) && speakerId !== userId) ? [{ id: `user_${userId}`, user_id: userId, name: userName, muted: isMuted, camera_off: isCameraOff, is_screen_sharing: isScreenSharing, hand_raised: handRaised, self: true }] : [])
               ];
               return (

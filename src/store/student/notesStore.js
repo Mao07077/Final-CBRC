@@ -71,26 +71,20 @@ const useNotesStore = create((set, get) => ({
         user_id: userData.id_number
       };
 
+      // For updates, compute index in current notes (backend expects index)
       let savedNote;
       if (noteData._id) {
-        // Update existing note
-        savedNote = await notesService.updateNote(noteData._id, notePayload);
+        const idx = get().notes.findIndex(n => n._id === noteData._id);
+        await notesService.updateNote(userData.id_number, idx, notePayload);
+        savedNote = { ...notePayload };
       } else {
         // Create new note
         savedNote = await notesService.createNote(notePayload);
       }
 
-      set((state) => {
-        let updatedNotes;
-        if (noteData._id) {
-          updatedNotes = state.notes.map((n) =>
-            n._id === noteData._id ? savedNote : n
-          );
-        } else {
-          updatedNotes = [savedNote, ...state.notes];
-        }
-        return { notes: updatedNotes, selectedNote: savedNote, isLoading: false };
-      });
+      // Refresh from backend to ensure persistence/order consistency
+      const refreshed = await notesService.getNotes(userData.id_number);
+      set({ notes: refreshed || [], selectedNote: savedNote, isLoading: false });
     } catch (error) {
       console.error("Save note error:", error);
       set({ 
@@ -103,12 +97,11 @@ const useNotesStore = create((set, get) => ({
   deleteNote: async (noteId) => {
     set({ isLoading: true, error: null });
     try {
-      await notesService.deleteNote(noteId);
-      set((state) => ({
-        notes: state.notes.filter((n) => n._id !== noteId),
-        selectedNote: null,
-        isLoading: false
-      }));
+      const { userData } = useAuthStore.getState();
+      const idx = get().notes.findIndex(n => n._id === noteId);
+      await notesService.deleteNote(userData.id_number, idx);
+      const refreshed = await notesService.getNotes(userData.id_number);
+      set({ notes: refreshed || [], selectedNote: null, isLoading: false });
     } catch (error) {
       console.error("Delete note error:", error);
       set({ 

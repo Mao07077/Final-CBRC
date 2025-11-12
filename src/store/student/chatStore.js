@@ -35,6 +35,59 @@ const useChatStore = create((set, get) => ({
 
   setActiveConversation: (id) => set({ activeConversationId: id }),
 
+  // Create a new conversation entry for an instructor (or open existing) and load messages
+  createOrOpenConversation: async (instructor) => {
+    const { conversations } = get();
+    const instructorId = instructor.id_number || instructor._id || instructor.id;
+    if (!instructorId) return;
+
+    // If conversation already exists, just open it
+    if (conversations[instructorId]) {
+      set({ activeConversationId: instructorId });
+      return;
+    }
+
+    // Otherwise, create a placeholder convo and try to load existing messages
+    const { userData } = useAuthStore.getState();
+    const studentId = userData?.id_number;
+
+    // optimistic create
+    set((state) => ({
+      conversations: {
+        ...state.conversations,
+        [instructorId]: {
+          id: instructorId,
+          name: `${instructor.firstname || ''} ${instructor.lastname || ''}`.trim() || instructor.name,
+          role: "instructor",
+          messages: [],
+          lastMessage: null,
+        },
+      },
+      activeConversationId: instructorId,
+    }));
+
+    try {
+      // load past messages (if any)
+      if (studentId) {
+        const messages = await messageService.getMessages(studentId, instructorId);
+        const msgs = Array.isArray(messages) ? messages : (messages.messages || []);
+
+        set((state) => ({
+          conversations: {
+            ...state.conversations,
+            [instructorId]: {
+              ...state.conversations[instructorId],
+              messages: msgs,
+              lastMessage: msgs.length ? msgs[msgs.length - 1] : null,
+            },
+          },
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load messages for new conversation', error);
+    }
+  },
+
   sendMessage: async (text) => {
     const { activeConversationId, conversations } = get();
     const { userData } = useAuthStore.getState();

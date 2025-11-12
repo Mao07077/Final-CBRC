@@ -12,7 +12,8 @@ const messageService = {
   },
 
   getStudentConversations: async (studentId) => {
-    const response = await apiClient.get(`/api/conversations/student/${studentId}`);
+    // Use active only instructors with existing messages
+    const response = await apiClient.get(`/api/conversations/student-active/${studentId}`);
     return response.data;
   },
 

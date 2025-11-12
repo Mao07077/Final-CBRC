@@ -20,6 +20,11 @@ from typing import List, Dict, Any
 import requests
 import os
 
+# Track last successful scheduler tick and email metrics for diagnostics
+last_scheduler_run: datetime | None = None
+reminder_emails_sent_success: int = 0
+reminder_emails_failed: int = 0
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
@@ -29,7 +34,7 @@ def verify_password(password: str, hashed: str) -> bool:
     except Exception:
         return password == hashed
 
-def send_email(to_email: str, subject: str, body: str):
+def send_email(to_email: str, subject: str, body: str) -> bool:
     try:
         msg = MIMEText(body)
         msg['Subject'] = subject
@@ -40,8 +45,10 @@ def send_email(to_email: str, subject: str, body: str):
             server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
             server.send_message(msg)
         logger.info(f"Email sent to {to_email}")
+        return True
     except Exception as e:
         logger.error(f"Failed to send email to {to_email}: {e}")
+        return False
 
 def extract_text_from_pdf(file_path: str) -> str:
     try:
@@ -168,18 +175,13 @@ If you have any questions or need to reschedule, just log in to your CBRC accoun
 Best regards,
 CBRC Students Platform
 """
-    message = MIMEText(body)
-    message['From'] = EMAIL_HOST_USER
-    message['To'] = user_email
-    message['Subject'] = subject
-    try:
-        with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as server:
-            server.starttls()
-            server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
-            server.sendmail(EMAIL_HOST_USER, user_email, message.as_string())
-        logger.info(f"Reminder sent to {user_email}")
-    except Exception as e:
-        logger.error(f"Error sending email: {e}")
+    # Reuse central email sender for consistency and metrics
+    global reminder_emails_sent_success, reminder_emails_failed
+    ok = send_email(user_email, subject, body)
+    if ok:
+        reminder_emails_sent_success += 1
+    else:
+        reminder_emails_failed += 1
 
 def check_schedule_and_notify(users_collection, schedule_collection):
     tz = pytz.timezone('Asia/Manila')
@@ -187,6 +189,8 @@ def check_schedule_and_notify(users_collection, schedule_collection):
     current_time = now.strftime('%I:%M %p')
     current_day = now.strftime('%a').upper()
     logger.info(f"[Scheduler] Running at PH time {current_time} {current_day}")
+    global last_scheduler_run
+    last_scheduler_run = now
     schedules = schedule_collection.find()
     daysOfWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
     for schedule in schedules:

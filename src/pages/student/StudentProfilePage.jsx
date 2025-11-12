@@ -37,14 +37,16 @@ const StudentProfilePage = () => {
 
   const habitNavigationMap = {
     "Study with Friends": "/student/learn-together",
-    "Asking for Help": "/student/chat",
+    // Align with actual messages route
+    "Asking for Help": "/student/messages",
     "Test Yourself Periodically": "/student/modules",
     "Creating a Study Schedule": "/student/scheduler",
     "Setting Study Goals": "/student/notes",
     "Organizing Notes": "/student/notes",
     "Teach What You've Learned": "/student/learn-together",
     "Use of Flashcards": "/student/flashcards",
-    "Using Aromatherapy, Plants, or Music": "/student/music",
+    // Align with music player route naming
+    "Using Aromatherapy, Plants, or Music": "/student/music-player",
   };
 
   useEffect(() => {

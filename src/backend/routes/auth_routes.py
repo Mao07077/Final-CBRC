@@ -3,7 +3,7 @@ from models import SignupData, LoginRequest, ForgotPasswordData, ConfirmResetCod
 from database import users_collection
 from utils import hash_password, verify_password, send_email
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
@@ -43,20 +43,46 @@ def forgot_password(data: ForgotPasswordData, background_tasks: BackgroundTasks)
     user = users_collection.find_one({"id_number": data.id_number, "email": data.email})
     if not user:
         return {"success": False, "message": "No user found with that ID number and email."}
+    # Simple rate limiting: max 5 requests per hour per user
+    window_start = user.get("forgot_pw_window_start")
+    count = int(user.get("forgot_pw_count", 0) or 0)
+    now = datetime.utcnow()
+    if window_start and isinstance(window_start, datetime) and (now - window_start) < timedelta(hours=1):
+        if count >= 5:
+            return {"success": False, "message": "Too many reset attempts. Please try again in about an hour."}
+        else:
+            count += 1
+    else:
+        # Reset window
+        window_start = now
+        count = 1
     reset_code = str(random.randint(100000, 999999))
     users_collection.update_one(
         {"id_number": data.id_number},
-        {"$set": {"reset_code": reset_code, "reset_code_created": datetime.utcnow()}}
+        {"$set": {
+            "reset_code": reset_code,
+            "reset_code_created": now,
+            "forgot_pw_window_start": window_start,
+            "forgot_pw_count": count
+        }}
     )
-    send_email(data.email, "Password Reset Code", f"Your reset code is: {reset_code}")
+    # Try sending the email and report status back to client
+    email_ok = send_email(data.email, "Password Reset Code", f"Your reset code is: {reset_code}")
+    if not email_ok:
+        return {"success": False, "message": "Failed to send email. Please check your email address or try again later."}
     return {"success": True, "message": "Reset code sent to your email."}
 
 @router.post("/api/confirm_reset_code")
 async def confirm_reset_code(data: ConfirmResetCodeData):
     user = users_collection.find_one({"id_number": data.id_number, "email": data.email})
-    if user and user.get("reset_code") == data.reset_code:
-        return {"success": True, "message": "Reset code confirmed. You can now reset your password."}
-    raise HTTPException(status_code=400, detail="Invalid reset code")
+    if not user or user.get("reset_code") != data.reset_code:
+        raise HTTPException(status_code=400, detail="Invalid reset code")
+    # Optional: expire codes after 15 minutes
+    created = user.get("reset_code_created")
+    if created and isinstance(created, datetime):
+        if datetime.utcnow() - created > timedelta(minutes=15):
+            raise HTTPException(status_code=400, detail="Reset code expired. Please request a new one.")
+    return {"success": True, "message": "Reset code confirmed. You can now reset your password."}
 
 @router.post("/api/reset_password")
 async def reset_password(data: ResetPasswordData):
@@ -65,7 +91,7 @@ async def reset_password(data: ResetPasswordData):
         hashed_password = hash_password(data.new_password)
         users_collection.update_one(
             {"id_number": data.id_number},
-            {"$set": {"password": hashed_password, "reset_code": None}}
+            {"$set": {"password": hashed_password, "reset_code": None, "reset_code_created": None}}
         )
         return {"success": True, "message": "Password has been reset successfully."}
     raise HTTPException(status_code=400, detail="Invalid reset code")

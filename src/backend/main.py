@@ -186,6 +186,41 @@ async def health_check():
         logger.error(f"Health check failed: {str(e)}")
         raise HTTPException(status_code=503, detail="Service unavailable")
 
+@app.get("/scheduler/status")
+async def scheduler_status():
+    """Return basic scheduler diagnostics including last tick time."""
+    try:
+        from utils import last_scheduler_run, reminder_emails_sent_success, reminder_emails_failed
+        status = {
+            "running": scheduler.running,
+            "next_runs": [str(job.next_run_time) for job in scheduler.get_jobs()],
+            "last_tick": last_scheduler_run.isoformat() if last_scheduler_run else None,
+            "email_metrics": {
+                "reminder_sent_success": reminder_emails_sent_success,
+                "reminder_sent_failed": reminder_emails_failed,
+            },
+        }
+        return status
+    except Exception as e:
+        logger.error(f"Scheduler status error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Scheduler status error")
+
+@app.post("/scheduler/run-now")
+async def scheduler_run_now(token: str = None):
+    """Manually trigger a one-time schedule check. Protect with SCHEDULER_TOKEN env var."""
+    try:
+        expected = os.getenv("SCHEDULER_TOKEN")
+        if expected and token != expected:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        # Run once synchronously
+        check_schedule_and_notify(users_collection, schedule_collection)
+        return {"status": "ok"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Scheduler run-now error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Scheduler run-now error")
+
 @app.get("/")
 async def root():
     """Root endpoint"""

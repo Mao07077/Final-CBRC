@@ -115,20 +115,47 @@ def send_message(message_data: dict = Body(...), request: Request = None):
 
 @router.get("/api/conversations/student/{student_id}")
 def get_student_conversations(student_id: str):
-    """Get all instructors for student to chat with"""
+    """Get only instructors who have existing conversations with this student"""
     # Verify student exists
     student = users_collection.find_one({"id_number": student_id, "role": {"$regex": "^student$", "$options": "i"}})
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-    
-    # Get all instructors
-    instructors = list(users_collection.find({"role": {"$regex": "^instructor$", "$options": "i"}}))
-    
+
+    # Aggregate distinct counterpart ids for this student's messages
+    pipeline = [
+        {
+            "$match": {
+                "$or": [
+                    {"sender_id": student_id},
+                    {"receiver_id": student_id}
+                ]
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "$cond": {
+                        "if": {"$eq": ["$sender_id", student_id]},
+                        "then": "$receiver_id",
+                        "else": "$sender_id"
+                    }
+                }
+            }
+        }
+    ]
+
+    counterpart_ids_result = list(messages_collection.aggregate(pipeline))
+    instructor_ids = [item["_id"] for item in counterpart_ids_result]
+
     conversations = {}
-    for instructor in instructors:
-        instructor_id = instructor["id_number"]
+    for instructor_id in instructor_ids:
+        # Get instructor info only
+        instructor = users_collection.find_one({"id_number": instructor_id, "role": {"$regex": "^instructor$", "$options": "i"}})
+        if not instructor:
+            continue
+
         instructor_name = f"{instructor.get('firstname', '')} {instructor.get('lastname', '')}".strip()
-        
+
         # Get messages between student and this instructor
         messages = list(messages_collection.find({
             "$or": [
@@ -136,11 +163,11 @@ def get_student_conversations(student_id: str):
                 {"sender_id": instructor_id, "receiver_id": student_id}
             ]
         }).sort("timestamp", 1))
-        
+
         # Convert ObjectId to string
         for message in messages:
             message["_id"] = str(message["_id"])
-        
+
         conversations[instructor_id] = {
             "id": instructor_id,
             "name": instructor_name,
@@ -148,8 +175,13 @@ def get_student_conversations(student_id: str):
             "messages": messages,
             "lastMessage": messages[-1] if messages else None
         }
-    
+
     return conversations
+
+@router.get("/api/conversations/student-active/{student_id}")
+def get_student_active_conversations(student_id: str):
+    """Alias endpoint: only instructors with existing messages (for clarity)."""
+    return get_student_conversations(student_id)
 
 @router.get("/api/conversations/instructor/{instructor_id}")
 def get_instructor_conversations(instructor_id: str):

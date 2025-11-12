@@ -1,16 +1,44 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import useChatStore from "../../../../store/student/chatStore";
 import { useChat } from "../../../../context/ChatProvider";
+import messageService from "../../../../services/messageService";
 
 const ConversationList = () => {
   const {
     conversations,
     activeConversationId,
     setActiveConversation,
+    createOrOpenConversation,
   } = useChatStore();
 
   const conversationArray = Object.entries(conversations);
   const { isUserOnline, unread, messages, lastSeenText } = useChat();
+  const [query, setQuery] = useState("");
+  const [allInstructors, setAllInstructors] = useState([]);
+
+  // Load all instructors once for search; list renders only active conversations
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const list = await messageService.getInstructors();
+        if (mounted) setAllInstructors(list || []);
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return allInstructors.filter((i) => {
+      const name = `${i.firstname || ""} ${i.lastname || ""}`.trim().toLowerCase();
+      const idn = (i.id_number || "").toLowerCase();
+      return name.includes(q) || idn.includes(q);
+    }).slice(0, 10);
+  }, [query, allInstructors]);
 
   // helper to get latest preview text merging websocket messages
   const getLastMessageText = (id, convo) => {
@@ -28,6 +56,31 @@ const ConversationList = () => {
     <div className="h-full flex flex-col bg-white border-r border-gray-200">
       <div className="p-4 border-b flex-shrink-0">
         <h2 className="text-xl font-bold text-primary-dark">Conversations</h2>
+        <div className="mt-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search instructors by name or ID"
+            className="w-full px-3 py-2 border rounded-md text-sm"
+          />
+          {query && filtered.length > 0 && (
+            <ul className="mt-2 max-h-40 overflow-y-auto bg-white border rounded">
+              {filtered.map((ins) => (
+                <li
+                  key={ins.id_number}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => {
+                    setQuery("");
+                    createOrOpenConversation(ins);
+                  }}
+                >
+                  <div className="text-sm font-medium">{`${ins.firstname} ${ins.lastname}`.trim()}</div>
+                  <div className="text-xs text-gray-500">{ins.id_number}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
       <ul className="overflow-y-auto flex-grow">
         {conversationArray.map(([id, convo]) => {

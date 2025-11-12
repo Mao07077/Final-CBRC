@@ -235,14 +235,16 @@ def get_recommended_pages(id_number: str):
     top3_habits = user.get("top3Habits", [])
     habit_to_page = {
         "Study with Friends": "learn-together",
+        # Align with frontend routesConfig (messages)
         "Asking for Help": "instructor-chat",
         "Test Yourself Periodically": "modules",
         "Creating a Study Schedule": "scheduler",
         "Setting Study Goals": "notes",
         "Organizing Notes": "notes",
         "Teach What You've Learned": "learn-together",
-        "Use of Flashcards": "flashcard",
-        "Using Aromatherapy, Plants, or Music": "music"
+        # Standardize slug naming to match dashboard & pageDetails (plural + music-player)
+        "Use of Flashcards": "flashcards",
+        "Using Aromatherapy, Plants, or Music": "music-player"
     }
     recommended_pages = []
     for habit in top3_habits:
