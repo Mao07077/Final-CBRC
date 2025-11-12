@@ -67,11 +67,10 @@ const ChatWindow = () => {
   const typingTimeoutRef = useRef(null);
   const handleTypingActivity = () => {
     if (!activeConversationId) return;
-    const recipientId = selectedConversation?.user_id || selectedConversation?.student_id || selectedConversation?.receiver_id || null;
-    sendTyping(activeConversationId, true, recipientId);
+    sendTyping(activeConversationId, true);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      sendTyping(activeConversationId, false, recipientId);
+      sendTyping(activeConversationId, false);
     }, 1500);
   };
 
