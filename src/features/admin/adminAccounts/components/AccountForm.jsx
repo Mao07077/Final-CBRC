@@ -8,7 +8,6 @@ const AccountForm = () => {
     firstname: "",
     lastname: "",
     email: "",
-    password: "",
     role: "student",
     id_number: "",
   });
@@ -21,14 +20,12 @@ const AccountForm = () => {
         email: editingAccount.email || "",
         role: editingAccount.role || "student",
         id_number: editingAccount.id_number || "",
-        password: "", // Don't pre-fill password
       });
     } else {
       setFormData({
         firstname: "",
         lastname: "",
         email: "",
-        password: "",
         role: "student",
         id_number: "",
       });
@@ -40,11 +37,7 @@ const AccountForm = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const dataToSubmit = { ...formData };
-    if (!dataToSubmit.password) {
-      delete dataToSubmit.password; // Don't send empty password on update
-    }
-    saveAccount(dataToSubmit);
+    saveAccount({ ...formData });
   };
 
   return (
@@ -89,15 +82,7 @@ const AccountForm = () => {
           className="form-input"
           required
         />
-        <input
-          type="password"
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          placeholder={editingAccount ? "New Password (optional)" : "Password"}
-          className="form-input"
-          required={!editingAccount}
-        />
+        {/* Password field removed per requirement; backend will auto-generate if creating */}
         <select
           name="role"
           value={formData.role}
@@ -122,7 +107,13 @@ const AccountForm = () => {
             disabled={isLoading}
             className="btn btn-primary"
           >
-            {isLoading ? "Saving..." : "Save Account"}
+            {isLoading
+              ? editingAccount
+                ? "Updating..."
+                : "Saving..."
+              : editingAccount
+                ? "Update Account"
+                : "Create Account"}
           </button>
         </div>
       </form>

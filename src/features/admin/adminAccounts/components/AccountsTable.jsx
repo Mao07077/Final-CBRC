@@ -1,4 +1,4 @@
-import { FiEdit, FiTrash2 } from "react-icons/fi";
+import { FiTrash2 } from "react-icons/fi";
 import useAccountStore from "../../../../store/admin/accountStore";
 
 const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
@@ -64,7 +64,6 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
                   </span>
                 </td>
                 <td className="px-6 py-4 flex items-center gap-2">
-                  <button onClick={() => openModal(acc)} className="p-2 text-gray-500 hover:text-indigo-600"><FiEdit /></button>
                   <button onClick={() => deleteAccount(acc._id)} className="p-2 text-gray-500 hover:text-red-600"><FiTrash2 /></button>
                 </td>
               </tr>
@@ -98,7 +97,6 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
               </div>
               <p className="text-sm text-gray-600 mb-2">ID: {acc.id_number}</p>
               <div className="flex items-center gap-2">
-                <button onClick={() => openModal(acc)} className="p-2 text-gray-500 hover:text-indigo-600"><FiEdit className="mr-1"/> Edit</button>
                 <button onClick={() => deleteAccount(acc._id)} className="p-2 text-gray-500 hover:text-red-600"><FiTrash2 className="mr-1"/> Delete</button>
               </div>
             </div>
