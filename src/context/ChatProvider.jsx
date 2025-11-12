@@ -5,7 +5,29 @@ const ChatContext = createContext();
 
 export const useChat = () => useContext(ChatContext);
 
-const WS_URL = "wss://final-cbrc.onrender.com/ws/chat";
+// Dynamic WebSocket URL resolution for different deploy environments:
+// 1. Use VITE_WS_URL if defined.
+// 2. Derive from VITE_API_URL (switch http->ws, https->wss) and append /ws/chat.
+// 3. Fallback to same host as current window location.
+// 4. Final fallback to hardcoded render URL.
+const WS_URL = (() => {
+  try {
+    const env = import.meta?.env || {};
+    const direct = env.VITE_WS_URL;
+    if (direct) return direct.replace(/\/$/, "");
+    const api = env.VITE_API_URL;
+    if (api) {
+      const proto = api.startsWith("https") ? "wss" : "ws";
+      return api.replace(/^https?/, proto).replace(/\/$/, "") + "/ws/chat";
+    }
+    if (typeof window !== 'undefined') {
+      const loc = window.location;
+      const proto = loc.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${proto}//${loc.host}/ws/chat`;
+    }
+  } catch {}
+  return "wss://final-cbrc.onrender.com/ws/chat";
+})();
 
 const notificationAudio = typeof Audio !== 'undefined' ? new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg') : null;
 
@@ -20,6 +42,7 @@ export const ChatProvider = ({ children }) => {
   const [messages, setMessages] = useState([]); // [{chat_id, sender_id, recipient_id, message, ...}]
   const [unread, setUnread] = useState({}); // {chat_id: true}
   const [typingMap, setTypingMap] = useState({}); // { chat_id: { user_id: true } }
+  const [toasts, setToasts] = useState([]); // [{id, text}]
   // Tick state to refresh "last seen" relative time tooltips periodically
   const [presenceTick, setPresenceTick] = useState(0);
 
@@ -63,6 +86,10 @@ export const ChatProvider = ({ children }) => {
             try { new Notification(`New message from ${msg.sender_name}`, { body: msg.message }); } catch {}
           }
           setUnread((prev) => ({ ...prev, [msg.chat_id]: true }));
+          // Fallback in-app toast for mobile or unsupported Notification API
+          if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+            setToasts(t => [...t, { id: Date.now() + Math.random(), text: `${msg.sender_name}: ${msg.message}` }]);
+          }
         }
       } else if (msg.type === "seen") {
         setMessages((prev) => prev.map(m => m.chat_id === msg.chat_id ? { ...m, seen: true } : m));
@@ -143,14 +170,15 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Typing indicator: call when local user types
-  const sendTyping = (chat_id, isTyping) => {
+  const sendTyping = (chat_id, isTyping, recipient_id) => {
     if (!wsRef.current || !userData?.id_number) return;
     try {
       wsRef.current.send(JSON.stringify({
         type: 'typing',
         chat_id,
         user_id: userData.id_number,
-        isTyping: !!isTyping
+        isTyping: !!isTyping,
+        recipient_id
       }));
     } catch {}
   };
@@ -192,6 +220,15 @@ export const ChatProvider = ({ children }) => {
     return `Last seen ${d}d ago`;
   };
 
+  // Auto-remove toasts after 5s
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    const timers = toasts.map(t => setTimeout(() => {
+      setToasts(cur => cur.filter(x => x.id !== t.id));
+    }, 5000));
+    return () => timers.forEach(clearTimeout);
+  }, [toasts]);
+
   return (
     <ChatContext.Provider value={{
       onlineUsers,
@@ -203,7 +240,8 @@ export const ChatProvider = ({ children }) => {
       isUserOnline,
       userType: userRole // 'student' or 'instructor'
         , typingMap,
-      lastSeenText
+      lastSeenText,
+      toasts
     }}>
       {children}
     </ChatContext.Provider>

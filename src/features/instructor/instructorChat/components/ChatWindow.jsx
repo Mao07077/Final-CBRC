@@ -65,10 +65,11 @@ const ChatWindow = () => {
   const typingTimeoutRef = useRef(null);
   const handleTypingActivity = () => {
     if (!activeConversationId) return;
-    sendTyping(activeConversationId, true);
+    const recipientId = selectedConversation?.user_id || selectedConversation?.student_id || selectedConversation?.receiver_id || null;
+    sendTyping(activeConversationId, true, recipientId);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      sendTyping(activeConversationId, false);
+      sendTyping(activeConversationId, false, recipientId);
     }, 1500);
   };
 
@@ -133,7 +134,7 @@ const ChatWindow = () => {
             onClick={() => {
               endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
             }}
-            className="absolute bottom-4 right-4 bg-primary-dark text-white text-xs px-3 py-1 rounded shadow hover:bg-primary-darker"
+            className="absolute top-4 right-4 bg-primary-dark text-white text-xs px-3 py-1 rounded shadow hover:bg-primary-darker"
           >
             Jump to latest
           </button>

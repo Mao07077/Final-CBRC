@@ -93,6 +93,35 @@ async def chat_websocket(websocket: WebSocket):
                     "type": "presence",
                     "online_users": list(global_online_users.keys())
                 }))
+            elif msg_type == "typing":
+                # Broadcast typing indicator to the other user in the chat
+                chat_id = msg.get("chat_id")
+                is_typing = msg.get("isTyping", False)
+                # Determine the other participant (simplistic approach: use recipient_id if provided)
+                recipient_id = msg.get("recipient_id")
+                payload = {
+                    "type": "typing",
+                    "chat_id": chat_id,
+                    "user_id": user_id,
+                    "isTyping": bool(is_typing)
+                }
+                # Send to recipient if online
+                if recipient_id and recipient_id in global_online_users:
+                    try:
+                        await global_online_users[recipient_id]["websocket"].send_text(json.dumps(payload))
+                    except Exception as e:
+                        logger.error(f"Failed to send typing to recipient {recipient_id}: {e}")
+                # Echo back to sender (optional for local confirmation)
+                try:
+                    await websocket.send_text(json.dumps(payload))
+                except Exception as e:
+                    logger.error(f"Failed to echo typing to sender {user_id}: {e}")
+            elif msg_type == "ping":
+                # Respond with pong so client knows connection is alive
+                try:
+                    await websocket.send_text(json.dumps({"type": "pong"}))
+                except Exception as e:
+                    logger.error(f"Failed to send pong: {e}")
     except WebSocketDisconnect:
         if user_id in global_online_users:
             del global_online_users[user_id]
