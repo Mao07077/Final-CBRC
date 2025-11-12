@@ -143,14 +143,15 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Typing indicator: call when local user types
-  const sendTyping = (chat_id, isTyping) => {
+  const sendTyping = (chat_id, isTyping, recipient_id) => {
     if (!wsRef.current || !userData?.id_number) return;
     try {
       wsRef.current.send(JSON.stringify({
         type: 'typing',
         chat_id,
         user_id: userData.id_number,
-        isTyping: !!isTyping
+        isTyping: !!isTyping,
+        recipient_id
       }));
     } catch {}
   };

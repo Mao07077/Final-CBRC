@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import ProfileUpdateRequestModal from "../../components/ProfileUpdateRequestModal";
 import { useNavigate } from "react-router-dom";
 import {
@@ -10,15 +10,17 @@ import {
   Edit3,
 } from "lucide-react";
 import useAuthStore from "../../store/authStore";
+import useDashboardStore from "../../store/student/dashboardStore";
 import profileService from "../../services/profileService";
 
 const StudentProfilePage = () => {
   const navigate = useNavigate();
   const { userData } = useAuthStore();
+  const { studyHours, fetchDashboardData } = useDashboardStore();
 
   const [profile, setProfile] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
-  const [top3Habits, setTop3Habits] = useState([]);
+  // We now derive Top 3 Study Habits from dashboard recommended pages (normalized)
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,18 +37,27 @@ const StudentProfilePage = () => {
     "Using Aromatherapy, Plants, or Music": "Create optimal study environment",
   };
 
-  const habitNavigationMap = {
-    "Study with Friends": "/student/learn-together",
-    // Align with actual messages route
-    "Asking for Help": "/student/messages",
-    "Test Yourself Periodically": "/student/modules",
-    "Creating a Study Schedule": "/student/scheduler",
-    "Setting Study Goals": "/student/notes",
-    "Organizing Notes": "/student/notes",
-    "Teach What You've Learned": "/student/learn-together",
-    "Use of Flashcards": "/student/flashcards",
-    // Align with music player route naming
-    "Using Aromatherapy, Plants, or Music": "/student/music-player",
+  // Page slug mapping from dashboard recommendedPages -> route & display name
+  const pageSlugMap = {
+    "learn-together": { name: "Learn Together", route: "/student/learn-together" },
+    "instructor-chat": { name: "Instructor Chat", route: "/student/messages" },
+    messages: { name: "Instructor Chat", route: "/student/messages" },
+    modules: { name: "Modules", route: "/student/modules" },
+    scheduler: { name: "Scheduler", route: "/student/scheduler" },
+    notes: { name: "Notes", route: "/student/notes" },
+    flashcards: { name: "Flashcards", route: "/student/flashcards" },
+    flashcard: { name: "Flashcards", route: "/student/flashcards" },
+    music: { name: "Study Music", route: "/student/music-player" },
+    "music-player": { name: "Study Music", route: "/student/music-player" },
+  };
+
+  // Normalize dashboard slugs similar to RecommendedPages component
+  const normalizeSlug = (slug) => {
+    if (!slug) return slug;
+    if (slug === "messages") return "instructor-chat"; // unify
+    if (slug === "flashcard") return "flashcards";
+    if (slug === "music") return "music-player";
+    return slug;
   };
 
   useEffect(() => {
@@ -64,11 +75,8 @@ const StudentProfilePage = () => {
         // Always set profileImage from backend
         setProfileImage(profileData.profileImageUrl || null);
 
-        // Fetch top 3 study habits
-        const habitsData = await profileService.getRecommendedPages(
-          userData.id_number
-        );
-        setTop3Habits(habitsData.recommendedPages || []);
+        // Fetch dashboard data (recommended pages + metrics)
+        await fetchDashboardData('current');
 
         // Debug log
         console.log('Fetched profile for:', userData.id_number, 'Image URL:', profileData.profileImageUrl);
@@ -110,11 +118,21 @@ const StudentProfilePage = () => {
     }
   };
 
-  const handleHabitClick = (habit) => {
-    const route = habitNavigationMap[habit];
-    if (route) {
-      navigate(route);
+  // Derive top 3 from dashboard recommendedPages
+  const { recommendedPages } = useDashboardStore.getState();
+  const top3FromDashboard = useMemo(() => {
+    const normalized = (recommendedPages || []).map(normalizeSlug);
+    const unique = [];
+    for (const slug of normalized) {
+      if (slug && !unique.includes(slug)) unique.push(slug);
     }
+    return unique.slice(0, 3);
+  }, [recommendedPages]);
+
+  const handleHabitClick = (slug) => {
+    const key = normalizeSlug(slug);
+    const meta = pageSlugMap[key];
+    if (meta?.route) navigate(meta.route);
   };
 
   if (loading) {
@@ -241,7 +259,7 @@ const StudentProfilePage = () => {
                     Study Hours
                   </label>
                   <div className="text-lg font-semibold text-gray-900">
-                    {profile?.hoursActivity || 0} hours
+                    {typeof studyHours === 'number' ? studyHours : (profile?.hoursActivity || 0)} hours
                   </div>
                 </div>
               </div>
@@ -271,12 +289,14 @@ const StudentProfilePage = () => {
             </h2>
           </div>
 
-          {top3Habits.length > 0 ? (
+          {top3FromDashboard.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {top3Habits.slice(0, 3).map((habit, index) => (
+              {top3FromDashboard.map((slug, index) => {
+                const display = pageSlugMap[slug]?.name || slug;
+                return (
                 <div
-                  key={index}
-                  onClick={() => handleHabitClick(habit)}
+                  key={slug}
+                  onClick={() => handleHabitClick(slug)}
                   className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transform hover:scale-105 transition-all duration-200 border-l-4 border-primary"
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -288,13 +308,13 @@ const StudentProfilePage = () => {
                     </span>
                   </div>
                   <h3 className="font-semibold text-gray-900 mb-2 text-sm">
-                    {habit}
+                    {display}
                   </h3>
                   <p className="text-xs text-gray-600 leading-relaxed">
-                    {habitDescriptions[habit] || `Learn more about ${habit}`}
+                    {habitDescriptions[display] || `Explore ${display} to enhance your learning.`}
                   </p>
                 </div>
-              ))}
+              );})}
             </div>
           ) : (
             <div className="text-center py-8">

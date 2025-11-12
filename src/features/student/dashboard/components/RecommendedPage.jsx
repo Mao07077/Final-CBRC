@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import useDashboardStore from "../../../../store/student/dashboardStore";
 
@@ -19,8 +19,31 @@ const pageDetails = {
 const RecommendedPages = () => {
   const { recommendedPages } = useDashboardStore();
 
-  // Show exactly 3 items; filter to valid slugs, then slice
-  const pages = (recommendedPages || []).filter((slug) => pageDetails[slug]).slice(0, 3);
+  // Normalize incoming slugs (e.g. 'messages' -> 'instructor-chat', 'music'/'music-player')
+  const normalizeSlug = (slug) => {
+    if (!slug) return slug;
+    if (slug === 'messages') return 'instructor-chat';
+    if (slug === 'flashcard') return 'flashcards';
+    if (slug === 'music') return 'music-player';
+    return slug;
+  };
+
+  const pages = useMemo(() => {
+    const incoming = (recommendedPages || []).map(normalizeSlug).filter(Boolean);
+    const unique = [];
+    for (const slug of incoming) {
+      if (!unique.includes(slug)) unique.push(slug);
+    }
+    // Filter to ones we can map
+    let mapped = unique.filter((slug) => pageDetails[slug]);
+    // Fallback ordering to ensure 3
+    const fallbackOrder = ["modules", "scheduler", "flashcards", "learn-together", "notes", "music-player"];
+    for (const fb of fallbackOrder) {
+      if (mapped.length >= 3) break;
+      if (!mapped.includes(fb) && pageDetails[fb]) mapped.push(fb);
+    }
+    return mapped.slice(0, 3);
+  }, [recommendedPages]);
 
   if (pages.length === 0) return null;
 
@@ -33,15 +56,14 @@ const RecommendedPages = () => {
         {pages.map((pageSlug) => {
           const details = pageDetails[pageSlug];
           if (!details) return null;
-
           return (
             <Link
               to={details.route}
               key={pageSlug}
-              className="block p-4 bg-light-blue rounded-lg text-center hover:bg-blue-200 transition-colors"
+              className="group block p-4 bg-light-blue rounded-lg text-center hover:bg-blue-200 transition-colors"
             >
               <div className="text-4xl mb-2">{details.icon}</div>
-              <span className="font-semibold text-primary-dark">
+              <span className="font-semibold text-primary-dark group-hover:underline">
                 {details.name}
               </span>
             </Link>

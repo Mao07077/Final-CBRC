@@ -76,6 +76,33 @@ async def chat_websocket(websocket: WebSocket):
                     await global_online_users[recipient_id]["websocket"].send_text(json.dumps(message))
                 # Echo to sender
                 await websocket.send_text(json.dumps(message))
+            elif msg_type == "typing":
+                # Forward typing indicator to recipient if online
+                chat_id = msg.get("chat_id")
+                recipient_id = msg.get("recipient_id")
+                is_typing = bool(msg.get("isTyping") or msg.get("is_typing"))
+                typing_payload = {
+                    "type": "typing",
+                    "chat_id": chat_id,
+                    "user_id": user_id,
+                    "isTyping": is_typing
+                }
+                if recipient_id in global_online_users:
+                    try:
+                        await global_online_users[recipient_id]["websocket"].send_text(json.dumps(typing_payload))
+                    except Exception as e:
+                        logger.error(f"Failed to forward typing event: {e}")
+                # Echo back so sender can reconcile state
+                try:
+                    await websocket.send_text(json.dumps(typing_payload))
+                except Exception:
+                    pass
+            elif msg_type == "ping":
+                # Lightweight keep-alive response
+                try:
+                    await websocket.send_text(json.dumps({"type": "pong", "ts": datetime.utcnow().isoformat()}))
+                except Exception:
+                    pass
             elif msg_type == "seen":
                 chat_id = msg.get("chat_id")
                 chat_status[chat_id][user_id] = "seen"

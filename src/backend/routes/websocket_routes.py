@@ -45,11 +45,20 @@ async def websocket_endpoint(websocket: WebSocket, call_id: str):
             }
             for info in student_info[call_id].values()
         ]
-        for ws in rooms[call_id]:
-            await ws.send_text(json.dumps({
-                "type": "active_students",
-                "students": students,
-            }))
+        disconnected = []
+        for ws in list(rooms[call_id]):
+            try:
+                await ws.send_text(json.dumps({
+                    "type": "active_students",
+                    "students": students,
+                }))
+            except Exception as e:
+                # Mark websocket for cleanup if sending fails (closed or errored)
+                disconnected.append(ws)
+        for ws in disconnected:
+            if ws in rooms[call_id]:
+                rooms[call_id].remove(ws)
+            student_info[call_id].pop(ws, None)
 
     try:
         await websocket.send_text(json.dumps({
@@ -80,27 +89,52 @@ async def websocket_endpoint(websocket: WebSocket, call_id: str):
                         "message": msg.get("message", "")
                     }
                 }
-                for ws in rooms[call_id]:
-                    await ws.send_text(json.dumps(chat_message))
+                disconnected = []
+                for ws in list(rooms[call_id]):
+                    try:
+                        await ws.send_text(json.dumps(chat_message))
+                    except Exception:
+                        disconnected.append(ws)
+                for ws in disconnected:
+                    if ws in rooms[call_id]:
+                        rooms[call_id].remove(ws)
+                    student_info[call_id].pop(ws, None)
             elif msg.get("type") in ["offer", "answer", "ice-candidate"]:
                 target_id = msg.get("target")
                 if target_id:
-                    for ws in rooms[call_id]:
-                        if student_info[call_id][ws]["id"] == target_id:
-                            await ws.send_text(json.dumps({
-                                "type": msg["type"],
-                                "from": student_id,
-                                msg["type"]: msg.get(msg["type"]),
-                            }))
-                            break
+                    for ws in list(rooms[call_id]):
+                        try:
+                            if student_info[call_id][ws]["id"] == target_id:
+                                await ws.send_text(json.dumps({
+                                    "type": msg["type"],
+                                    "from": student_id,
+                                    msg["type"]: msg.get(msg["type"]),
+                                }))
+                                break
+                        except Exception:
+                            if ws in rooms[call_id]:
+                                rooms[call_id].remove(ws)
+                            student_info[call_id].pop(ws, None)
             else:
-                for ws in rooms[call_id]:
+                disconnected = []
+                for ws in list(rooms[call_id]):
                     if ws != websocket:
-                        await ws.send_text(json.dumps(msg))
+                        try:
+                            await ws.send_text(json.dumps(msg))
+                        except Exception:
+                            disconnected.append(ws)
+                for ws in disconnected:
+                    if ws in rooms[call_id]:
+                        rooms[call_id].remove(ws)
+                    student_info[call_id].pop(ws, None)
     except WebSocketDisconnect:
         rooms[call_id].remove(websocket)
         student_info[call_id].pop(websocket, None)
-        await broadcast_active_students()
+        try:
+            await broadcast_active_students()
+        except Exception:
+            # ignore broadcast failures during disconnect cleanup
+            pass
         logger.info(f"WebSocket disconnected: {call_id}")
 
 @router.websocket("/ws/study-group/{group_id}")
