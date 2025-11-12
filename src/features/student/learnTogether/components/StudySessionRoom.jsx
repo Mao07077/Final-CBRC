@@ -154,6 +154,15 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const attachTokenRef = useRef(0);
   const [attachVersion, setAttachVersion] = useState(0);
 
+  // Helper: determine if a participant's camera should be considered ON.
+  // For the local user, trust the actual local UI state isCameraOff instead of
+  // the participants list (which can briefly lag during layout/pin changes).
+  const isParticipantCameraOn = useCallback((participant) => {
+    if (!participant) return false;
+    if (participant.user_id === userId) return !isCameraOff;
+    return !participant.camera_off;
+  }, [userId, isCameraOff]);
+
   // --- Diagnostic Logging Helpers ---
   const logSignal = (msg, data) => console.log(`[SIGNAL] ${msg}`, data);
   const logStream = (msg, data) => console.log(`[STREAM] ${msg}`, data);
@@ -397,7 +406,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     const stream = localStreamRef.current;
     const currentToken = attachTokenRef.current;
 
-    if (!el || !stream || isCameraOff) return;
+  if (!el || !stream || isCameraOff) return;
 
     let cancelled = false;
 
@@ -1762,15 +1771,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div className="flex-shrink-0 w-full md:w-[480px]">
                     {pinned && (
                       <div key={pinned.id} className="relative bg-blue-900 rounded-lg overflow-hidden border-4 border-blue-400 aspect-video min-h-[180px] w-full">
-                        {!pinned.camera_off ? (
+                        {isParticipantCameraOn(pinned) ? (
                           <video
-                            ref={el => {
-                              if (pinned.user_id === userId) {
-                                localVideoRef.current = el;
-                              } else {
-                                setRemoteVideoElement(pinned.id, el);
-                              }
-                            }}
+                            ref={pinned.user_id === userId ? localVideoRef : (el) => { setRemoteVideoElement(pinned.id, el); }}
                             autoPlay
                             muted={pinned.user_id === userId}
                             playsInline
@@ -1795,7 +1798,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
                     {others.map(participant => (
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
-                        {!participant.camera_off ? (
+                        {isParticipantCameraOn(participant) ? (
                           <video
                             ref={participant.self ? localVideoRef : el => { setRemoteVideoElement(participant.id, el); }}
                             autoPlay
@@ -1817,7 +1820,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                             <span>
                               {participant.self ? 'You' : participant.name}
                               {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                              {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                              {isParticipantCameraOn(participant) && <span className="text-green-400 ml-1">(Camera On)</span>}
                               {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                               {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                             </span>
@@ -1852,15 +1855,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div className="flex-shrink-0 w-full md:w-[480px]">
                     {speaker && (
                       <div key={speaker.id} className="relative bg-green-900 rounded-lg overflow-hidden border-4 border-green-400 aspect-video min-h-[180px] w-full">
-                        {!speaker.camera_off ? (
+                        {isParticipantCameraOn(speaker) ? (
                           <video
-                            ref={el => {
-                              if (speaker.user_id === userId) {
-                                localVideoRef.current = el;
-                              } else {
-                                setRemoteVideoElement(speaker.id, el);
-                              }
-                            }}
+                            ref={speaker.user_id === userId ? localVideoRef : (el) => { setRemoteVideoElement(speaker.id, el); }}
                             autoPlay
                             muted={speaker.user_id === userId}
                             playsInline
@@ -1885,7 +1882,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
                     {others.map(participant => (
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
-                        {!participant.camera_off ? (
+                        {isParticipantCameraOn(participant) ? (
                           <video
                             ref={participant.self ? localVideoRef : el => { setRemoteVideoElement(participant.id, el); }}
                             autoPlay
@@ -1907,7 +1904,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                             <span>
                               {participant.self ? 'You' : participant.name}
                               {participant.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                              {!participant.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                              {isParticipantCameraOn(participant) && <span className="text-green-400 ml-1">(Camera On)</span>}
                               {participant.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                               {participant.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                             </span>
@@ -1936,7 +1933,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               <div className="grid gap-3 justify-center items-start w-full" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(220px, 1fr))` }}>
                 {allTiles.map(tile => (
                   <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ aspectRatio: '16/9', minHeight: tile.isScreen ? '180px' : '120px' }}>
-                    {!tile.camera_off ? (
+                    {(tile.isScreen || isParticipantCameraOn(tile)) ? (
                       <video
                         ref={tile.self ? localVideoRef : el => { setRemoteVideoElement(tile.id, el); }}
                         autoPlay
@@ -1977,7 +1974,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                         <span>
                           {tile.self ? 'You' : tile.name}
                           {tile.muted && <span className="text-red-400 ml-1">(Muted)</span>}
-                          {!tile.camera_off && <span className="text-green-400 ml-1">(Camera On)</span>}
+                          {isParticipantCameraOn(tile) && <span className="text-green-400 ml-1">(Camera On)</span>}
                           {tile.is_screen_sharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
                           {tile.hand_raised && <span className="text-yellow-400 ml-1">✋</span>}
                         </span>
