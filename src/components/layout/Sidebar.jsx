@@ -30,11 +30,11 @@ const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
     <>
       {/* Overlay for mobile */}
       <div
-        className={`fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed left-0 right-0 top-16 bottom-0 bg-black bg-opacity-50 z-30 md:hidden transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={toggleSidebar}
       ></div>
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-gray-300 text-black flex flex-col z-40 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+        className={`fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-gray-300 text-black flex flex-col z-40 transform transition-transform duration-300 ease-in-out md:relative md:top-0 md:h-full md:translate-x-0 ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
