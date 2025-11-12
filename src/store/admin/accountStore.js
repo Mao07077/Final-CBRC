@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import axios from "../../api/axiosClient";
+import adminService from "../../services/adminService";
 
 const useAccountStore = create((set, get) => ({
   accounts: [],
@@ -13,74 +14,56 @@ const useAccountStore = create((set, get) => ({
   fetchAccounts: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.get('/api/admin/accounts');
-      if (response.data.success) {
-        const accounts = response.data.accounts || [];
-        set({ 
-          accounts, 
-          filteredAccounts: accounts, 
-          isLoading: false 
-        });
+      const response = await adminService.getAllAccounts();
+      if (response.success) {
+        const accounts = response.accounts || [];
+        set({ accounts, filteredAccounts: accounts, isLoading: false });
       } else {
         throw new Error('Failed to fetch accounts');
       }
     } catch (error) {
       console.error('Error fetching accounts:', error);
-      set({ 
-        error: 'Failed to fetch accounts', 
-        isLoading: false,
-        accounts: [],
-        filteredAccounts: []
-      });
+      set({ error: 'Failed to fetch accounts', isLoading: false, accounts: [], filteredAccounts: [] });
     }
   },
 
-  saveAccount: (accountData) => {
+  saveAccount: async (accountData) => {
     set({ isLoading: true });
     const { accounts, editingAccount } = get();
-    let updatedAccounts;
-
-    if (editingAccount) {
-      // Update
-      updatedAccounts = accounts.map((acc) =>
-        acc._id === editingAccount._id ? { ...acc, ...accountData } : acc
-      );
-    } else {
-      // Create
-      const newAccount = {
-        ...accountData,
-        _id: Date.now().toString(),
-        is_verified: accountData.role !== "student",
-      };
-      updatedAccounts = [...accounts, newAccount];
+    try {
+      if (editingAccount) {
+        const response = await adminService.updateAccount(editingAccount._id, accountData);
+        if (!response.success) throw new Error('Update failed');
+        const updated = response.account;
+        const newAccounts = accounts.map(acc => acc._id === editingAccount._id ? updated : acc);
+        set({ accounts: newAccounts, filteredAccounts: newAccounts });
+      } else {
+        const response = await adminService.createAccount(accountData);
+        if (!response.success) throw new Error('Create failed');
+        const created = response.account;
+        const newAccounts = [...accounts, created];
+        set({ accounts: newAccounts, filteredAccounts: newAccounts });
+      }
+      set({ isLoading: false, isModalOpen: false, editingAccount: null });
+    } catch (e) {
+      console.error('Save account error', e);
+      set({ isLoading: false, error: 'Failed to save account' });
     }
-
-    set({
-      accounts: updatedAccounts,
-      filteredAccounts: updatedAccounts,
-      isLoading: false,
-      isModalOpen: false,
-      editingAccount: null,
-    });
   },
 
-  deleteAccount: (accountId) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this account? This is permanent."
-      )
-    )
-      return;
-
-    set((state) => {
-      const updatedAccounts = state.accounts.filter(
-        (acc) => acc._id !== accountId
-      );
-      return {
-        accounts: updatedAccounts,
-        filteredAccounts: updatedAccounts,
-      };
-    });
+  deleteAccount: async (accountId) => {
+    if (!window.confirm("Delete this account permanently?")) return;
+    try {
+      const response = await adminService.deleteAccount(accountId);
+      if (!response.success) throw new Error('Delete failed');
+      set(state => {
+        const updatedAccounts = state.accounts.filter(acc => acc._id !== accountId);
+        return { accounts: updatedAccounts, filteredAccounts: updatedAccounts };
+      });
+    } catch (e) {
+      console.error('Delete account error', e);
+      set({ error: 'Failed to delete account' });
+    }
   },
 
   filterAccounts: (filters) => {

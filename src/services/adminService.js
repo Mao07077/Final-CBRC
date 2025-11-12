@@ -1,18 +1,22 @@
 import apiClient from "../api/axiosClient";
 
 const adminService = {
+  createAccount: async (accountData) => {
+    const response = await apiClient.post('/api/admin/accounts', accountData);
+    return response.data;
+  },
   getAllAccounts: async () => {
-    const response = await apiClient.get('/api/accounts');
+    const response = await apiClient.get('/api/admin/accounts');
     return response.data;
   },
 
-  updateAccount: async (accountData) => {
-    const response = await apiClient.put('/api/accounts', accountData);
+  updateAccount: async (accountId, accountData) => {
+    const response = await apiClient.put(`/api/admin/accounts/${accountId}`, accountData);
     return response.data;
   },
 
-  deleteAccount: async (idNumber) => {
-    const response = await apiClient.delete(`/api/accounts/${idNumber}`);
+  deleteAccount: async (accountId) => {
+    const response = await apiClient.delete(`/api/admin/accounts/${accountId}`);
     return response.data;
   },
 

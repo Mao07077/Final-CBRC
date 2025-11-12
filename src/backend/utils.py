@@ -15,6 +15,7 @@ from datetime import datetime
 import pytz
 from fastapi import HTTPException
 from config import EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, logger
+import ssl
 from models import Flashcard
 from typing import List, Dict, Any
 import requests
@@ -35,19 +36,53 @@ def verify_password(password: str, hashed: str) -> bool:
         return password == hashed
 
 def send_email(to_email: str, subject: str, body: str) -> bool:
+    """
+    Send an email using STARTTLS (587) and fall back to SMTPS (465) if needed.
+    Adds timeouts and richer logging to diagnose network vs auth issues.
+    """
+    host = EMAIL_HOST or "smtp.gmail.com"
     try:
-        msg = MIMEText(body)
-        msg['Subject'] = subject
-        msg['From'] = EMAIL_HOST_USER
-        msg['To'] = to_email
-        with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as server:
-            server.starttls()
+        port = int(EMAIL_PORT or 587)
+    except Exception:
+        port = 587
+
+    msg = MIMEText(body, _subtype="plain", _charset="utf-8")
+    msg['Subject'] = subject
+    msg['From'] = EMAIL_HOST_USER
+    msg['To'] = to_email
+
+    context = ssl.create_default_context()
+
+    # First attempt: STARTTLS on configured port (default 587)
+    try:
+        logger.info(f"[Email] Connecting via STARTTLS to {host}:{port}")
+        with smtplib.SMTP(host, port, timeout=20) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
             server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
             server.send_message(msg)
-        logger.info(f"Email sent to {to_email}")
+        logger.info(f"Email sent to {to_email} via STARTTLS")
         return True
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"[Email] Auth error via STARTTLS: {e.smtp_code} {e.smtp_error}")
+        return False
     except Exception as e:
-        logger.error(f"Failed to send email to {to_email}: {e}")
+        logger.warning(f"[Email] STARTTLS send failed ({host}:{port}): {repr(e)}. Trying SMTPS:465...")
+
+    # Fallback: SMTPS on 465
+    try:
+        logger.info(f"[Email] Connecting via SMTPS to {host}:465")
+        with smtplib.SMTP_SSL(host, 465, context=context, timeout=20) as server:
+            server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
+            server.send_message(msg)
+        logger.info(f"Email sent to {to_email} via SMTPS")
+        return True
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"[Email] Auth error via SMTPS: {e.smtp_code} {e.smtp_error}")
+        return False
+    except Exception as e:
+        logger.error(f"[Email] SMTPS send failed ({host}:465): {repr(e)}")
         return False
 
 def extract_text_from_pdf(file_path: str) -> str:
