@@ -43,7 +43,7 @@ const useNotesStore = create((set, get) => ({
   },
 
   createNewNote: () => {
-    set({ selectedNote: { _id: null, title: "", content: "" } });
+    set({ selectedNote: { _id: null, title: "", content: "", color: null } });
   },
 
   saveNote: async (noteData) => {

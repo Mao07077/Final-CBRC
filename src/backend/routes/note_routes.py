@@ -26,6 +26,9 @@ def save_note(id_number: str = Body(...), note: dict = Body(...)):
     now_iso = datetime.utcnow().isoformat()
     incoming.setdefault("created_at", now_iso)
     incoming["updated_at"] = now_iso
+    # Ensure color key exists (optional); default None
+    if "color" not in incoming:
+        incoming["color"] = None
     notes.insert(0, incoming)
     users_collection.update_one({"id_number": id_number}, {"$set": {"notes": notes}})
     return {"success": True, "message": "Note saved successfully!"}
@@ -46,11 +49,17 @@ async def update_note(req: UpdateNoteRequest):
     try:
         incoming = note.dict() if hasattr(note, "dict") else dict(note)
     except Exception:
-        incoming = {"title": getattr(note, "title", None), "content": getattr(note, "content", None)}
+        incoming = {
+            "title": getattr(note, "title", None),
+            "content": getattr(note, "content", None),
+            "color": getattr(note, "color", None)
+        }
 
     existing = notes[index] if isinstance(notes[index], dict) else {}
     # Merge to preserve fields like _id/created_at if they exist
     updated = {**existing, **incoming}
+    if "color" not in updated:
+        updated["color"] = existing.get("color") or None
     # Touch updated_at
     updated["updated_at"] = datetime.utcnow().isoformat()
     notes[index] = updated

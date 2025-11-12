@@ -154,6 +154,7 @@ class ScheduleEntry(BaseModel):
 class NoteModel(BaseModel):
     title: str
     content: str
+    color: Optional[str] = None  # hex or tailwind color key
 
 class SaveNoteRequest(BaseModel):
     id_number: str

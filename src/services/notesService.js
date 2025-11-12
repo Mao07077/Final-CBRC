@@ -14,6 +14,7 @@ const notesService = {
         _id: Date.now().toString(), // Generate a temporary ID
         title: noteData.title,
         content: noteData.content,
+        color: noteData.color || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
@@ -23,6 +24,7 @@ const notesService = {
       _id: noteData._id || Date.now().toString(),
       title: noteData.title,
       content: noteData.content,
+      color: noteData.color || null,
       created_at: noteData.created_at || new Date().toISOString(),
       updated_at: noteData.updated_at || new Date().toISOString(),
     };
@@ -36,6 +38,7 @@ const notesService = {
         _id: noteData._id,
         title: noteData.title,
         content: noteData.content,
+        color: noteData.color || null,
         created_at: noteData.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -44,6 +47,7 @@ const notesService = {
       _id: noteData._id,
       title: noteData.title,
       content: noteData.content,
+      color: noteData.color || null,
       created_at: noteData.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

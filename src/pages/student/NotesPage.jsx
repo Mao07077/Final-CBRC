@@ -61,7 +61,8 @@ const NotesPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredNotes.map((note) => (
               <div key={note._id || note.id}
-                   className="bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer group"
+                   className="rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer group"
+                   style={{ backgroundColor: note.color || '#ffffff' }}
                    onClick={() => { selectNote(note._id || note.id); setIsModalOpen(true); }}>
                 <h3 className="font-semibold text-gray-900 mb-2 truncate">{note.title || "Untitled Note"}</h3>
                 <p className="text-sm text-gray-600 line-clamp-3">{note.content || "No content"}</p>
