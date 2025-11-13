@@ -14,7 +14,11 @@ import logging
 from datetime import datetime
 import pytz
 from fastapi import HTTPException
-from config import EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, logger
+from config import (
+    EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD,
+    EMAIL_PROVIDER, SENDGRID_API_KEY, RESEND_API_KEY, FROM_EMAIL,
+    logger
+)
 import ssl
 from models import Flashcard
 from typing import List, Dict, Any
@@ -37,9 +41,77 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def send_email(to_email: str, subject: str, body: str) -> bool:
     """
-    Send an email using STARTTLS (587) and fall back to SMTPS (465) if needed.
-    Adds timeouts and richer logging to diagnose network vs auth issues.
+    Send an email using configured provider:
+    - If EMAIL_PROVIDER=sendgrid|resend, use respective HTTP API (no SMTP egress needed).
+    - Otherwise, attempt SMTP via STARTTLS:587 then SMTPS:465 as fallback.
+    Returns True on accepted send, False on failure.
     """
+    try:
+        from_addr = FROM_EMAIL or EMAIL_HOST_USER
+    except Exception:
+        from_addr = EMAIL_HOST_USER
+
+    provider = (EMAIL_PROVIDER or '').lower()
+
+    # Provider: SendGrid
+    if provider == 'sendgrid' and SENDGRID_API_KEY:
+        try:
+            logger.info("[Email] Sending via SendGrid API")
+            url = 'https://api.sendgrid.com/v3/mail/send'
+            payload = {
+                "personalizations": [{"to": [{"email": to_email}]}],
+                "from": {"email": from_addr},
+                "subject": subject,
+                "content": [{"type": "text/plain", "value": body}]
+            }
+            resp = requests.post(
+                url,
+                headers={
+                    'Authorization': f'Bearer {SENDGRID_API_KEY}',
+                    'Content-Type': 'application/json'
+                },
+                json=payload,
+                timeout=15
+            )
+            if resp.status_code in (200, 202):
+                logger.info(f"Email accepted by SendGrid for {to_email}")
+                return True
+            logger.error(f"SendGrid send failed {resp.status_code}: {resp.text}")
+            return False
+        except Exception as e:
+            logger.error(f"SendGrid exception: {repr(e)}")
+            return False
+
+    # Provider: Resend
+    if provider == 'resend' and RESEND_API_KEY:
+        try:
+            logger.info("[Email] Sending via Resend API")
+            url = 'https://api.resend.com/emails'
+            payload = {
+                "from": from_addr,
+                "to": [to_email],
+                "subject": subject,
+                "text": body
+            }
+            resp = requests.post(
+                url,
+                headers={
+                    'Authorization': f'Bearer {RESEND_API_KEY}',
+                    'Content-Type': 'application/json'
+                },
+                json=payload,
+                timeout=15
+            )
+            if resp.status_code in (200, 202):
+                logger.info(f"Email accepted by Resend for {to_email}")
+                return True
+            logger.error(f"Resend send failed {resp.status_code}: {resp.text}")
+            return False
+        except Exception as e:
+            logger.error(f"Resend exception: {repr(e)}")
+            return False
+
+    # Default/legacy: SMTP path
     host = EMAIL_HOST or "smtp.gmail.com"
     try:
         port = int(EMAIL_PORT or 587)
@@ -48,7 +120,7 @@ def send_email(to_email: str, subject: str, body: str) -> bool:
 
     msg = MIMEText(body, _subtype="plain", _charset="utf-8")
     msg['Subject'] = subject
-    msg['From'] = EMAIL_HOST_USER
+    msg['From'] = from_addr
     msg['To'] = to_email
 
     context = ssl.create_default_context()

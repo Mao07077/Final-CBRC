@@ -264,18 +264,7 @@ const StudentProfilePage = () => {
                 </div>
               </div>
 
-              {/* Academic Period */}
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-700">
-                    Academic Period
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">
-                  September 20, 2024 - March 12, 2025
-                </p>
-              </div>
+              {/* Academic Period removed per request */}
             </div>
           </div>
         </div>

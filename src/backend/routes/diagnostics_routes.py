@@ -9,15 +9,24 @@ router = APIRouter()
 
 @router.get("/api/diagnostics/email-config")
 def email_config_status():
-    """Return sanitized email configuration to verify env is loaded."""
+    """Return sanitized email configuration to verify env is loaded (includes provider)."""
     try:
+        from config import EMAIL_PROVIDER, FROM_EMAIL, SENDGRID_API_KEY, RESEND_API_KEY
+        provider = EMAIL_PROVIDER or 'smtp'
+        mode = 'smtp'
+        if provider in ('sendgrid','resend'):
+            mode = f"api:{provider}"
         return {
             "success": True,
             "config": {
-                "host": EMAIL_HOST,
-                "port": EMAIL_PORT,
-                "user": EMAIL_HOST_USER,
-                "has_password": bool(EMAIL_HOST_PASSWORD),
+                "provider": provider,
+                "mode": mode,
+                "from": FROM_EMAIL or EMAIL_HOST_USER,
+                "host": EMAIL_HOST if provider == 'smtp' else None,
+                "port": EMAIL_PORT if provider == 'smtp' else None,
+                "user": EMAIL_HOST_USER if provider == 'smtp' else None,
+                "has_password": bool(EMAIL_HOST_PASSWORD) if provider == 'smtp' else False,
+                "has_api_key": bool(SENDGRID_API_KEY) if provider == 'sendgrid' else bool(RESEND_API_KEY) if provider == 'resend' else False,
             }
         }
     except Exception as e:
