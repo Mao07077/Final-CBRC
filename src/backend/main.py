@@ -140,6 +140,7 @@ from routes.gemini_flashcard_routes import router as gemini_flashcard_router
 from routes.bytez_flashcard_routes import router as bytez_flashcard_router
 from routes.instructor_routes import router as instructor_router
 from routes.admin_routes import router as admin_router
+from routes.diagnostics_routes import router as diagnostics_router
 
 app.include_router(auth_router)
 app.include_router(profile_router)
@@ -166,6 +167,7 @@ app.include_router(bytez_flashcard_router)
 app.include_router(music_router)
 app.include_router(instructor_router)
 app.include_router(admin_router)
+app.include_router(diagnostics_router)
 
 # Gemini flashcard generation route
 app.include_router(gemini_flashcard_router)
