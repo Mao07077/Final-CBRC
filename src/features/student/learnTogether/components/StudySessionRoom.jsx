@@ -158,7 +158,14 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   // the participants list (which can briefly lag during layout/pin changes).
   const isParticipantCameraOn = useCallback((participant) => {
     if (!participant) return false;
-    if (participant.user_id === userId) return !isCameraOff;
+    // For local user, require an actual enabled video track to avoid "Camera On" label on black screen
+    if (participant.user_id === userId) {
+      if (isCameraOff) return false;
+      const stream = localStreamRef.current;
+      if (!stream) return false;
+      const tracks = stream.getVideoTracks();
+      return tracks.length > 0 && tracks[0].enabled;
+    }
     return !participant.camera_off;
   }, [userId, isCameraOff]);
 
@@ -1889,23 +1896,30 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
               <div className="grid gap-3 justify-center items-start w-full" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(160px, 1fr))` }}>
                 {allTiles.map(tile => (
                   <div key={tile.id} className="relative bg-gray-800 rounded-lg overflow-hidden flex-shrink-0" style={{ aspectRatio: '16/9', minHeight: tile.isScreen ? '180px' : '120px' }}>
-                    {(tile.isScreen || isParticipantCameraOn(tile)) ? (
-                      <video
-                        ref={tile.self ? localVideoRef : el => { setRemoteVideoElement(tile.id, el); }}
-                        autoPlay
-                        muted={tile.self}
-                        playsInline
-                        className="w-full h-full object-cover"
-                        style={{ minHeight: tile.isScreen ? '180px' : '120px' }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
-                        <div className="text-center">
-                          <VideoOff className={tile.isScreen ? "w-12 h-12 mx-auto mb-2" : "w-8 h-8 mx-auto mb-2"} />
-                          <p className={tile.isScreen ? "text-base" : "text-xs"}>{tile.name}</p>
+                    {(() => {
+                      const selfHasVideo = tile.self && isParticipantCameraOn(tile);
+                      const showVideo = tile.isScreen || (!tile.self && isParticipantCameraOn(tile)) || selfHasVideo;
+                      if (showVideo) {
+                        return (
+                          <video
+                            ref={tile.self ? localVideoRef : el => { setRemoteVideoElement(tile.id, el); }}
+                            autoPlay
+                            muted={tile.self}
+                            playsInline
+                            className="w-full h-full object-cover"
+                            style={{ minHeight: tile.isScreen ? '180px' : '120px' }}
+                          />
+                        );
+                      }
+                      return (
+                        <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                          <div className="text-center">
+                            <VideoOff className={tile.isScreen ? "w-12 h-12 mx-auto mb-2" : "w-8 h-8 mx-auto mb-2"} />
+                            <p className={tile.isScreen ? "text-base" : "text-xs"}>{tile.name}</p>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                     {tile.isScreen && (
                       <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs flex items-center space-x-1">
                         <Monitor className="w-4 h-4" />
