@@ -558,7 +558,8 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           name: userName,
           muted: isMuted,
           camera_off: isCameraOff,
-          is_screen_sharing: isScreenSharing
+          is_screen_sharing: isScreenSharing,
+          self: true // ensure self flag persists across server updates
         };
         const otherParticipants = data.participants.filter(p => p.user_id !== userId);
         const allParticipants = [currentUser, ...otherParticipants];
@@ -1751,10 +1752,11 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
             if (layoutMode === "spotlight" && pinnedParticipantId) {
               const pinned = participants.find(p => p.id === pinnedParticipantId);
-              // Always render other participants (including self when someone else is pinned) as side thumbnails
+              const selfParticipant = participants.find(p => p.user_id === userId);
+              // Build sidebar excluding pinned and screen-share tiles; we'll prepend self separately if pinning someone else
               let others = participants
-                .filter(p => p.id !== pinnedParticipantId)
-                .filter(p => !p.is_screen_sharing) // remove camera tile when sharing screen
+                .filter(p => p.id !== pinnedParticipantId && p.user_id !== userId)
+                .filter(p => !p.is_screen_sharing)
                 .filter(p => !screenShares.some(s => s.user_id === p.user_id));
               return (
                 <div className="flex w-full gap-4 flex-col md:flex-row">
@@ -1787,6 +1789,51 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
                     )}
                   </div>
                   <div className="flex flex-col gap-3 flex-1 min-w-0">
+                    {/* Self tile appears first when pinning another participant */}
+                    {pinned && selfParticipant && pinned.user_id !== userId && (
+                      <div key={selfParticipant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
+                        {(() => {
+                          const hasVideo = !isCameraOff && localStreamRef.current && localStreamRef.current.getVideoTracks().length > 0;
+                          if (hasVideo) {
+                            return (
+                              <video
+                                ref={localVideoRef}
+                                autoPlay
+                                muted
+                                playsInline
+                                className="w-full h-full object-cover"
+                                style={{ minHeight: '80px' }}
+                              />
+                            );
+                          }
+                          return (
+                            <div className="w-full h-full flex items-center justify-center text-white bg-gray-700">
+                              <div className="text-center">
+                                <VideoOff className="w-8 h-8 mx-auto mb-2" />
+                                <p className="text-xs">You</p>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs flex items-center space-x-2">
+                          <div className="flex flex-col">
+                            <span>
+                              You
+                              {isMuted && <span className="text-red-400 ml-1">(Muted)</span>}
+                              {!isCameraOff && localStreamRef.current && localStreamRef.current.getVideoTracks().length > 0 && <span className="text-green-400 ml-1">(Camera On)</span>}
+                              {isScreenSharing && <span className="text-blue-400 ml-1">(Sharing)</span>}
+                            </span>
+                            <span className={`text-xs ${getElapsedClass(elapsedMap && elapsedMap[userId] != null ? elapsedMap[userId] : null)}`}>{elapsedMap && elapsedMap[userId] != null ? formatDuration(elapsedMap[userId]) : ''}</span>
+                          </div>
+                          {!isMuted && (
+                            <SpeakingIndicator 
+                              isActive={speakingParticipants.has(userId)} 
+                              audioLevel={localAudioLevel} 
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
                     {others.map(participant => (
                       <div key={participant.id} className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video min-h-[80px] flex-shrink-0 w-full md:w-[220px]">
                         {isParticipantCameraOn(participant) ? (
