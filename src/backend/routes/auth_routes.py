@@ -19,6 +19,8 @@ def signup(data: SignupData):
     user_doc["hoursActivity"] = 0
     user_doc["surveyCompleted"] = False
     user_doc["notes"] = []
+    # Force first login password change before survey
+    user_doc["mustChangePassword"] = True
     users_collection.insert_one(user_doc)
     return {"success": True, "message": "Signup successful!"}
 
@@ -34,7 +36,8 @@ def login(data: LoginRequest):
             "firstname": user.get("firstname", ""),
             "lastname": user.get("lastname", ""),
             "hoursActivity": user.get("hoursActivity", 0),
-            "surveyCompleted": user.get("surveyCompleted", False)
+            "surveyCompleted": user.get("surveyCompleted", False),
+            "mustChangePassword": user.get("mustChangePassword", False)
         }
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -95,3 +98,24 @@ async def reset_password(data: ResetPasswordData):
         )
         return {"success": True, "message": "Password has been reset successfully."}
     raise HTTPException(status_code=400, detail="Invalid reset code")
+
+@router.post("/api/first_password_change")
+def first_password_change(payload: dict):
+    """Change the auto-generated / initial password and clear mustChangePassword flag.
+    Expects: { id_number, old_password, new_password }
+    """
+    id_number = payload.get("id_number")
+    old_password = payload.get("old_password")
+    new_password = payload.get("new_password")
+    if not all([id_number, old_password, new_password]):
+        raise HTTPException(status_code=400, detail="Missing required fields")
+    user = users_collection.find_one({"id_number": id_number})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not verify_password(old_password, user.get("password", "")):
+        raise HTTPException(status_code=401, detail="Old password incorrect")
+    if not user.get("mustChangePassword", False):
+        return {"success": False, "message": "Password change not required."}
+    hashed = hash_password(new_password)
+    users_collection.update_one({"_id": user["_id"]}, {"$set": {"password": hashed, "mustChangePassword": False}})
+    return {"success": True, "message": "Password updated. Continue to survey.", "surveyCompleted": user.get("surveyCompleted", False)}

@@ -18,6 +18,11 @@ const LoginForm = () => {
       const userData = useAuthStore.getState().userData;
       const isNewUser = useAuthStore.getState().isNewUser;
       
+      const mustChangePassword = useAuthStore.getState().mustChangePassword;
+      if (mustChangePassword) {
+        navigate('/change-password');
+        return;
+      }
       if (isNewUser && userData.role === 'student') {
         navigate('/survey');
       } else {

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import moduleService from "../../services/moduleService";
 import useAuthStore from "../../store/authStore";
+import PresenceCheckModal from "../../components/common/PresenceCheckModal";
 import useDashboardStore from '../../store/student/dashboardStore';
 
 const PreTestPage = () => {
@@ -15,7 +16,10 @@ const PreTestPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [startTime] = useState(Date.now());
+  const startTimeRef = useRef(Date.now());
+  const pausedAccumRef = useRef(0); // total paused ms
+  const pauseStartRef = useRef(null);
+  const [presenceOpen, setPresenceOpen] = useState(false);
 
   useEffect(() => {
     fetchPreTest();
@@ -53,10 +57,17 @@ const PreTestPage = () => {
     }
   };
 
+  const effectiveElapsedSeconds = () => {
+    const now = Date.now();
+    const currentPause = pauseStartRef.current ? (now - pauseStartRef.current) : 0;
+    const elapsedMs = (now - startTimeRef.current) - (pausedAccumRef.current + currentPause);
+    return Math.max(0, Math.floor(elapsedMs / 1000));
+  };
+
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
-      const timeSpent = Math.floor((Date.now() - startTime) / 1000); // Time in seconds
+      const timeSpent = effectiveElapsedSeconds();
       const response = await moduleService.submitPreTest(moduleId, answers, userData.id_number, timeSpent);
       // Refresh dashboard data after submitting pre-test
       await refreshDashboard();
@@ -121,6 +132,24 @@ const PreTestPage = () => {
   const allQuestionsAnswered = preTest.questions.every((_, index) => 
     answers.hasOwnProperty(index)
   );
+
+  // Presence ping every 10 minutes
+  useEffect(() => {
+    if (presenceOpen) return;
+    const iv = setInterval(() => {
+      pauseStartRef.current = Date.now();
+      setPresenceOpen(true);
+    }, 10000); // TEMP 10s instead of 10min
+    return () => clearInterval(iv);
+  }, [presenceOpen]);
+
+  const handlePresenceConfirm = () => {
+    if (pauseStartRef.current) {
+      pausedAccumRef.current += (Date.now() - pauseStartRef.current);
+      pauseStartRef.current = null;
+    }
+    setPresenceOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -221,6 +250,7 @@ const PreTestPage = () => {
           </div>
         </div>
       </div>
+      <PresenceCheckModal isOpen={presenceOpen} onConfirm={handlePresenceConfirm} />
     </div>
   );
 };

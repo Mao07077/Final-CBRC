@@ -20,6 +20,11 @@ const SurveyForm = () => {
   } = useSurveyStore();
 
   useEffect(() => {
+    // Gate survey until initial password change is completed
+    if (userData?.mustChangePassword) {
+      navigate('/change-password');
+      return;
+    }
     if (userData?.surveyCompleted) {
       navigate("/student/dashboard");
     }

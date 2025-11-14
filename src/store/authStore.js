@@ -6,6 +6,7 @@ const useAuthStore = create((set, get) => ({
   userRole: null,
   userData: null,
   isNewUser: false,
+  mustChangePassword: false,
   isLoading: false,
   error: null,
 
@@ -25,20 +26,23 @@ const useAuthStore = create((set, get) => ({
           lastname: userData.lastname,
           hoursActivity: userData.hoursActivity,
           surveyCompleted: userData.surveyCompleted,
-          profileImageUrl: userData.profileImageUrl || ""
+          profileImageUrl: userData.profileImageUrl || "",
+          mustChangePassword: userData.mustChangePassword || false
         };
 
         // Store in localStorage
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('userRole', userData.role);
         localStorage.setItem('userData', JSON.stringify(userInfo));
-        localStorage.setItem('isNewUser', (!userData.surveyCompleted).toString());
+  localStorage.setItem('isNewUser', (!userData.surveyCompleted).toString());
+  localStorage.setItem('mustChangePassword', (userData.mustChangePassword || false).toString());
 
         set({ 
           isAuthenticated: true, 
           userRole: userData.role, 
           userData: userInfo,
           isNewUser: !userData.surveyCompleted,
+          mustChangePassword: userData.mustChangePassword || false,
           isLoading: false 
         });
         
@@ -98,13 +102,16 @@ const useAuthStore = create((set, get) => ({
     const userRole = localStorage.getItem('userRole');
     const userData = localStorage.getItem('userData');
     const isNewUser = localStorage.getItem('isNewUser') === 'true';
+    const mustChangePassword = localStorage.getItem('mustChangePassword') === 'true';
     
     if (isAuthenticated && userRole && userData) {
+      const parsed = JSON.parse(userData);
       set({ 
         isAuthenticated: true, 
         userRole, 
-        userData: JSON.parse(userData),
-        isNewUser 
+        userData: parsed,
+        isNewUser,
+        mustChangePassword: mustChangePassword || parsed.mustChangePassword || false
       });
     }
   },
@@ -141,6 +148,29 @@ const useAuthStore = create((set, get) => ({
       return response.data;
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Failed to reset password';
+      set({ error: errorMessage, isLoading: false });
+      return { success: false, message: errorMessage };
+    }
+  }
+  ,
+  firstPasswordChange: async (data) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await authService.firstPasswordChange(data);
+      const result = response.data;
+      if (result.success) {
+        // Update local user data flags
+        const current = get().userData || {};
+        const updated = { ...current, mustChangePassword: false };
+        localStorage.setItem('userData', JSON.stringify(updated));
+        localStorage.setItem('mustChangePassword', 'false');
+        set({ userData: updated, mustChangePassword: false, isLoading: false });
+      } else {
+        set({ isLoading: false, error: result.message || 'Password change failed' });
+      }
+      return result;
+    } catch (error) {
+      const errorMessage = error.response?.data?.detail || 'Password change failed';
       set({ error: errorMessage, isLoading: false });
       return { success: false, message: errorMessage };
     }

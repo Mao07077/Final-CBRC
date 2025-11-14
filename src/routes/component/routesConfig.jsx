@@ -26,6 +26,7 @@ import LoginPage from "../../pages/authentication/LoginPage";
 import SignupPage from "../../pages/authentication/SignupPage";
 import ForgotPasswordPage from "../../pages/authentication/ForgotPasswordPage";
 import ResetPasswordPage from "../../pages/authentication/ResetPasswordPage";
+import ChangePasswordPage from "../../pages/authentication/ChangePasswordPage";
 
 /* Student Routes */
 import DashboardPage from "../../pages/student/StudentDashboardPage";
@@ -153,6 +154,7 @@ export const routesConfig = [
   { path: "/signup", element: <SignupPage />, isPublic: true },
   { path: "/forgot-password", element: <ForgotPasswordPage />, isPublic: true },
   { path: "/reset-password", element: <ResetPasswordPage />, isPublic: true },
+  { path: "/change-password", element: <ChangePasswordPage />, isPublic: false },
   { path: "/survey", element: <SurveyPage />, isPublic: true },
   {
     path: "/pre-test/:moduleId",

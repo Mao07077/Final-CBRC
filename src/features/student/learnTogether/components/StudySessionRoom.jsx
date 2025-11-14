@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import PresenceCheckModal from "../../../../components/common/PresenceCheckModal";
 import { 
   Mic, MicOff, Video, VideoOff, Phone, MessageSquare, Users, Monitor, MonitorOff, Settings, Volume2
 } from "lucide-react";
@@ -102,6 +103,10 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
   const [participants, setParticipants] = useState([]);
   const [roomInfo, setRoomInfo] = useState(null);
   const [remainingSeconds, setRemainingSeconds] = useState(null);
+  // Presence check state (10-min inactivity confirmation)
+  const [presenceOpen, setPresenceOpen] = useState(false);
+  const pausedAccumRef = useRef(0); // total ms paused
+  const pauseStartRef = useRef(null); // ms timestamp when current pause started
   const [sessionLogs, setSessionLogs] = useState([]);
   const [showLogs, setShowLogs] = useState(false);
   const [elapsedMap, setElapsedMap] = useState({});
@@ -678,7 +683,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
     }
   }, []);
 
-  // Timer effect: compute remaining seconds from session_started_at (1 hour limit)
+  // Timer effect: compute remaining seconds from session_started_at (1 hour limit), accounting for paused duration while presence modal is open
   useEffect(() => {
     if (!roomInfo || !roomInfo.session_started_at) {
       setRemainingSeconds(null);
@@ -690,8 +695,11 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
     const update = () => {
       const now = Date.now();
-      const elapsed = now - start;
-      const remaining = Math.max(0, Math.floor((hourMs - elapsed) / 1000));
+      // Effective elapsed subtracts total paused time (accumulated + current pause)
+      const currentPause = pauseStartRef.current ? (now - pauseStartRef.current) : 0;
+      const pausedTotal = pausedAccumRef.current + currentPause;
+      const elapsedEffective = (now - start) - pausedTotal;
+      const remaining = Math.max(0, Math.floor((hourMs - elapsedEffective) / 1000));
       setRemainingSeconds(remaining);
     };
 
@@ -700,6 +708,25 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
     return () => clearInterval(iv);
   }, [roomInfo]);
+  // Presence ping TEMP every 10 seconds (10000 ms) for testing. Revert to 10 minutes (600000 ms) after validation.
+  useEffect(() => {
+    // If modal currently open, do not schedule new interval; timer paused already
+    if (presenceOpen) return;
+    const iv = setInterval(() => {
+      // Start pause and show modal
+      pauseStartRef.current = Date.now();
+      setPresenceOpen(true);
+  }, 10000); // TEMP 10s interval
+    return () => clearInterval(iv);
+  }, [presenceOpen]);
+
+  const handlePresenceConfirm = () => {
+    if (pauseStartRef.current) {
+      pausedAccumRef.current += (Date.now() - pauseStartRef.current);
+      pauseStartRef.current = null;
+    }
+    setPresenceOpen(false);
+  };
 
   // Auto-end session when timer reaches zero (only call once)
   useEffect(() => {
@@ -2018,6 +2045,9 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
           </div>
         </div>
       </div>
+
+  {/* Presence check modal (global) */}
+  <PresenceCheckModal isOpen={presenceOpen} onConfirm={handlePresenceConfirm} />
 
       {/* Bottom controls */}
       <div className="bg-gray-800 p-4 flex flex-wrap justify-center items-center gap-3 sm:gap-4 w-full">

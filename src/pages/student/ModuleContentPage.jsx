@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ModuleFlashcards from "../../features/student/dashboard/components/ModuleFlashcards";
 import { useParams, useNavigate } from "react-router-dom";
 import moduleService from "../../services/moduleService";
+import PresenceCheckModal from "../../components/common/PresenceCheckModal";
 
 const ModuleContentPage = () => {
   const { moduleId } = useParams();
@@ -13,12 +14,39 @@ const ModuleContentPage = () => {
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [showAllCompleteModal, setShowAllCompleteModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // Presence check while reading module (especially PDF)
+  const [presenceOpen, setPresenceOpen] = useState(false);
+  const presenceIntervalRef = useRef(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchModuleContent();
     fetchStatus();
   }, [moduleId]);
+
+  // Trigger presence modal every 10 mins ONLY while file modal (PDF) is open
+  useEffect(() => {
+    // Clear any existing interval first
+    if (presenceIntervalRef.current) {
+      clearInterval(presenceIntervalRef.current);
+      presenceIntervalRef.current = null;
+    }
+    if (showFileModal && !presenceOpen) {
+      presenceIntervalRef.current = setInterval(() => {
+        setPresenceOpen(true);
+      }, 10000); // TEMP 10s for testing instead of 10 min
+    }
+    return () => {
+      if (presenceIntervalRef.current) {
+        clearInterval(presenceIntervalRef.current);
+        presenceIntervalRef.current = null;
+      }
+    };
+  }, [showFileModal, presenceOpen]);
+
+  const handlePresenceConfirm = () => {
+    setPresenceOpen(false);
+  };
 
   // Auto-check when a module becomes completed
   const [hasAutoChecked, setHasAutoChecked] = useState(false);
@@ -315,6 +343,8 @@ const ModuleContentPage = () => {
         </div>
       </div>
       )}
+      {/* Presence check modal (global placement) */}
+      <PresenceCheckModal isOpen={presenceOpen} onConfirm={handlePresenceConfirm} />
     </div>
   );
 };

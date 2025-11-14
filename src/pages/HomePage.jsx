@@ -32,6 +32,16 @@ const HomePage = () => {
   const [adminPosts, setAdminPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState(null);
+  const [lightboxImage, setLightboxImage] = useState(null); // full-size image view
+
+  // Close lightbox on ESC
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') setLightboxImage(null);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => {
     async function fetchPosts() {
@@ -122,10 +132,15 @@ const HomePage = () => {
                         {/* Show carousel when multiple images exist */}
                         {post.images && post.images.length > 0 ? (
                           <div className="mb-3">
-                            <ImageCarousel images={post.images} />
+                            <ImageCarousel images={post.images} onImageClick={(src) => setLightboxImage(src)} />
                           </div>
                         ) : post.image ? (
-                          <img src={post.image} alt={post.title} className="w-full h-40 object-contain bg-white rounded mb-3" />
+                          <img
+                            src={post.image}
+                            alt={post.title}
+                            className="w-full h-40 object-contain bg-white rounded mb-3 cursor-zoom-in"
+                            onClick={(e) => { e.stopPropagation(); setLightboxImage(post.image); }}
+                          />
                         ) : null}
 
                         <h3 className="text-lg font-semibold mb-2">{displayTitle}</h3>
@@ -153,9 +168,14 @@ const HomePage = () => {
           <div>
             {/* Modal: show carousel if multiple images exist */}
             {selectedPost.images && selectedPost.images.length > 0 ? (
-              <ImageCarousel images={selectedPost.images} />
+              <ImageCarousel images={selectedPost.images} onImageClick={(src) => setLightboxImage(src)} />
             ) : selectedPost.image ? (
-              <img src={selectedPost.image} alt={selectedPost.title} className="w-full h-40 object-contain bg-white rounded mb-3" />
+              <img
+                src={selectedPost.image}
+                alt={selectedPost.title}
+                className="w-full h-40 object-contain bg-white rounded mb-3 cursor-zoom-in"
+                onClick={(e) => { e.stopPropagation(); setLightboxImage(selectedPost.image); }}
+              />
             ) : null}
             <div className="mb-2 text-xs text-gray-500">{selectedPost.createdAt ? new Date(selectedPost.createdAt).toLocaleString() : "No date"}</div>
             <div className="text-gray-700" dangerouslySetInnerHTML={{ __html: selectedPost.content }} />
@@ -234,6 +254,28 @@ const HomePage = () => {
         </div>
       </Element>
 
+      {/* Lightbox overlay for full-size image */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <img
+            src={lightboxImage}
+            alt="full-view"
+            className="max-w-full max-h-full object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            type="button"
+            aria-label="Close image"
+            className="absolute top-4 right-4 text-white text-3xl font-bold"
+            onClick={() => setLightboxImage(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -241,17 +283,30 @@ const HomePage = () => {
 export default HomePage;
 
 // Small reusable carousel used on landing page for posts with multiple images
-function ImageCarousel({ images = [] }) {
+function ImageCarousel({ images = [], onImageClick }) {
   const [idx, setIdx] = useState(0);
   if (!images || images.length === 0) return null;
   const src = typeof images[idx] === 'string' ? images[idx] : (images[idx].url || images[idx]);
   return (
-    <div className="relative bg-gray-100 h-40 flex items-center justify-center overflow-hidden rounded">
-      <button type="button" onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)} className="absolute left-2 bg-white/90 p-2 rounded-full shadow">
+    <div className="relative bg-gray-100 h-40 flex items-center justify-center overflow-hidden rounded group">
+      <button
+        type="button"
+        onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)}
+        className="absolute left-2 bg-white/90 p-2 rounded-full shadow"
+      >
         <FiChevronLeft />
       </button>
-  <img src={src} alt={`carousel-${idx}`} className="w-full h-full object-contain bg-white" />
-      <button type="button" onClick={() => setIdx((i) => (i + 1) % images.length)} className="absolute right-2 bg-white/90 p-2 rounded-full shadow">
+      <img
+        src={src}
+        alt={`carousel-${idx}`}
+        className="w-full h-full object-contain bg-white cursor-zoom-in"
+        onClick={(e) => { e.stopPropagation(); onImageClick && onImageClick(src); }}
+      />
+      <button
+        type="button"
+        onClick={() => setIdx((i) => (i + 1) % images.length)}
+        className="absolute right-2 bg-white/90 p-2 rounded-full shadow"
+      >
         <FiChevronRight />
       </button>
     </div>

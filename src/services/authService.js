@@ -23,6 +23,11 @@ const authService = {
     // Backend expects { id_number, reset_code, new_password }
     return apiClient.post("/api/reset_password", data);
   }
+  ,
+  firstPasswordChange: async (data) => {
+    // Expects { id_number, old_password, new_password }
+    return apiClient.post("/api/first_password_change", data);
+  }
 };
 
 export default authService;
