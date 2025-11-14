@@ -47,8 +47,8 @@ const StudentProfilePage = () => {
     notes: { name: "Notes", route: "/student/notes" },
     flashcards: { name: "Flashcards", route: "/student/flashcards" },
     flashcard: { name: "Flashcards", route: "/student/flashcards" },
-    music: { name: "Study Music", route: "/student/music-player" },
-    "music-player": { name: "Study Music", route: "/student/music-player" },
+    music: { name: "Study With Music", route: "/student/music-player" },
+    "music-player": { name: "Study With Music", route: "/student/music-player" },
   };
 
   // Normalize dashboard slugs similar to RecommendedPages component

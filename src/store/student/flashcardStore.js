@@ -5,6 +5,7 @@ import useAuthStore from "../authStore";
 const useFlashcardStore = create((set, get) => ({
   decks: {},
   modules: [],
+  generationCounts: {}, // per-module attempt counts
   activeDeckId: null,
   activeDeck: [],
   currentIndex: 0,
@@ -21,14 +22,15 @@ const useFlashcardStore = create((set, get) => ({
       }
 
       // Fetch modules and their flashcards from backend
-      const response = await apiClient.get(`/api/flashcards/${userData.id_number}`);
+  const response = await apiClient.get(`/api/flashcards/${userData.id_number}`);
       
       if (response.data.success) {
-        const { modules, decks } = response.data;
+        const { modules, decks, generationCounts } = response.data;
         
         set({ 
           modules,
           decks,
+          generationCounts: generationCounts || {},
           activeDeckId: modules.length > 0 ? modules[0]._id : null,
           activeDeck: modules.length > 0 ? (decks[modules[0]._id] || []) : [],
           isLoading: false 
@@ -41,6 +43,7 @@ const useFlashcardStore = create((set, get) => ({
       set({ 
         modules: [],
         decks: {},
+        generationCounts: {},
         activeDeckId: null,
         activeDeck: [],
         isLoading: false, 

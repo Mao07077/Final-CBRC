@@ -188,7 +188,7 @@ STUDY_PLAYLISTS = {
             {
                 "id": "lofi3",
                 "title": "Coffee Shop Vibes",
-                "artist": "Study Music Project",
+                "artist": "Study With Music Project",
                 "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
                 "duration": "3:30"
             }
@@ -228,7 +228,7 @@ STUDY_PLAYLISTS = {
             {
                 "id": "cls1",
                 "title": "Peaceful Piano",
-                "artist": "Classical Study Music",
+                "artist": "Classical Study With Music",
                 "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
                 "duration": "3:20"
             },
@@ -313,7 +313,7 @@ def get_youtube_audio_url(url: str):
 
 @router.get("/api/music/playlists")
 def get_music_playlists():
-    """Get all available study music playlists"""
+    """Get all available Study With Music playlists"""
     return {
         "success": True,
         "playlists": STUDY_PLAYLISTS

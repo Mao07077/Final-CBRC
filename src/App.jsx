@@ -6,6 +6,7 @@ import Footer from "./components/layout/Footer";
 import GlobalAuth from "./components/auth/GlobalAuth";
 import { ChatProvider } from "./context/ChatProvider";
 import useAuthStore from "./store/authStore";
+import GlobalMusicPlayer from "./features/student/musicPlayer/components/GlobalMusicPlayer";
 
 
 // Notification sound
@@ -68,6 +69,8 @@ function App() {
           <main>
             <AppRoutes />
           </main>
+          {/* Global sticky music player (persists across routes) */}
+          <GlobalMusicPlayer />
           {!isAuthenticated && <Footer />}
         </div>
       </ChatProvider>

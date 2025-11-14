@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Music, X } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Music, X, Minimize2, Maximize2, Shuffle, Repeat } from 'lucide-react';
 import useMusicPlayerStore from '../../../../store/student/musicPlayerStore';
-import AudioOnlyYouTubePlayer from './AudioOnlyYouTubePlayer';
 
 const PlayerControls = () => {
   const [volume, setVolume] = useState(1);
@@ -21,19 +20,25 @@ const PlayerControls = () => {
     isPlaying,
     audio,
     showPlayer,
+    isMinimized,
     play,
     pause,
     nextTrack,
     prevTrack,
     hidePlayer,
-    cleanup
+    cleanup,
+    minimizePlayer,
+    maximizePlayer,
+    toggleShuffle,
+    cycleRepeatMode,
+    isShuffle,
+    repeatMode,
+    stopAndClose
   } = useMusicPlayerStore();
 
-  useEffect(() => {
-    return () => {
-      cleanup();
-    };
-  }, [cleanup]);
+  // Do not call global cleanup on unmount; minimizing unmounts this component
+  // and we want playback to continue in mini mode. Cleanup is handled by
+  // audio effect cleanups and explicit stopAndClose.
 
   const getCurrentTrack = () => {
     if (!activePlaylistId) return null;
@@ -223,7 +228,7 @@ const PlayerControls = () => {
       navigator.mediaSession.metadata = new window.MediaMetadata({
         title: currentTrack?.title || 'Unknown',
         artist: currentTrack?.artist || 'Unknown',
-        album: 'CBRC Study Music',
+        album: 'CBRC Study With Music',
         artwork: currentTrack?.thumbnail ? [
           { src: currentTrack.thumbnail, sizes: '96x96', type: 'image/png' },
           { src: currentTrack.thumbnail, sizes: '192x192', type: 'image/png' }
@@ -266,12 +271,19 @@ const PlayerControls = () => {
   return (
     <div className="bg-white border-t border-gray-200 p-4 shadow-lg ml-0 lg:ml-64">
       <div className="max-w-6xl mx-auto">
-        {/* Close Button */}
-        <div className="flex justify-end mb-2">
+        {/* Window Controls */}
+        <div className="flex justify-end gap-2 mb-2">
           <button
-            onClick={hidePlayer}
+            onClick={isMinimized ? maximizePlayer : minimizePlayer}
             className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-            title="Hide player"
+            title={isMinimized ? 'Expand player' : 'Minimize player'}
+          >
+            {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={stopAndClose}
+            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            title="Exit player"
           >
             <X className="w-4 h-4" />
           </button>
@@ -297,21 +309,6 @@ const PlayerControls = () => {
             )}
           </div>
         </div>
-  {/* Only show one player at a time */}
-        {(currentTrack.source === 'youtube' || isYouTubeUrl) ? (
-          videoId ? (
-            <AudioOnlyYouTubePlayer
-              videoId={videoId}
-              title={currentTrack.title}
-              artist={currentTrack.artist}
-            />
-          ) : (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 my-4 text-center">
-              <span className="text-red-600 font-bold">Error: Invalid or missing YouTube video ID.</span>
-              <div className="text-xs text-red-400 mt-2">Check the track URL or try another song.</div>
-            </div>
-          )
-        ) : null}
         {/* Progress bar and time indicator */}
         <div className="mt-2">
           <div
@@ -331,6 +328,25 @@ const PlayerControls = () => {
         </div>
         {/* Playback Controls (common) */}
         <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center space-x-1 sm:space-x-2">
+            {/* Shuffle */}
+            <button
+              onClick={toggleShuffle}
+              className={`p-2 rounded-full transition-colors ${isShuffle ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}
+              title={`Shuffle ${isShuffle ? 'On' : 'Off'}`}
+            >
+              <Shuffle className="w-5 h-5" />
+            </button>
+            {/* Repeat */}
+            <button
+              onClick={cycleRepeatMode}
+              className={`p-2 rounded-full transition-colors ${repeatMode !== 'off' ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'}`}
+              title={`Repeat: ${repeatMode === 'off' ? 'Off' : repeatMode === 'one' ? 'Repeat Track' : 'Repeat All'}`}
+            >
+              <Repeat className={`w-5 h-5 ${repeatMode === 'one' ? 'rotate-45' : ''}`} />
+            </button>
+          </div>
+
           <div className="flex items-center space-x-4 flex-shrink-0">
             <button
               onClick={handlePrevTrack}

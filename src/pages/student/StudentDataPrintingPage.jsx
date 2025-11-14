@@ -343,7 +343,7 @@ const StudentDataPrintingPage = () => {
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Reports</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Performance</h1>
           <p className="text-gray-600">View and download your academic reports and data</p>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -352,7 +352,7 @@ const StudentDataPrintingPage = () => {
             <div className="flex space-x-3">
               <button onClick={handleDownloadPDF} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                 <FiDownload className="mr-2" />
-                {generating ? 'Preparing PDF...' : 'Download My Report'}
+                {generating ? 'Preparing PDF...' : 'Download Performance'}
               </button>
               <button onClick={handlePrint} className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
                 <FiPrinter className="mr-2" />

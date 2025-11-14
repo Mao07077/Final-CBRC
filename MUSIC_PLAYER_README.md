@@ -5,7 +5,7 @@ A comprehensive music player for your study application with support for embedde
 ## Features
 
 ### 🎵 Embedded Songs
-- Pre-curated study music playlists
+- Pre-curated Study With Music playlists
 - Lofi beats, ambient soundscapes, and classical focus music
 - Ready-to-use playlists for immediate playback
 
@@ -86,7 +86,7 @@ import MusicPlayerPage from './pages/student/MusicPlayerPage';
 ### Supported URL Types
 - **YouTube**: `https://www.youtube.com/watch?v=...` or `https://youtu.be/...`
 - **Custom URLs**: Any direct audio URL
-- **Embedded**: Pre-configured study music tracks
+- **Embedded**: Pre-configured Study With Music tracks
 
 ### YouTube Integration
 - Automatic video ID extraction
@@ -180,8 +180,8 @@ Extend the `musicPlayerStore` to add features like:
 
 ### Where to Find Each Feature
 
-#### 🎵 **Embedded Study Music**
-- **Location**: "Study Music" tab (default tab)
+#### 🎵 **Embedded Study With Music**
+- **Location**: "Study With Music" tab (default tab)
 - **What you'll see**: 3 pre-curated playlists:
   - "Lofi Beats for Focus" (3 songs)
   - "Ambient Soundscapes" (3 songs) 
@@ -204,7 +204,7 @@ Extend the `musicPlayerStore` to add features like:
 - **Supports**: YouTube, SoundCloud, any direct audio URL
 
 #### 🎵 **List of Songs**
-- **In Embedded Playlists**: Click any playlist in "Study Music" tab
+- **In Embedded Playlists**: Click any playlist in "Study With Music" tab
 - **In Your Playlists**: Songs shown directly in each playlist card
 - **Player**: Bottom fixed player shows current song and controls
 

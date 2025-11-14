@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from database import flashcards_collection, modules_collection, users_collection
+from database import flashcards_collection, modules_collection, users_collection, db
 from utils import extract_text_from_pdf, generate_flashcards_with_ollama, generate_flashcards_from_text
 from bson import ObjectId
 from config import logger
@@ -36,6 +36,20 @@ def get_user_flashcards(user_id: str):
             for flashcard in flashcards
         ]
     
+    # Compute per-module generation attempt counts for this user
+    generation_counts = {}
+    try:
+        pipeline = [
+            {"$match": {"generated_by": user_id}},
+            {"$group": {"_id": "$module_id", "count": {"$sum": 1}}}
+        ]
+        for row in db["flashcard_generation_logs"].aggregate(pipeline):
+            mid = row.get("_id")
+            if mid:
+                generation_counts[mid] = row.get("count", 0)
+    except Exception as e:
+        logger.error("Failed to aggregate flashcard generation counts: %s", e)
+
     modules_list = []
     for module in modules:
         m = dict(module)
@@ -45,7 +59,8 @@ def get_user_flashcards(user_id: str):
     return {
         "success": True,
         "modules": modules_list,
-        "decks": decks
+        "decks": decks,
+        "generationCounts": generation_counts
     }
 
             # This function retrieves flashcards for a specific module

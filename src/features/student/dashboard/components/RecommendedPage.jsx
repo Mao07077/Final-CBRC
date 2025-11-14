@@ -12,8 +12,8 @@ const pageDetails = {
   flashcards: { name: "Flashcards", icon: "🃏", route: "/student/flashcards" },
   // Alias singular slug if older backend sends "flashcard"
   flashcard: { name: "Flashcards", icon: "🃏", route: "/student/flashcards" },
-  "music-player": { name: "Study Music", icon: "🎵", route: "/student/music-player" },
-  music: { name: "Study Music", icon: "🎵", route: "/student/music-player" },
+  "music-player": { name: "Study With Music", icon: "🎵", route: "/student/music-player" },
+  music: { name: "Study With Music", icon: "🎵", route: "/student/music-player" },
 };
 
 const RecommendedPages = () => {

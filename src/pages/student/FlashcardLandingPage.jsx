@@ -12,7 +12,7 @@ const FlashcardLandingPage = () => {
   const { activeDeck, currentIndex } = useFlashcardStore();
   const currentCard = activeDeck ? activeDeck[currentIndex] : null;
   const navigate = useNavigate();
-  const { modules, decks, isLoading, error, fetchFlashcards, setActiveDeck, generateFlashcards } =
+  const { modules, decks, generationCounts, isLoading, error, fetchFlashcards, setActiveDeck, generateFlashcards } =
     useFlashcardStore();
 
   // State for PDF fetch popup
@@ -65,7 +65,7 @@ const FlashcardLandingPage = () => {
   // Call Gemini backend to generate flashcards
   const { generateFlashcards } = useFlashcardStore.getState();
   setCurrentModuleId(moduleId);
-  const result = await generateFlashcards(pdfText, 5, moduleId); // include module id for persistence
+  const result = await generateFlashcards(pdfText, 'auto', moduleId); // auto-generate based on module length
       if (result.success) {
         setGeneratedFlashcards(result.flashcards);
         setModalIndex(0);
@@ -232,7 +232,7 @@ const FlashcardLandingPage = () => {
                     // Regenerate with a new seed (simulate by adding a random string)
                     const lastText = generatedFlashcards.map(fc => fc.question + fc.answer).join("|");
                     const { generateFlashcards } = useFlashcardStore.getState();
-                    const result = await generateFlashcards(lastText + Math.random().toString(36).slice(2), 5, currentModuleId);
+                    const result = await generateFlashcards(lastText + Math.random().toString(36).slice(2), 'auto', currentModuleId);
                     if (result.success) {
                       setGeneratedFlashcards(result.flashcards);
                       setModalIndex(0);
@@ -275,6 +275,7 @@ const FlashcardLandingPage = () => {
             {modules.map((module) => {
               const moduleFlashcards = decks[module._id] || [];
               const cardCount = moduleFlashcards.length;
+              const attempts = (generationCounts && generationCounts[module._id]) || 0;
 
               return (
                 <div
@@ -295,7 +296,7 @@ const FlashcardLandingPage = () => {
                         </h3>
                         <div className="flex items-center text-sm text-gray-600">
                           <Users className="h-4 w-4 mr-1" />
-                          <span>{cardCount} flashcards</span>
+                          <span>{attempts} {attempts === 1 ? 'generation' : 'generations'}</span>
                         </div>
                       </div>
                     </div>
@@ -308,9 +309,9 @@ const FlashcardLandingPage = () => {
 
                     <div className="flex items-center justify-between">
                       <div className="text-xs text-gray-500">
-                        {cardCount > 0
-                          ? "Ready to practice"
-                          : "No cards available"}
+                        {attempts > 0
+                          ? "Generated before"
+                          : "No generations yet"}
                       </div>
                       <div
                         className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${
@@ -319,13 +320,13 @@ const FlashcardLandingPage = () => {
                             : "bg-gray-100 text-gray-600"
                         }`}
                       >
-                        {cardCount > 0 ? (
+                          {attempts > 0 ? (
                           <>
                             <Play className="h-3 w-3 mr-1" />
                             Start Practice
                           </>
                         ) : (
-                          "No Cards"
+                          "Generate Now"
                         )}
                       </div>
                     </div>

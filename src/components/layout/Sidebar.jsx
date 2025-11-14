@@ -65,34 +65,21 @@ const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
                       <ul className="ml-4 mt-1 space-y-1">
                         {link.children.map((child, childIndex) => (
                           <li key={childIndex}>
-                            {child.path === '/student/music-player' ? (
-                              <a
-                                href={child.path}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-3 rounded-md p-2 text-sm font-medium transition-colors text-black hover:bg-gray-200 hover:text-black"
-                                onClick={toggleSidebar}
-                              >
-                                {child.icon && React.cloneElement(child.icon, { color: 'black' })}
-                                <span>{child.label}</span>
-                              </a>
-                            ) : (
-                              <NavLink
-                                to={child.path}
-                                end
-                                className={({ isActive }) =>
-                                  `flex items-center gap-3 rounded-md p-2 text-sm font-medium transition-colors ${
-                                    isActive
-                                      ? 'bg-gray-400 text-black'
-                                      : 'text-black hover:bg-gray-200 hover:text-black'
-                                  }`
-                                }
-                                onClick={toggleSidebar}
-                              >
-                                {child.icon && React.cloneElement(child.icon, { color: 'black' })}
-                                <span>{child.label}</span>
-                              </NavLink>
-                            )}
+                            <NavLink
+                              to={child.path}
+                              end
+                              className={({ isActive }) =>
+                                `flex items-center gap-3 rounded-md p-2 text-sm font-medium transition-colors ${
+                                  isActive
+                                    ? 'bg-gray-400 text-black'
+                                    : 'text-black hover:bg-gray-200 hover:text-black'
+                                }`
+                              }
+                              onClick={toggleSidebar}
+                            >
+                              {child.icon && React.cloneElement(child.icon, { color: 'black' })}
+                              <span>{child.label}</span>
+                            </NavLink>
                           </li>
                         ))}
                       </ul>

@@ -75,7 +75,7 @@ const studentNavLinks = [
       { path: "/student/modules", label: "Modules", icon: <FiBook /> },
       {
         path: "/student/music-player",
-        label: "Study Music",
+        label: "Study With Music",
         icon: <FiMusic />,
       },
       {
@@ -104,7 +104,7 @@ const studentNavLinks = [
   },
   {
     path: "/student/data-reports",
-    label: "My Reports",
+    label: "Performance",
     icon: <FiFileText />,
   },
   {

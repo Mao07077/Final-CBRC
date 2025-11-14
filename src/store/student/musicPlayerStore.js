@@ -18,7 +18,12 @@ const useMusicPlayerStore = create((set, get) => ({
   audioPromise: null, // Track the current play promise
   isLoading: false,
   error: null,
-  showPlayer: true, // Controls if the bottom player is visible
+  showPlayer: true, // Controls if the player UI is visible (full or mini)
+  isMinimized: false, // Mini-player mode toggle
+
+  // Playback options
+  isShuffle: false,
+  repeatMode: 'off', // 'off' | 'one' | 'all'
   
   // Playlist management
   isCreatingPlaylist: false,
@@ -342,7 +347,7 @@ const useMusicPlayerStore = create((set, get) => ({
       return;
     }
 
-    // For non-YouTube tracks, validate and play as audio
+  // For non-YouTube tracks, validate and play as audio
     let audioUrl = newTrack.url;
     if (!audioUrl || (!audioUrl.startsWith('http') && !audioUrl.startsWith('blob:'))) {
       console.error("Invalid track URL:", newTrack.url);
@@ -370,7 +375,19 @@ const useMusicPlayerStore = create((set, get) => ({
     // Create new audio instance
     const newAudio = new Audio(audioUrl);
     newAudio.addEventListener('ended', () => {
-      get().nextTrack();
+      const { repeatMode } = get();
+      if (repeatMode === 'one') {
+        try {
+          newAudio.currentTime = 0;
+          const playPromise = newAudio.play();
+          set({ audioPromise: playPromise, isPlaying: true });
+          playPromise.finally(() => set({ audioPromise: null }));
+        } catch {
+          get().nextTrack();
+        }
+      } else {
+        get().nextTrack();
+      }
     });
     newAudio.addEventListener('error', (e) => {
       let errorMessage = "Failed to play this track";
@@ -403,7 +420,8 @@ const useMusicPlayerStore = create((set, get) => ({
       audio: newAudio,
       audioPromise: null,
       error: null,
-      showPlayer: true
+      showPlayer: true,
+      isMinimized: false
     });
     try {
       const playPromise = newAudio.play();
@@ -419,7 +437,7 @@ const useMusicPlayerStore = create((set, get) => ({
   },
 
   nextTrack: async () => {
-    const { activePlaylistId, activePlaylistType, currentTrackIndex, playlists, userPlaylists } = get();
+    const { activePlaylistId, activePlaylistType, currentTrackIndex, playlists, userPlaylists, isShuffle, repeatMode } = get();
     
     let playlist;
     if (activePlaylistType === "embedded") {
@@ -429,8 +447,42 @@ const useMusicPlayerStore = create((set, get) => ({
     }
     
     if (!playlist || !playlist.tracks || playlist.tracks.length === 0) return;
-    
-    const nextIndex = (currentTrackIndex + 1) % playlist.tracks.length;
+
+    const total = playlist.tracks.length;
+    let nextIndex = currentTrackIndex;
+    if (repeatMode === 'one') {
+      // stay on same track
+      nextIndex = currentTrackIndex;
+    } else if (isShuffle && total > 1) {
+      // pick a random index different from current
+      let rnd = Math.floor(Math.random() * total);
+      if (rnd === currentTrackIndex) {
+        rnd = (rnd + 1) % total;
+      }
+      nextIndex = rnd;
+    } else {
+      // sequential
+      const atEnd = currentTrackIndex >= total - 1;
+      if (atEnd) {
+        if (repeatMode === 'all') {
+          nextIndex = 0;
+        } else {
+          // no repeat: stop playback at end
+          // pause any audio and keep index
+          const { audio, audioPromise } = get();
+          if (audioPromise) {
+            try { await audioPromise; } catch {}
+          }
+          if (audio) {
+            audio.pause();
+          }
+          set({ isPlaying: false });
+          return;
+        }
+      } else {
+        nextIndex = currentTrackIndex + 1;
+      }
+    }
     await get().selectTrack(activePlaylistId, nextIndex, activePlaylistType);
   },
 
@@ -466,6 +518,29 @@ const useMusicPlayerStore = create((set, get) => ({
       ...state,
       showPlayer: true
     })),
+
+  minimizePlayer: () => set({ isMinimized: true, showPlayer: true }),
+  maximizePlayer: () => set({ isMinimized: false, showPlayer: true }),
+  toggleMinimize: () => set((s) => ({ isMinimized: !s.isMinimized, showPlayer: true })),
+
+  toggleShuffle: () => set((s) => ({ isShuffle: !s.isShuffle })),
+  cycleRepeatMode: () => set((s) => ({
+    repeatMode: s.repeatMode === 'off' ? 'one' : s.repeatMode === 'one' ? 'all' : 'off'
+  })),
+
+  // Explicit exit: stop playback and hide UI
+  stopAndClose: async () => {
+    const { audio, audioPromise } = get();
+    if (audioPromise) {
+      try { await audioPromise; } catch {}
+    }
+    if (audio) {
+      try { audio.pause(); } catch {}
+    }
+    // Also stop YouTube if present
+    try { window._audioYTPlayer?.stopVideo?.(); } catch {}
+    set({ isPlaying: false, showPlayer: false, isMinimized: false });
+  },
 
   // Cleanup function for when components unmount
   cleanup: async () => {

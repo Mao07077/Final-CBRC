@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import useMusicPlayerStore from '../../../../store/student/musicPlayerStore';
 
 const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
-  const { nextTrack } = useMusicPlayerStore();
+  const { nextTrack, repeatMode } = useMusicPlayerStore();
 
   useEffect(() => {
     console.log('[AudioOnlyYouTubePlayer] videoId:', videoId);
@@ -62,7 +62,20 @@ const AudioOnlyYouTubePlayer = ({ videoId, title, artist }) => {
           if (event.data === window.YT.PlayerState.ENDED) {
             setIsPlaying(false);
             try { useMusicPlayerStore.setState({ isPlaying: false }); } catch {}
-            try { nextTrack(); } catch (e) { console.error('Next track error (YouTube ended):', e); }
+            // Respect repeat-one setting: restart the same video
+            try {
+              const state = useMusicPlayerStore.getState();
+              const mode = state?.repeatMode || repeatMode;
+              if (mode === 'one') {
+                // Seek to start and play again
+                try { window._audioYTPlayer?.seekTo?.(0, true); } catch {}
+                try { window._audioYTPlayer?.playVideo?.(); } catch {}
+              } else {
+                nextTrack();
+              }
+            } catch (e) {
+              console.error('Next track error (YouTube ended):', e);
+            }
           }
         },
         onError: (event) => {

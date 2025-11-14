@@ -3,6 +3,7 @@ import requests
 import re
 from fastapi import APIRouter, HTTPException, Request
 from datetime import datetime
+from typing import List, Tuple, Union
 
 # DB collections
 from database import flashcards_collection, db, modules_collection
@@ -24,6 +25,58 @@ def parse_flashcards(text: str):
             "answer": a.strip()
         })
     return flashcards
+
+def _chunk_text(text: str, chunk_size: int = 3000, overlap: int = 200) -> List[str]:
+    """Split large text into overlapping chunks to fit LLM context better."""
+    if not text:
+        return []
+    chunks = []
+    start = 0
+    n = len(text)
+    while start < n:
+        end = min(n, start + chunk_size)
+        chunk = text[start:end]
+        chunks.append(chunk)
+        if end >= n:
+            break
+        start = max(0, end - overlap)
+    return chunks
+
+def _call_groq_generate(api_key: str, text: str, num: int) -> str:
+    """Call Groq API and return raw content string."""
+    endpoint = "https://api.groq.com/openai/v1/chat/completions"
+    prompt = (
+        f"Create {num} unique flashcards in Q&A format from this text. "
+        "Each flashcard should cover a different key concept, fact, or section. "
+        "Do not repeat questions. Cover as many distinct topics as possible from the text. "
+        "Format each as 'Q: ... A: ...':\n"
+        f"{text}"
+    )
+    response = requests.post(
+        endpoint,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        },
+        json={
+            "model": "llama-3.3-70b-versatile",
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant that generates flashcards in Q&A format."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 1024,
+            "temperature": 0.7
+        },
+        timeout=60
+    )
+    logger.info("[Groq API] Status: %s", response.status_code)
+    logger.debug("[Groq API] Response: %s", response.text)
+    response.raise_for_status()
+    result = response.json()
+    choices = result.get("choices", [])
+    if not choices:
+        raise HTTPException(status_code=500, detail="No choices returned from Groq API")
+    return choices[0]["message"]["content"]
 
 @router.post("/generate-flashcards")
 async def generate_flashcards(request: Request):
@@ -47,45 +100,43 @@ async def generate_flashcards(request: Request):
     if not api_key:
         raise HTTPException(status_code=500, detail="Groq API key not set")
 
-    endpoint = "https://api.groq.com/openai/v1/chat/completions"
-    prompt = (
-        f"Create {num} unique flashcards in Q&A format from this text. "
-        "Each flashcard should cover a different key concept, fact, or section. "
-        "Do not repeat questions. Cover as many distinct topics as possible from the text. "
-        "Format each as 'Q: ... A: ...':\n"
-        f"{text}"
-    )
-
     try:
-        response = requests.post(
-            endpoint,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}"
-            },
-            json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": [
-                    {"role": "system", "content": "You are a helpful assistant that generates flashcards in Q&A format."},
-                    {"role": "user", "content": prompt}
-                ],
-                "max_tokens": 1024,
-                "temperature": 0.7
-            },
-            timeout=60
-        )
-
-        logger.info("[Groq API] Status: %s", response.status_code)
-        logger.debug("[Groq API] Response: %s", response.text)
-        response.raise_for_status()
-
-        result = response.json()
-        choices = result.get("choices", [])
-        if not choices:
-            raise HTTPException(status_code=500, detail="No choices returned from Groq API")
-
-        raw_text = choices[0]["message"]["content"]
-        flashcards = parse_flashcards(raw_text)
+        all_flashcards = []
+        # handle 'auto' mode: chunk text and iterate until exhausted or limit reached
+        if isinstance(num, str) and num.lower() == "auto":
+            chunks = _chunk_text(text, chunk_size=3000, overlap=250)
+            seen_questions = set()
+            max_total = 60  # safety cap to prevent excessive generation
+            per_chunk = 6   # request up to 6 per chunk
+            for chunk in chunks:
+                if len(all_flashcards) >= max_total:
+                    break
+                try:
+                    raw = _call_groq_generate(api_key, chunk, per_chunk)
+                    fc = parse_flashcards(raw)
+                    for item in fc:
+                        q = (item.get("question") or "").strip()
+                        a = (item.get("answer") or "").strip()
+                        if not q or not a:
+                            continue
+                        if q in seen_questions:
+                            continue
+                        seen_questions.add(q)
+                        all_flashcards.append({"question": q, "answer": a})
+                        if len(all_flashcards) >= max_total:
+                            break
+                except Exception as e:
+                    logger.error("Chunk generation failed: %s", e)
+                    continue
+            flashcards = all_flashcards
+        else:
+            # single-shot mode
+            try:
+                requested = int(num)
+            except Exception:
+                requested = 3
+            raw_text = _call_groq_generate(api_key, text, requested)
+            flashcards = parse_flashcards(raw_text)
 
         # If the caller provided module_id or generated_by, persist the generated flashcards
         inserted_ids = []
@@ -104,19 +155,18 @@ async def generate_flashcards(request: Request):
                     res = flashcards_collection.insert_one(doc)
                     inserted_ids.append(str(res.inserted_id))
 
-                # write a generation audit record; try to fill module title/topic if module_id provided
+                # write a single generation audit record for the entire run
                 try:
                     module_title = None
                     module_topic = None
                     if module_id:
-                        try:
-                            mod = modules_collection.find_one({"_id": ObjectId(module_id)})
-                            if mod:
-                                module_title = mod.get("title")
-                                module_topic = mod.get("topic")
-                        except Exception:
-                            # leave title/topic as None if lookup fails (invalid id format or not found)
-                            pass
+                      try:
+                        mod = modules_collection.find_one({"_id": ObjectId(module_id)})
+                        if mod:
+                          module_title = mod.get("title")
+                          module_topic = mod.get("topic")
+                      except Exception:
+                        pass
 
                     gen_log = {
                         "module_id": module_id,
