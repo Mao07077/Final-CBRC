@@ -91,6 +91,24 @@ const PreTestPage = () => {
     }
   };
 
+  // Presence ping interval must be declared before any conditional returns to keep hook order stable
+  useEffect(() => {
+    if (presenceOpen) return;
+    const iv = setInterval(() => {
+      pauseStartRef.current = Date.now();
+      setPresenceOpen(true);
+    }, 600000); // 10 minutes
+    return () => clearInterval(iv);
+  }, [presenceOpen]);
+
+  const handlePresenceConfirm = () => {
+    if (pauseStartRef.current) {
+      pausedAccumRef.current += (Date.now() - pauseStartRef.current);
+      pauseStartRef.current = null;
+    }
+    setPresenceOpen(false);
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -133,23 +151,7 @@ const PreTestPage = () => {
     answers.hasOwnProperty(index)
   );
 
-  // Presence ping every 10 minutes
-  useEffect(() => {
-    if (presenceOpen) return;
-    const iv = setInterval(() => {
-      pauseStartRef.current = Date.now();
-      setPresenceOpen(true);
-    }, 10000); // TEMP 10s instead of 10min
-    return () => clearInterval(iv);
-  }, [presenceOpen]);
-
-  const handlePresenceConfirm = () => {
-    if (pauseStartRef.current) {
-      pausedAccumRef.current += (Date.now() - pauseStartRef.current);
-      pauseStartRef.current = null;
-    }
-    setPresenceOpen(false);
-  };
+  // (hooks must not appear below conditional returns)
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

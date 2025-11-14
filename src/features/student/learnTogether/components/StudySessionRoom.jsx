@@ -708,7 +708,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
     return () => clearInterval(iv);
   }, [roomInfo]);
-  // Presence ping TEMP every 10 seconds (10000 ms) for testing. Revert to 10 minutes (600000 ms) after validation.
+  // Presence ping every 10 minutes (600000 ms). While modal open we pause timer.
   useEffect(() => {
     // If modal currently open, do not schedule new interval; timer paused already
     if (presenceOpen) return;
@@ -716,7 +716,7 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
       // Start pause and show modal
       pauseStartRef.current = Date.now();
       setPresenceOpen(true);
-  }, 10000); // TEMP 10s interval
+  }, 600000); // 10 minutes
     return () => clearInterval(iv);
   }, [presenceOpen]);
 

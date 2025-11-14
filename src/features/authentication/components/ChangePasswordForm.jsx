@@ -12,6 +12,7 @@ const ChangePasswordForm = () => {
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   if (!userData) {
     return <div className="text-center text-gray-600">No user context.</div>;
@@ -34,13 +35,12 @@ const ChangePasswordForm = () => {
       new_password: newPassword
     });
     if (result.success) {
-      // Security: force re-auth with new password before accessing survey or dashboard
-      logout();
-      navigate('/login', { state: { msg: 'Password updated. Please log in with your new password.' } });
+      setShowSuccessModal(true);
     }
   };
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-4">
       {(error || localError) && (
         <div className="bg-danger-light text-danger-dark p-3 rounded text-sm">
@@ -100,6 +100,23 @@ const ChangePasswordForm = () => {
         {isLoading ? 'Updating...' : 'Save New Password'}
       </button>
     </form>
+    {showSuccessModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
+          <h2 className="text-xl font-bold text-gray-800">Password updated</h2>
+          <p className="text-gray-700">Please log in again with your new password to continue.</p>
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => { setShowSuccessModal(false); logout(); navigate('/login', { state: { msg: 'Password updated. Please log in with your new password.' } }); }}
+              className="px-4 py-2 rounded bg-primary text-white hover:bg-primary-dark"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

@@ -100,7 +100,7 @@ const PostTestPage = () => {
     const iv = setInterval(() => {
       pauseStartRef.current = Date.now();
       setPresenceOpen(true);
-    }, 10000); // TEMP 10s interval for testing
+    }, 600000); // 10 minutes
     return () => clearInterval(iv);
   }, [presenceOpen]);
 

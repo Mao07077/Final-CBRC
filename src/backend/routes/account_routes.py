@@ -23,15 +23,18 @@ def create_account(payload: dict = Body(...)):
         if existing:
             raise HTTPException(status_code=409, detail="Email or ID number already exists")
 
+        role = payload.get("role", "student")
         doc = {
             "firstname": payload.get("firstname", ""),
             "lastname": payload.get("lastname", ""),
             "program": payload.get("program", ""),
             "email": email,
-            "role": payload.get("role", "student"),
+            "role": role,
             "id_number": id_number,
             # Default verification: admins/instructors verified, students false unless provided
             "is_verified": bool(payload.get("is_verified", payload.get("role") in {"admin", "instructor"})),
+            # Require initial password change for non-admin accounts by default
+            "mustChangePassword": bool(payload.get("mustChangePassword", role in {"student", "instructor"})),
         }
 
         password = payload.get("password")
@@ -51,7 +54,8 @@ def create_account(payload: dict = Body(...)):
                 "lastname": created.get("lastname"),
                 "program": created.get("program"),
                 "email": created.get("email"),
-                "is_verified": created.get("is_verified", False)
+                "is_verified": created.get("is_verified", False),
+                "mustChangePassword": created.get("mustChangePassword", False),
             }
         }
     except HTTPException:
@@ -81,7 +85,7 @@ def get_all_accounts():
 def update_account(account_id: str, payload: dict = Body(...)):
     try:
         # Accept partial updates; restrict editable fields
-        editable = {k: v for k, v in payload.items() if k in {"firstname", "lastname", "program", "email", "role", "id_number", "is_verified"}}
+        editable = {k: v for k, v in payload.items() if k in {"firstname", "lastname", "program", "email", "role", "id_number", "is_verified", "mustChangePassword"}}
         if not editable:
             raise HTTPException(status_code=400, detail="No editable fields provided")
         res = users_collection.update_one({"_id": ObjectId(account_id)}, {"$set": editable})
@@ -96,7 +100,8 @@ def update_account(account_id: str, payload: dict = Body(...)):
             "lastname": updated.get("lastname"),
             "program": updated.get("program"),
             "email": updated.get("email"),
-            "is_verified": updated.get("is_verified", False)
+            "is_verified": updated.get("is_verified", False),
+            "mustChangePassword": updated.get("mustChangePassword", False)
         }}
     except HTTPException:
         raise

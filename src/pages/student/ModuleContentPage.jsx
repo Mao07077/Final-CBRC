@@ -34,7 +34,7 @@ const ModuleContentPage = () => {
     if (showFileModal && !presenceOpen) {
       presenceIntervalRef.current = setInterval(() => {
         setPresenceOpen(true);
-      }, 10000); // TEMP 10s for testing instead of 10 min
+      }, 600000); // 10 minutes
     }
     return () => {
       if (presenceIntervalRef.current) {
