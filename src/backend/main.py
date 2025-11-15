@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from apscheduler.schedulers.background import BackgroundScheduler
 from config import logger
 from database import users_collection, schedule_collection
+from database import modules_collection
 from utils import check_schedule_and_notify
 import os
 import datetime as dt
@@ -218,8 +219,13 @@ async def scheduler_run_now(token: str = None):
         expected = os.getenv("SCHEDULER_TOKEN")
         if expected and token != expected:
             raise HTTPException(status_code=403, detail="Forbidden")
-        # Run once synchronously
+        # Run once synchronously: reminders + auto-publish
         check_schedule_and_notify(users_collection, schedule_collection)
+        try:
+            from utils import check_and_publish_modules
+            check_and_publish_modules(modules_collection)
+        except Exception as e:
+            logger.error(f"Error running auto-publish on run-now: {e}")
         return {"status": "ok"}
     except HTTPException:
         raise

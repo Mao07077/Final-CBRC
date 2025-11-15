@@ -325,17 +325,41 @@ def check_schedule_and_notify(users_collection, schedule_collection):
 def check_and_publish_modules(modules_collection):
     """
     Find modules with a publish_at datetime in the past (or now) and mark them as published.
-    This enables automatic posting of scheduled modules.
+    This function iterates candidate modules and handles timezone-aware datetimes safely.
     """
     try:
-        from datetime import datetime
-        # Use UTC now; Mongo stores datetimes as UTC
-        now = datetime.utcnow()
-        # Find modules that are not published and have publish_at <= now
-        query = {"is_published": {"$ne": True}, "publish_at": {"$lte": now}}
-        result = modules_collection.update_many(query, {"$set": {"is_published": True}})
-        if result.modified_count:
-            logger.info(f"[AutoPublish] Published {result.modified_count} modules scheduled before {now.isoformat()}")
+        from datetime import datetime, timezone
+        from bson.objectid import ObjectId
+        now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        # Find candidate modules that are not published and have a publish_at field
+        cursor = modules_collection.find({"is_published": {"$ne": True}, "publish_at": {"$exists": True}})
+        to_publish = []
+        for m in cursor:
+            try:
+                pa = m.get('publish_at')
+                if not pa:
+                    continue
+                # pa may be a datetime (aware or naive) or string
+                if isinstance(pa, str):
+                    # If string lacks timezone info, append Z to treat as UTC
+                    raw = pa
+                    if not (('Z' in raw) or ('+' in raw) or ('-' in raw[-6:])):
+                        raw = raw + 'Z'
+                    dt = datetime.fromisoformat(raw.replace('Z', '+00:00'))
+                else:
+                    dt = pa
+                # Normalize to aware UTC
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                else:
+                    dt = dt.astimezone(timezone.utc)
+                if dt <= now:
+                    to_publish.append(m.get('_id'))
+            except Exception as e:
+                logger.warning(f"[AutoPublish] Failed to parse publish_at for module {m.get('_id')}: {e}")
+        if to_publish:
+            res = modules_collection.update_many({"_id": {"$in": to_publish}}, {"$set": {"is_published": True}})
+            logger.info(f"[AutoPublish] Published {res.modified_count} modules scheduled before {now.isoformat()}")
         else:
             logger.debug("[AutoPublish] No modules to publish at this tick")
     except Exception as e:

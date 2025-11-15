@@ -191,7 +191,7 @@ const AdminModulesPage = () => {
                     <td>
                       {archived && <span className="px-2 py-1 text-xs rounded bg-gray-300 text-gray-800">Archived</span>}
                       {!archived && published && <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-700">Posted</span>}
-                      {!archived && scheduled && <div className="flex flex-col gap-1"><span className="px-2 py-1 text-xs rounded bg-amber-100 text-amber-700">Scheduled on</span><span className="text-[10px] text-gray-600">{(function(val){try{if(!val) return ''; if(typeof val==='string' && !/[Zz]|[+-]\d{2}:?\d{2}/.test(val)) return new Date(val+'Z').toLocaleString(); return new Date(val).toLocaleString();}catch(e){return new Date(val).toLocaleString();}})(m.publish_at)}</span></div>}
+                      {!archived && scheduled && <div className="flex flex-col gap-1"><span className="px-2 py-1 text-xs rounded bg-amber-100 text-amber-700">Scheduled on</span><span className="text-[10px] text-gray-600">{new Date(m.publish_at).toLocaleString()}</span></div>}
                       {!archived && !published && !scheduled && <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700">Draft</span>}
                     </td>
                     <td className="text-xs max-w-[160px]">

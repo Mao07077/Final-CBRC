@@ -54,8 +54,29 @@ const useModuleStore = create((set, get) => ({
   scheduleModule: async (moduleId, publishAtISO) => {
     set({ isLoading: true });
     try {
+      // Ensure we send a datetime string that includes the local timezone
+      // publishAtISO may be like '2025-11-15T11:15' or an ISO string.
+      // If it's a local `datetime-local` value (no timezone), attach the local offset
+      const makeIsoWithOffset = (input) => {
+        try {
+          // If input already contains a timezone or 'Z', return as-is
+          if (input.includes('Z') || /[+-]\d{2}:?\d{2}$/.test(input)) return input;
+          // Normalize to `YYYY-MM-DDTHH:MM` (may already be that)
+          const local = input.slice(0,16);
+          const dt = new Date(local);
+          const offsetMin = -dt.getTimezoneOffset(); // minutes ahead of UTC
+          const sign = offsetMin >= 0 ? '+' : '-';
+          const abs = Math.abs(offsetMin);
+          const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+          const mm = String(abs % 60).padStart(2, '0');
+          return `${local}:00${sign}${hh}:${mm}`;
+        } catch (e) {
+          return input;
+        }
+      };
+
       const fd = new FormData();
-      fd.append('publish_at', publishAtISO);
+      fd.append('publish_at', makeIsoWithOffset(publishAtISO));
       // Debug: log FormData entries to help diagnose 422 issues
       try {
         for (const pair of fd.entries()) {
@@ -64,21 +85,7 @@ const useModuleStore = create((set, get) => ({
       } catch (e) {
         console.log('Failed to log FormData entries', e);
       }
-      console.log('Scheduling module', moduleId, 'publish_at (ISO input):', publishAtISO);
-      const res = await apiClient.put(`/api/modules/${moduleId}/schedule`, fd);
-      console.log('Schedule response:', res.status, res.data);
-      // Show a success message with the server-returned publish_at converted to local time
-      try {
-        const serverPublish = res.data?.publish_at || res.data?.publishAt || res.data?.publish_at;
-        if (serverPublish) {
-          const local = new Date(serverPublish).toLocaleString();
-          set({ success: `Module scheduled for ${local}` });
-        } else {
-          set({ success: 'Module scheduled' });
-        }
-      } catch (e) {
-        set({ success: 'Module scheduled' });
-      }
+      await apiClient.put(`/api/modules/${moduleId}/schedule`, fd);
       // refresh assigned modules
       const id = useAuthStore.getState()?.userData?.id_number || null;
       const modulesResponse = await apiClient.get(`/api/instructor/assigned-modules?instructor_id=${encodeURIComponent(id)}`);

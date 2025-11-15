@@ -29,25 +29,10 @@ const ModuleForm = () => {
       // Pre-fill schedule value if module has publish_at
       if (editingModule.publish_at) {
         try {
-          // Parse server-returned publish_at robustly: if timezone is missing, assume UTC
-          const parseServerDate = (val) => {
-            if (!val) return null;
-            if (typeof val === 'string') {
-              if (!/[Zz]|[+-]\d{2}:?\d{2}/.test(val)) {
-                return new Date(val + 'Z');
-              }
-            }
-            return new Date(val);
-          };
-          const dt = parseServerDate(editingModule.publish_at);
-          const pad = (n) => String(n).padStart(2, '0');
-          const yyyy = dt.getFullYear();
-          const mm = pad(dt.getMonth() + 1);
-          const dd = pad(dt.getDate());
-          const hh = pad(dt.getHours());
-          const min = pad(dt.getMinutes());
-          // Build a local datetime-local string (YYYY-MM-DDTHH:MM)
-          setScheduleValue(`${yyyy}-${mm}-${dd}T${hh}:${min}`);
+          const dt = new Date(editingModule.publish_at);
+          // Local datetime-local input expects without timezone
+          const isoLocal = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+          setScheduleValue(isoLocal);
         } catch (e) {
           setScheduleValue('');
         }
@@ -77,16 +62,7 @@ const ModuleForm = () => {
     e.preventDefault();
     if (!editingModule) return;
     if (!scheduleValue) return;
-    // Parse the datetime-local value explicitly to avoid inconsistent Date parsing
-    const toISO = (local) => {
-      const [datePart, timePart] = (local || '').split('T');
-      if (!datePart || !timePart) return new Date(local).toISOString();
-      const [y, m, d] = datePart.split('-').map(Number);
-      const [hh, mm] = timePart.split(':').map(Number);
-      const dt = new Date(y, m - 1, d, hh || 0, mm || 0, 0);
-      return dt.toISOString();
-    };
-    const iso = toISO(scheduleValue);
+    const iso = new Date(scheduleValue).toISOString();
     await scheduleModule(editingModule._id, iso);
     closeModal();
   };
