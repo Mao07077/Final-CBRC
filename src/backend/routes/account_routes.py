@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query, Body
-from database import users_collection, scores_collection
+from database import users_collection, scores_collection, modules_collection, pre_test_collection, post_test_collection, archived_performance_collection
 from bson import ObjectId
 from config import logger
 import random
@@ -35,6 +35,7 @@ def create_account(payload: dict = Body(...)):
             "is_verified": bool(payload.get("is_verified", payload.get("role") in {"admin", "instructor"})),
             # Require initial password change for non-admin accounts by default
             "mustChangePassword": bool(payload.get("mustChangePassword", role in {"student", "instructor"})),
+            "archived": False,
         }
 
         password = payload.get("password")
@@ -108,17 +109,112 @@ def update_account(account_id: str, payload: dict = Body(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating account: {e}")
 
-@router.delete("/api/admin/accounts/{account_id}")
-async def delete_account(account_id: str):
+@router.put("/api/admin/accounts/{account_id}/archive")
+async def archive_account(account_id: str):
+    """Soft archive an account and snapshot its performance."""
     try:
-        result = users_collection.delete_one({"_id": ObjectId(account_id)})
-        if result.deleted_count == 0:
+        user = users_collection.find_one({"_id": ObjectId(account_id)})
+        if not user:
             raise HTTPException(status_code=404, detail="Account not found")
-        return {"success": True, "message": "Account deleted"}
+        if user.get("archived"):
+            return {"success": True, "message": "Already archived"}
+        # Snapshot performance (pre/post tests) similar to admin performance logic
+        id_number = user.get("id_number")
+        scores = list(scores_collection.find({"user_id": id_number}))
+        modules = list(modules_collection.find({}))
+        pre_tests_snap = []
+        post_tests_snap = []
+        for module in modules:
+            module_id = str(module.get("_id"))
+            title = module.get("title", "Module")
+            pre_score = next((sc for sc in scores if sc.get("module_id") == module_id and sc.get("test_type") == "pretest"), None)
+            post_score = next((sc for sc in scores if sc.get("module_id") == module_id and sc.get("test_type") == "posttest"), None)
+            if pre_score:
+                pre_doc = pre_test_collection.find_one({"module_id": module_id})
+                pre_tests_snap.append({
+                    "module_id": module_id,
+                    "title": pre_doc.get("title") if pre_doc else f"Pre-Test for {title}",
+                    "correct": pre_score.get("correct", 0),
+                    "incorrect": pre_score.get("incorrect", 0),
+                    "total_questions": pre_score.get("total_questions", 0),
+                    "score": (pre_score.get("correct",0) / max(pre_score.get("total_questions",1),1)) * 100
+                })
+            if post_score:
+                post_doc = post_test_collection.find_one({"module_id": module_id})
+                post_tests_snap.append({
+                    "module_id": module_id,
+                    "title": post_doc.get("title") if post_doc else f"Post-Test for {title}",
+                    "correct": post_score.get("correct", 0),
+                    "incorrect": post_score.get("incorrect", 0),
+                    "total_questions": post_score.get("total_questions", 0),
+                    "score": (post_score.get("correct",0) / max(post_score.get("total_questions",1),1)) * 100
+                })
+        from datetime import datetime
+        archived_performance_collection.insert_one({
+            "id_number": id_number,
+            "archived_at": datetime.utcnow(),
+            "performance": {"pre_tests": pre_tests_snap, "post_tests": post_tests_snap}
+        })
+        # Mark current scores as archived so they are excluded from active aggregates
+        try:
+            scores_collection.update_many({"user_id": id_number}, {"$set": {"archived": True}})
+        except Exception:
+            # Non-fatal; proceed even if scores update fails
+            pass
+        users_collection.update_one({"_id": ObjectId(account_id)}, {"$set": {"archived": True}})
+        return {"success": True, "message": "Account archived"}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting account: {e}")
+        raise HTTPException(status_code=500, detail=f"Error archiving account: {e}")
+
+@router.put("/api/admin/accounts/{account_id}/unarchive")
+async def unarchive_account(account_id: str):
+    try:
+        user = users_collection.find_one({"_id": ObjectId(account_id)})
+        if not user:
+            raise HTTPException(status_code=404, detail="Account not found")
+        users_collection.update_one({"_id": ObjectId(account_id)}, {"$set": {"archived": False}})
+        # Un-archive scores to include in active aggregates again
+        try:
+            scores_collection.update_many({"user_id": user.get("id_number")}, {"$set": {"archived": False}})
+        except Exception:
+            pass
+        return {"success": True, "message": "Account restored"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error unarchiving account: {e}")
+
+@router.get("/api/admin/accounts/archived")
+async def list_archived_accounts():
+    try:
+        archived = []
+        for doc in users_collection.find({"archived": True}):
+            archived.append({
+                "_id": str(doc.get("_id")),
+                "firstname": doc.get("firstname",""),
+                "lastname": doc.get("lastname",""),
+                "id_number": doc.get("id_number",""),
+                "role": doc.get("role",""),
+                "email": doc.get("email","")
+            })
+        return {"success": True, "accounts": archived}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing archived accounts: {e}")
+
+@router.get("/api/admin/archived/performance/{id_number}")
+async def get_archived_performance(id_number: str):
+    try:
+        snap = archived_performance_collection.find_one({"id_number": id_number})
+        if not snap:
+            raise HTTPException(status_code=404, detail="Archived performance not found")
+        snap["_id"] = str(snap.get("_id"))
+        return {"success": True, "snapshot": snap}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching archived performance: {e}")
 
 
 @router.get("/api/attendance")

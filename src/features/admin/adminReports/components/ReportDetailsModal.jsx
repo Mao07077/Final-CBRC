@@ -10,7 +10,8 @@ const DetailRow = ({ label, value }) => (
 );
 
 const ReportDetailsModal = () => {
-  const { selectedReport, closeModal, updateReportStatus } = useReportStore();
+  const { selectedReport, closeModal, updateReportStatus, setFeedback } = useReportStore();
+  const [feedbackText, setFeedbackText] = React.useState(selectedReport?.feedback || "");
 
   if (!selectedReport) {
     return null;
@@ -69,8 +70,25 @@ const ReportDetailsModal = () => {
                 >
                   <option>Pending</option>
                   <option>Resolved</option>
-                  <option>Archived</option>
                 </select>
+              </dd>
+            </div>
+            <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
+              <dt className="text-sm font-medium text-gray-500">Admin Feedback</dt>
+              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                <textarea
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  rows={4}
+                  className="w-full rounded border px-2 py-1"
+                  placeholder="Write feedback for the student..."
+                />
+                <div className="mt-2 flex justify-end">
+                  <button
+                    onClick={() => setFeedback(selectedReport._id, feedbackText)}
+                    className="px-3 py-1 bg-indigo-600 text-white rounded"
+                  >Save Feedback</button>
+                </div>
               </dd>
             </div>
           </dl>

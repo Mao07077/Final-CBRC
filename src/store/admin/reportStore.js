@@ -4,6 +4,7 @@ import axios from "../../api/axiosClient";
 const useReportStore = create((set, get) => ({
   reports: [],
   filteredReports: [],
+  archivedReports: [],
   isLoading: false,
   error: null,
   selectedReport: null,
@@ -34,6 +35,17 @@ const useReportStore = create((set, get) => ({
     }
   },
 
+  fetchArchivedReports: async () => {
+    try {
+      const response = await axios.get('/api/admin/reports/archived');
+      if (response.data.success) {
+        set({ archivedReports: response.data.reports || [] });
+      }
+    } catch (error) {
+      // ignore
+    }
+  },
+
   updateReportStatus: async (reportId, status) => {
     set({ isLoading: true, error: null });
     try {
@@ -61,27 +73,59 @@ const useReportStore = create((set, get) => ({
     }
   },
 
-  deleteReport: async (reportId) => {
-    if (!window.confirm("Are you sure you want to permanently delete this report?")) return;
-
+  archiveReport: async (reportId) => {
+    if (!window.confirm("Archive this report? You can restore it later.")) return;
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.delete(`/api/admin/reports/${reportId}`);
+      const response = await axios.put(`/api/admin/reports/${reportId}/archive`);
       if (response.data.success) {
         set((state) => {
           const updatedReports = state.reports.filter((r) => r._id !== reportId);
-          return {
-            reports: updatedReports,
-            filteredReports: updatedReports,
-            isLoading: false,
-          };
+          const updatedFilteredReports = state.filteredReports.filter((r) => r._id !== reportId);
+          return { reports: updatedReports, filteredReports: updatedFilteredReports, isLoading: false };
         });
       } else {
-        throw new Error('Failed to delete report');
+        throw new Error('Failed to archive report');
       }
     } catch (error) {
-      console.error('Error deleting report:', error);
-      set({ error: 'Failed to delete report', isLoading: false });
+      console.error('Error archiving report:', error);
+      set({ error: 'Failed to archive report', isLoading: false });
+    }
+  },
+
+  unarchiveReport: async (reportId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await axios.put(`/api/admin/reports/${reportId}/unarchive`);
+      if (response.data.success) {
+        // After restore, refetch to include in main list
+        await get().fetchReports();
+        set({ isLoading: false });
+      } else {
+        throw new Error('Failed to restore report');
+      }
+    } catch (error) {
+      console.error('Error restoring report:', error);
+      set({ error: 'Failed to restore report', isLoading: false });
+    }
+  },
+
+  setFeedback: async (reportId, feedback) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await axios.put(`/api/admin/reports/${reportId}/feedback`, { feedback });
+      if (response.data.success) {
+        set((state) => {
+          const updatedReports = state.reports.map(r => r._id === reportId ? { ...r, feedback } : r);
+          const updatedFiltered = state.filteredReports.map(r => r._id === reportId ? { ...r, feedback } : r);
+          return { reports: updatedReports, filteredReports: updatedFiltered, isLoading: false };
+        });
+      } else {
+        throw new Error('Failed to save feedback');
+      }
+    } catch (error) {
+      console.error('Error saving feedback:', error);
+      set({ error: 'Failed to save feedback', isLoading: false });
     }
   },
 

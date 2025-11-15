@@ -246,7 +246,8 @@ async def get_accounts():
     """Get all user accounts for admin"""
     try:
         user_collection = get_user_collection()
-        accounts = list(user_collection.find({}))
+        # Exclude archived accounts from main list; use /api/admin/accounts/archived for archived
+        accounts = list(user_collection.find({"archived": {"$ne": True}}))
         
         # Format account data
         formatted_accounts = []
@@ -272,7 +273,7 @@ async def get_reports():
     try:
         reports_collection = get_reports_collection()
         user_collection = get_user_collection()
-        reports = list(reports_collection.find({}))
+        reports = list(reports_collection.find({"archived": {"$ne": True}}))
         formatted_reports = []
         for report in reports:
             # Map MongoDB fields to frontend fields
@@ -281,10 +282,39 @@ async def get_reports():
                 "student": report.get("id_number", ""),
                 "studentId": report.get("id_number", ""),
                 "issue": report.get("title", ""),
-                "status": "Pending",  # Default, since not in DB
+                "status": report.get("status", "Pending"),
                 "createdAt": report.get("created_at", None),
                 "messages": [report.get("content", "")] if report.get("content") else [],
-                "screenshot": report.get("screenshot_url", None)
+                "screenshot": report.get("screenshot_url", None),
+                "feedback": report.get("feedback"),
+                "feedbackAt": report.get("feedback_at"),
+                "feedbackRead": report.get("feedback_read", False),
+            })
+        return {"success": True, "reports": formatted_reports}
+    except Exception as e:
+        return {"success": False, "error": str(e), "reports": []}
+
+@router.get("/api/admin/reports/archived")
+async def get_archived_reports():
+    """Get archived reports for admin"""
+    try:
+        reports_collection = get_reports_collection()
+        reports = list(reports_collection.find({"archived": True}))
+        formatted_reports = []
+        for report in reports:
+            formatted_reports.append({
+                "_id": str(report["_id"]),
+                "student": report.get("id_number", ""),
+                "studentId": report.get("id_number", ""),
+                "issue": report.get("title", ""),
+                "status": report.get("status", "Pending"),
+                "createdAt": report.get("created_at", None),
+                "messages": [report.get("content", "")] if report.get("content") else [],
+                "screenshot": report.get("screenshot_url", None),
+                "feedback": report.get("feedback"),
+                "feedbackAt": report.get("feedback_at"),
+                "feedbackRead": report.get("feedback_read", False),
+                "archived": True,
             })
         return {"success": True, "reports": formatted_reports}
     except Exception as e:
@@ -405,17 +435,39 @@ async def get_performance_summary():
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@router.delete("/api/admin/reports/{report_id}")
-async def delete_report(report_id: str):
-    """Delete a report"""
+@router.put("/api/admin/reports/{report_id}/archive")
+async def admin_archive_report(report_id: str):
     try:
         reports_collection = get_reports_collection()
-        result = reports_collection.delete_one({"_id": ObjectId(report_id)})
-        
-        if result.deleted_count > 0:
-            return {"success": True}
-        else:
-            return {"success": False, "error": "Report not found"}
+        res = reports_collection.update_one({"_id": ObjectId(report_id)}, {"$set": {"archived": True}})
+        return {"success": res.matched_count > 0}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.put("/api/admin/reports/{report_id}/unarchive")
+async def admin_unarchive_report(report_id: str):
+    try:
+        reports_collection = get_reports_collection()
+        res = reports_collection.update_one({"_id": ObjectId(report_id)}, {"$set": {"archived": False}})
+        return {"success": res.matched_count > 0}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.put("/api/admin/reports/{report_id}/feedback")
+async def admin_set_feedback(report_id: str, payload: Dict[str, Any] = Body(...)):
+    try:
+        feedback = payload.get("feedback")
+        if feedback is None:
+            raise HTTPException(status_code=400, detail="feedback is required")
+        from datetime import datetime
+        reports_collection = get_reports_collection()
+        res = reports_collection.update_one(
+            {"_id": ObjectId(report_id)},
+            {"$set": {"feedback": feedback, "feedback_at": datetime.utcnow(), "feedback_read": False}}
+        )
+        return {"success": res.matched_count > 0}
+    except HTTPException:
+        raise
     except Exception as e:
         return {"success": False, "error": str(e)}
 

@@ -27,6 +27,8 @@ def signup(data: SignupData):
 @router.post("/api/login")
 def login(data: LoginRequest):
     user = users_collection.find_one({"id_number": data.idNumber})
+    if user and user.get("archived"):
+        raise HTTPException(status_code=403, detail="Your account is no longer accessible in this system.")
     if user and verify_password(data.password, user["password"]):
         return {
             "success": True,

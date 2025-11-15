@@ -1,8 +1,8 @@
-import { FiTrash2 } from "react-icons/fi";
+import { FiArchive } from "react-icons/fi";
 import useAccountStore from "../../../../store/admin/accountStore";
 
 const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
-  const { openModal, deleteAccount } = useAccountStore();
+  const { archiveAccount } = useAccountStore();
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -64,7 +64,11 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
                   </span>
                 </td>
                 <td className="px-6 py-4 flex items-center gap-2">
-                  <button onClick={() => deleteAccount(acc._id)} className="p-2 text-gray-500 hover:text-red-600"><FiTrash2 /></button>
+                  {!acc.archived && (
+                    <button onClick={() => archiveAccount(acc._id)} className="p-2 text-gray-500 hover:text-red-600" title="Archive">
+                      <FiArchive />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -97,7 +101,9 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
               </div>
               <p className="text-sm text-gray-600 mb-2">ID: {acc.id_number}</p>
               <div className="flex items-center gap-2">
-                <button onClick={() => deleteAccount(acc._id)} className="p-2 text-gray-500 hover:text-red-600"><FiTrash2 className="mr-1"/> Delete</button>
+                {!acc.archived && (
+                  <button onClick={() => archiveAccount(acc._id)} className="p-2 text-gray-500 hover:text-red-600"><FiArchive className="mr-1"/> Archive</button>
+                )}
               </div>
             </div>
           </div>

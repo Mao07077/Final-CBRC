@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import axios from "../../api/axiosClient";
 import adminService from "../../services/adminService";
 
 const useAccountStore = create((set, get) => ({
@@ -51,18 +50,34 @@ const useAccountStore = create((set, get) => ({
     }
   },
 
-  deleteAccount: async (accountId) => {
-    if (!window.confirm("Delete this account permanently?")) return;
+  archiveAccount: async (accountId) => {
+    if (!window.confirm("Archive this account? The user will lose access.")) return;
     try {
-      const response = await adminService.deleteAccount(accountId);
-      if (!response.success) throw new Error('Delete failed');
-      set(state => {
-        const updatedAccounts = state.accounts.filter(acc => acc._id !== accountId);
-        return { accounts: updatedAccounts, filteredAccounts: updatedAccounts };
-      });
+      const response = await adminService.archiveAccount(accountId);
+      if (!response.success) throw new Error('Archive failed');
+      // Refresh
+      await get().fetchAccounts();
     } catch (e) {
-      console.error('Delete account error', e);
-      set({ error: 'Failed to delete account' });
+      console.error('Archive account error', e);
+      set({ error: 'Failed to archive account' });
+    }
+  },
+  unarchiveAccount: async (accountId) => {
+    try {
+      const response = await adminService.unarchiveAccount(accountId);
+      if (!response.success) throw new Error('Unarchive failed');
+      await get().fetchAccounts();
+    } catch (e) {
+      console.error('Unarchive account error', e);
+      set({ error: 'Failed to unarchive account' });
+    }
+  },
+  fetchArchivedAccounts: async () => {
+    try {
+      const res = await adminService.getArchivedAccounts();
+      return res.accounts || [];
+    } catch (e) {
+      return [];
     }
   },
 

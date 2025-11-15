@@ -215,3 +215,6 @@ class ReportResponse(BaseModel):
     status: str
     content: Optional[str] = None
     screenshot: Optional[str] = None
+    feedback: Optional[str] = None
+    feedbackAt: Optional[datetime] = None
+    feedbackRead: Optional[bool] = None

@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { FaSignOutAlt } from 'react-icons/fa';
 import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import useAuthStore from '../../store/authStore';
 import { useChat } from '../../context/ChatProvider';
+import useReportStore from '../../store/student/reportStore';
 
 const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
   const navigate = useNavigate();
@@ -24,6 +25,20 @@ const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
     logout();
     navigate('/login', { replace: true });
   };
+
+  // Student reports unread feedback
+  const isStudentLayout = useMemo(() => navLinks?.some(l => (l.path || '').startsWith('/student')), [navLinks]);
+  const fetchMyReports = useReportStore((s) => s.fetchMyReports);
+  const reports = useReportStore((s) => s.reports);
+  const unreadFeedback = useMemo(() => {
+    if (!reports) return 0;
+    return reports.filter(r => r.feedback && !r.feedbackRead).length;
+  }, [reports]);
+  useEffect(() => {
+    let mounted = true;
+    if (isStudentLayout) fetchMyReports();
+    return () => { mounted = false; };
+  }, [isStudentLayout, fetchMyReports]);
 
   const toggleDropdown = (index) => {
     setOpenDropdowns((prev) => ({
@@ -117,6 +132,7 @@ const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
                 );
               }
               const isMessagesTop = link.path?.endsWith('/messages');
+              const isReports = link.path?.endsWith('/send-report') || link.path?.endsWith('/reports');
               return (
                 <li key={index} className="mb-1">
                   <NavLink
@@ -138,6 +154,11 @@ const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
                     {isMessagesTop && totalUnread > 0 && (
                       <span className="ml-2 inline-flex items-center justify-center text-white text-[10px] bg-red-600 rounded-full min-w-[16px] h-4 px-1">
                         {totalUnread}
+                      </span>
+                    )}
+                    {isReports && unreadFeedback > 0 && (
+                      <span className="ml-2 inline-flex items-center justify-center text-white text-[10px] bg-red-600 rounded-full min-w-[16px] h-4 px-1">
+                        {unreadFeedback}
                       </span>
                     )}
                   </NavLink>

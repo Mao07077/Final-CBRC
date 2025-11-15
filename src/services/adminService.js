@@ -16,7 +16,24 @@ const adminService = {
   },
 
   deleteAccount: async (accountId) => {
-    const response = await apiClient.delete(`/api/admin/accounts/${accountId}`);
+    // Deprecated hard delete; use archive instead
+    const response = await apiClient.put(`/api/admin/accounts/${accountId}/archive`);
+    return response.data;
+  },
+  archiveAccount: async (accountId) => {
+    const response = await apiClient.put(`/api/admin/accounts/${accountId}/archive`);
+    return response.data;
+  },
+  unarchiveAccount: async (accountId) => {
+    const response = await apiClient.put(`/api/admin/accounts/${accountId}/unarchive`);
+    return response.data;
+  },
+  getArchivedAccounts: async () => {
+    const response = await apiClient.get('/api/admin/accounts/archived');
+    return response.data;
+  },
+  getArchivedPerformance: async (idNumber) => {
+    const response = await apiClient.get(`/api/admin/archived/performance/${idNumber}`);
     return response.data;
   },
 

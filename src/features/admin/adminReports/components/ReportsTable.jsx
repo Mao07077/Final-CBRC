@@ -2,7 +2,7 @@ import React from "react";
 import useReportStore from "../../../../store/admin/reportStore";
 
 const ReportsTable = ({ reports }) => {
-  const { viewReport, deleteReport } = useReportStore();
+  const { viewReport, archiveReport } = useReportStore();
 
   const getStatusClass = (status) => {
     switch (status) {
@@ -48,8 +48,8 @@ const ReportsTable = ({ reports }) => {
                   <button onClick={() => viewReport(report)} className="font-medium text-indigo-600 hover:text-indigo-800">
                     View
                   </button>
-                  <button onClick={() => deleteReport(report._id)} className="font-medium text-red-600 hover:text-red-800">
-                    Delete
+                  <button onClick={() => archiveReport(report._id)} className="font-medium text-red-600 hover:text-red-800">
+                    Archive
                   </button>
                 </td>
               </tr>
@@ -80,8 +80,8 @@ const ReportsTable = ({ reports }) => {
                 <button onClick={() => viewReport(report)} className="font-medium text-indigo-600 hover:text-indigo-800">
                   View
                 </button>
-                <button onClick={() => deleteReport(report._id)} className="font-medium text-red-600 hover:text-red-800">
-                  Delete
+                <button onClick={() => archiveReport(report._id)} className="font-medium text-red-600 hover:text-red-800">
+                  Archive
                 </button>
               </div>
             </div>

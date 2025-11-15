@@ -47,6 +47,7 @@ import StudyMusicPlayerPage from "../../pages/student/StudyMusicPlayerPage";
 import StudentProfilePage from "../../pages/student/StudentProfilePage";
 import StudentDataPrintingPage from "../../pages/student/StudentDataPrintingPage";
 import SendReportPage from "../../pages/student/SendReportPage";
+import MyReportsPage from "../../pages/student/MyReportsPage";
 
 /* Instructor Routes */
 import InstructorDashboardPage from "../../pages/instructor/InstructorDashboardPage";
@@ -102,6 +103,11 @@ const studentNavLinks = [
     path: "/student/send-report",
     label: "Send Report",
     icon: <FiAlertTriangle />,
+  },
+  {
+    path: "/student/reports",
+    label: "My Reports",
+    icon: <FiFileText />,
   },
   {
     path: "/student/data-reports",
@@ -201,6 +207,7 @@ export const routesConfig = [
       { path: "messages", element: <StudentChatPage /> },
       { path: "music-player", element: <StudyMusicPlayerPage /> },
       { path: "send-report", element: <SendReportPage /> },
+      { path: "reports", element: <MyReportsPage /> },
       { path: "data-reports", element: <StudentDataPrintingPage /> },
       { path: "profile", element: <StudentProfilePage /> },
     ],

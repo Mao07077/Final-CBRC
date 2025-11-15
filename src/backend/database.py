@@ -32,6 +32,11 @@ reports_collection = db["reports"]
 study_groups_collection = db["study_groups"]
 session_logs_collection = db["session_logs"]
 study_sessions_collection = db["study_sessions"]  # For admin routes referencing study sessions
+archived_performance_collection = db["archived_performance"]
+
+# Convenience getter for archived performance
+def get_archived_performance_collection():
+    return archived_performance_collection
 
 # Getter functions for collections
 def get_user_collection():
