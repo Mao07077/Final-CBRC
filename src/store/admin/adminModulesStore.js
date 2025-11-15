@@ -100,18 +100,64 @@ const useAdminModulesStore = create((set, get) => ({
         fd.append('topics', r.topic || '');
         fd.append('descriptions', r.description || '');
         fd.append('programs', program || '');
+        // assigned per-row: send as comma-separated string (backend will split)
         fd.append('assigned_instructor_ids', r.assigned || '');
-        fd.append('is_published_list', '');
-        fd.append('publish_ats', '');
-        fd.append('documents', r.documentFile || '');
-        fd.append('pictures', r.pictureFile || '');
+        // Only append files when present
+        if (r.documentFile) fd.append('documents', r.documentFile);
+        if (r.pictureFile) fd.append('pictures', r.pictureFile);
       });
-      const res = await apiClient.post('/api/admin/modules/batch_create', fd, { headers: { 'Content-Type': 'multipart/form-data' }});
+      // Debug: log FormData keys and file names to help diagnose 422 issues
+      try {
+        for (const pair of fd.entries()) {
+          const [k, v] = pair;
+          if (v && v.name) {
+            console.debug('FormData:', k, v.name, v.size, v.type);
+          } else {
+            console.debug('FormData:', k, v);
+          }
+        }
+      } catch (err) {
+        console.debug('FormData logging error', err);
+      }
+      // Sanity-check: ensure number of documents/pictures matches number of rows before sending
+      try {
+        const docs = fd.getAll('documents');
+        const pics = fd.getAll('pictures');
+        if (docs.length !== rows.length || pics.length !== rows.length) {
+          const msg = `File count mismatch: rows=${rows.length}, documents=${docs.length}, pictures=${pics.length}`;
+          console.error('submitBatch preflight failed:', msg);
+          set({ error: msg, isLoading: false });
+          return;
+        }
+      } catch (err) {
+        // Some browsers may not support getAll on FormData in older envs; ignore and proceed
+        console.debug('FormData getAll check skipped', err);
+      }
+      // Let axios/browser set the Content-Type (including boundary)
+      // Use a per-request header override to allow the browser to set the multipart boundary.
+      const res = await apiClient.post('/api/admin/modules/batch_create', fd, { headers: { 'Content-Type': undefined } });
       if (res.status >= 400) throw new Error(res.data?.message || 'Batch creation failed');
       await get().fetchModules();
       set({ success: 'Batch modules created', isLoading: false });
     } catch (e) {
-      set({ error: e?.response?.data?.detail || e.message || 'Batch creation failed', isLoading: false });
+      // Normalize error detail to a string to avoid React render errors when it's an object
+      let detail = e?.response?.data?.detail || e?.response?.data || e.message || 'Batch creation failed';
+      if (typeof detail === 'object') {
+        try {
+          detail = JSON.stringify(detail);
+        } catch (err) {
+          detail = String(detail);
+        }
+      }
+      // Keep original error in console for debugging and show response body/status
+      try {
+        console.error('submitBatch error:', e);
+        console.debug('submitBatch response status:', e?.response?.status, e?.response?.statusText);
+        console.debug('submitBatch response data:', e?.response?.data);
+      } catch (logErr) {
+        console.error('submitBatch logging failed', logErr);
+      }
+      set({ error: detail, isLoading: false });
     }
   }
 }));

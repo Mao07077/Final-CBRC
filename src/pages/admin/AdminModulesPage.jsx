@@ -71,6 +71,8 @@ const AdminModulesPage = () => {
   const { modules, instructors, isLoading, error, success, fetchModules, fetchInstructors, archiveModule, unarchiveModule, openEdit, closeEdit, editingModule, updateModule, createModule } = useAdminModulesStore();
   const { userData } = useAuthStore();
   const [batchOpen, setBatchOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveQuery, setArchiveQuery] = useState('');
 
   useEffect(() => {
     fetchModules();
@@ -87,6 +89,10 @@ const AdminModulesPage = () => {
               onClick={() => setBatchOpen(true)}
               className="px-4 py-2 border border-indigo-600 text-indigo-600 rounded hover:bg-indigo-50"
             >Create Module</button>
+            <button
+              onClick={() => setArchiveOpen(true)}
+              className="px-4 py-2 border border-gray-600 text-gray-700 rounded hover:bg-gray-50"
+            >Archived Modules</button>
           </div>
         </div>
       </div>
@@ -101,6 +107,55 @@ const AdminModulesPage = () => {
             <div className="overflow-y-auto flex-1 mt-2">
               <div className="p-2 md:p-4">
                 <BatchCreateForm instructors={instructors} creatorId={userData?.id_number} onClose={() => setBatchOpen(false)} onSuccess={() => { fetchModules(); setBatchOpen(false); }} loading={isLoading} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {archiveOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl h-full max-h-[80vh] p-4 md:p-6 flex flex-col">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-xl font-semibold">Archived Modules</h2>
+              <div className="flex items-center gap-2">
+                <input value={archiveQuery} onChange={(e) => setArchiveQuery(e.target.value)} placeholder="Search archived modules..." className="px-3 py-2 border rounded" />
+                <button onClick={() => setArchiveOpen(false)} className="text-gray-500 hover:text-gray-700">×</button>
+              </div>
+            </div>
+            <div className="overflow-y-auto flex-1 mt-2">
+              <div className="p-2 md:p-4">
+                <table className="table w-full">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Program</th>
+                      <th>Instructors</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modules.filter(m => m.archived).filter(m => {
+                      if (!archiveQuery) return true;
+                      const q = archiveQuery.toLowerCase();
+                      return (m.title||'').toLowerCase().includes(q) || (m.topic||'').toLowerCase().includes(q) || ((m.assigned_instructor_ids||[]).join(', ')).toLowerCase().includes(q);
+                    }).map(m => (
+                      <tr key={m._id}>
+                        <td className="font-semibold">{m.title}</td>
+                        <td>{m.program}</td>
+                        <td className="text-xs">{(m.assigned_instructor_ids||[]).join(', ') || '—'}</td>
+                        <td>
+                          <button
+                            onClick={() => {
+                              const ok = window.confirm('Restore this module from archive?');
+                              if (ok) unarchiveModule(m._id);
+                            }}
+                            className="px-3 py-1 rounded bg-green-600 text-white"
+                          >Restore</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -121,7 +176,7 @@ const AdminModulesPage = () => {
               </tr>
             </thead>
             <tbody>
-              {modules.map(m => {
+              {modules.filter(m => !m.archived).map(m => {
                 const published = m.is_published;
                 const scheduled = m.publish_at && !m.is_published;
                 const archived = m.archived;
@@ -136,19 +191,15 @@ const AdminModulesPage = () => {
                     <td>
                       {archived && <span className="px-2 py-1 text-xs rounded bg-gray-300 text-gray-800">Archived</span>}
                       {!archived && published && <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-700">Posted</span>}
-                      {!archived && scheduled && <div className="flex flex-col gap-1"><span className="px-2 py-1 text-xs rounded bg-amber-100 text-amber-700">Scheduled on</span><span className="text-[10px] text-gray-600">{new Date(m.publish_at).toLocaleString()}</span></div>}
+                      {!archived && scheduled && <div className="flex flex-col gap-1"><span className="px-2 py-1 text-xs rounded bg-amber-100 text-amber-700">Scheduled on</span><span className="text-[10px] text-gray-600">{(function(val){try{if(!val) return ''; if(typeof val==='string' && !/[Zz]|[+-]\d{2}:?\d{2}/.test(val)) return new Date(val+'Z').toLocaleString(); return new Date(val).toLocaleString();}catch(e){return new Date(val).toLocaleString();}})(m.publish_at)}</span></div>}
                       {!archived && !published && !scheduled && <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700">Draft</span>}
                     </td>
                     <td className="text-xs max-w-[160px]">
                       {(m.assigned_instructor_ids || []).join(', ') || '—'}
                     </td>
-                    <td>
+                      <td>
                       <button onClick={() => openEdit(m)} className="btn-ghost text-indigo-600">Edit</button>
-                      {archived ? (
-                        <button onClick={() => unarchiveModule(m._id)} className="btn-ghost text-green-600 ml-2">Restore</button>
-                      ) : (
-                        <button onClick={() => archiveModule(m._id)} className="btn-ghost text-red-600 ml-2">Archive</button>
-                      )}
+                      <button onClick={() => archiveModule(m._id)} className="btn-ghost text-red-600 ml-2">Archive</button>
                     </td>
                   </tr>
                 );

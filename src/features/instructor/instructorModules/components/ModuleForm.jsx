@@ -3,8 +3,9 @@ import useModuleStore from "../../../../store/instructor/moduleStore";
 import useAuthStore from '../../../../store/authStore';
 
 const ModuleForm = () => {
-  const { saveModule, editingModule, closeModal, isLoading } = useModuleStore();
+  const { saveModule, editingModule, closeModal, isLoading, scheduleModule, publishNow } = useModuleStore();
   const { userData } = useAuthStore();
+  const userRole = useAuthStore.getState()?.userRole || userData?.role || null;
   const [formData, setFormData] = useState({
     title: "",
     topic: "",
@@ -14,6 +15,7 @@ const ModuleForm = () => {
   });
   const [file, setFile] = useState(null);
   const [picture, setPicture] = useState(null);
+  const [scheduleValue, setScheduleValue] = useState('');
 
   useEffect(() => {
     if (editingModule) {
@@ -24,6 +26,24 @@ const ModuleForm = () => {
         program: editingModule.program,
         id_number: userData?.id_number || ""
       });
+      // Pre-fill schedule value if module has publish_at
+      if (editingModule.publish_at) {
+        try {
+          const dt = new Date(editingModule.publish_at);
+          const pad = (n) => String(n).padStart(2, '0');
+          const yyyy = dt.getFullYear();
+          const mm = pad(dt.getMonth() + 1);
+          const dd = pad(dt.getDate());
+          const hh = pad(dt.getHours());
+          const min = pad(dt.getMinutes());
+          // Build a local datetime-local string (YYYY-MM-DDTHH:MM)
+          setScheduleValue(`${yyyy}-${mm}-${dd}T${hh}:${min}`);
+        } catch (e) {
+          setScheduleValue('');
+        }
+      } else {
+        setScheduleValue('');
+      }
     } else {
       setFormData({ title: "", topic: "", description: "", program: "", id_number: userData?.id_number || "" });
     }
@@ -42,6 +62,65 @@ const ModuleForm = () => {
     if (picture) submissionData.append("picture", picture);
     saveModule(submissionData);
   };
+
+  const handleSchedule = async (e) => {
+    e.preventDefault();
+    if (!editingModule) return;
+    if (!scheduleValue) return;
+    // Parse the datetime-local value explicitly to avoid inconsistent Date parsing
+    const toISO = (local) => {
+      const [datePart, timePart] = (local || '').split('T');
+      if (!datePart || !timePart) return new Date(local).toISOString();
+      const [y, m, d] = datePart.split('-').map(Number);
+      const [hh, mm] = timePart.split(':').map(Number);
+      const dt = new Date(y, m - 1, d, hh || 0, mm || 0, 0);
+      return dt.toISOString();
+    };
+    const iso = toISO(scheduleValue);
+    await scheduleModule(editingModule._id, iso);
+    closeModal();
+  };
+
+  const handlePublishNow = async (e) => {
+    e.preventDefault();
+    if (!editingModule) return;
+    await publishNow(editingModule._id);
+    closeModal();
+  };
+
+  // If the current user is an instructor editing an existing module,
+  // show scheduling-only controls instead of the full edit form.
+  if (userRole === 'instructor' && editingModule) {
+    return (
+      <div className="card max-w-md mx-auto p-6 sm:p-8">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Edit Schedule</h2>
+        <form onSubmit={handleSchedule} className="space-y-4">
+          <div>
+            <label htmlFor="schedule" className="block text-sm font-medium text-gray-700">Publish Date & Time</label>
+            <input
+              id="schedule"
+              type="datetime-local"
+              name="schedule"
+              value={scheduleValue}
+              onChange={(e) => setScheduleValue(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md" disabled={isLoading}>
+              {isLoading ? 'Scheduling...' : 'Schedule'}
+            </button>
+            <button type="button" onClick={handlePublishNow} className="px-4 py-2 bg-green-600 text-white rounded-md">
+              Post now
+            </button>
+            <button type="button" onClick={closeModal} className="px-4 py-2 border rounded-md">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="card max-w-2xl mx-auto p-6 sm:p-8">

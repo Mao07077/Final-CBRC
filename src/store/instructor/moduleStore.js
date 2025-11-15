@@ -56,7 +56,17 @@ const useModuleStore = create((set, get) => ({
     try {
       const fd = new FormData();
       fd.append('publish_at', publishAtISO);
-      await apiClient.put(`/api/modules/${moduleId}/schedule`, fd);
+      // Debug: log FormData entries to help diagnose 422 issues
+      try {
+        for (const pair of fd.entries()) {
+          console.log('scheduleModule FormData:', pair[0], pair[1]);
+        }
+      } catch (e) {
+        console.log('Failed to log FormData entries', e);
+      }
+      console.log('Scheduling module', moduleId, 'publish_at (ISO input):', publishAtISO);
+      const res = await apiClient.put(`/api/modules/${moduleId}/schedule`, fd);
+      console.log('Schedule response:', res.status, res.data);
       // refresh assigned modules
       const id = useAuthStore.getState()?.userData?.id_number || null;
       const modulesResponse = await apiClient.get(`/api/instructor/assigned-modules?instructor_id=${encodeURIComponent(id)}`);
