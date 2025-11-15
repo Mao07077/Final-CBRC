@@ -8,6 +8,7 @@ const usePostStore = create((set, get) => ({
   error: null,
   isModalOpen: false,
   editingPost: null,
+  archivedPosts: [],
 
   // --- Actions ---
   fetchPosts: async () => {
@@ -63,15 +64,40 @@ const usePostStore = create((set, get) => ({
     }
   },
 
-  deletePost: async (postId) => {
-    if (!window.confirm("Are you sure you want to delete this post?")) return;
+  fetchArchivedPosts: async () => {
     set({ isLoading: true, error: null });
     try {
-  await api.delete(`/admin/posts/${postId}`);
+      const res = await api.get("/admin/posts/archived");
+      if (res.data?.success) {
+        set({ archivedPosts: res.data.posts, isLoading: false });
+      } else {
+        set({ archivedPosts: [], isLoading: false, error: "Failed to fetch archived posts." });
+      }
+    } catch (err) {
+      set({ archivedPosts: [], isLoading: false, error: "Failed to fetch archived posts." });
+    }
+  },
+
+  archivePost: async (postId) => {
+    if (!window.confirm("Archive this post? You can restore it later.")) return;
+    set({ isLoading: true, error: null });
+    try {
+      await api.put(`/admin/posts/${postId}/archive`);
       await get().fetchPosts();
       set({ isLoading: false });
     } catch (err) {
-      set({ error: "Failed to delete post.", isLoading: false });
+      set({ error: "Failed to archive post.", isLoading: false });
+    }
+  },
+
+  unarchivePost: async (postId) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.put(`/admin/posts/${postId}/unarchive`);
+      await get().fetchArchivedPosts();
+      set({ isLoading: false });
+    } catch (err) {
+      set({ error: "Failed to restore post.", isLoading: false });
     }
   },
 

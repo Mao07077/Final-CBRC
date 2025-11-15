@@ -184,10 +184,10 @@ from database import get_user_collection, get_reports_collection, posts_collecti
 class StatusUpdate(BaseModel):
     status: str
 
-# Admin: Get all posts
+# Admin: Get all posts (exclude archived)
 @router.get("/api/admin/posts")
 async def get_admin_posts():
-    posts = list(posts_collection.find({}))
+    posts = list(posts_collection.find({"archived": {"$ne": True}}))
     for post in posts:
         post["_id"] = str(post["_id"])
     return posts
@@ -223,14 +223,34 @@ async def update_admin_post(post_id: str, title: str = Body(None), content: str 
     else:
         return {"success": False, "error": "Post not found"}
 
-# Admin: Delete a post
-@router.delete("/api/admin/posts/{post_id}")
-async def delete_admin_post(post_id: str):
-    result = posts_collection.delete_one({"_id": ObjectId(post_id)})
-    if result.deleted_count > 0:
-        return {"success": True}
-    else:
-        return {"success": False, "error": "Post not found"}
+# Admin: Archive a post
+@router.put("/api/admin/posts/{post_id}/archive")
+async def archive_admin_post(post_id: str):
+    try:
+        res = posts_collection.update_one({"_id": ObjectId(post_id)}, {"$set": {"archived": True}})
+        return {"success": res.matched_count > 0}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+# Admin: Unarchive a post
+@router.put("/api/admin/posts/{post_id}/unarchive")
+async def unarchive_admin_post(post_id: str):
+    try:
+        res = posts_collection.update_one({"_id": ObjectId(post_id)}, {"$set": {"archived": False}})
+        return {"success": res.matched_count > 0}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+# Admin: List archived posts
+@router.get("/api/admin/posts/archived")
+async def get_archived_posts():
+    try:
+        posts = list(posts_collection.find({"archived": True}))
+        for post in posts:
+            post["_id"] = str(post["_id"])
+        return {"success": True, "posts": posts}
+    except Exception as e:
+        return {"success": False, "error": str(e), "posts": []}
 
 
 # (Removed duplicate router redefinition to ensure all routes are registered on a single router)
@@ -275,6 +295,14 @@ async def get_accounts():
         # Format account data
         formatted_accounts = []
         for account in accounts:
+            # Derive createdAt from explicit field or ObjectId timestamp
+            created_at = account.get("createdAt")
+            try:
+                if not created_at and account.get("_id"):
+                    created_at = account["_id"].generation_time
+            except Exception:
+                created_at = None
+            flow = account.get("examFlow", {})
             formatted_accounts.append({
                 "_id": str(account["_id"]),
                 "firstname": account.get("firstname", ""),
@@ -283,12 +311,77 @@ async def get_accounts():
                 "role": account.get("role", ""),
                 "email": account.get("email", ""),
                 "contact_number": account.get("contact_number", ""),
-                "is_verified": account.get("is_verified", False)
+                "is_verified": account.get("is_verified", False),
+                "createdAt": created_at,
+                "examFlow": {
+                    "status": flow.get("status"),
+                    "promptScheduleAt": flow.get("promptScheduleAt"),
+                    "examDate": flow.get("examDate"),
+                    "declineReason": flow.get("declineReason"),
+                    "feedback": flow.get("feedback"),
+                    "result": flow.get("result"),
+                    "resultAt": flow.get("resultAt"),
+                    "lastPromptAt": flow.get("lastPromptAt"),
+                }
             })
         
         return {"success": True, "accounts": formatted_accounts}
     except Exception as e:
         return {"success": False, "error": str(e), "accounts": []}
+
+@router.put("/api/admin/accounts/{id_number}/exam-prompt")
+async def set_exam_prompt_schedule(id_number: str, payload: Dict[str, Any] = Body(...)):
+    """Admin schedules the initial exam intent prompt for a student."""
+    try:
+        user_collection = get_user_collection()
+        # Accept either promptDate (YYYY-MM-DD) or promptScheduleAt (ISO datetime)
+        prompt_date = payload.get("promptDate")
+        when = payload.get("promptScheduleAt")
+        from datetime import datetime, timezone
+        when_dt = None
+        if prompt_date:
+            try:
+                # Parse date-only and set to start of day UTC
+                y, m, d = [int(x) for x in str(prompt_date).split("-")]
+                when_dt = datetime(y, m, d, 0, 0, 0, tzinfo=timezone.utc)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid promptDate format (expected YYYY-MM-DD)")
+        elif when:
+            # Accept both ISO string and datetime
+            if isinstance(when, str):
+                try:
+                    # fromisoformat handles offsets; add Z handling
+                    when_dt = datetime.fromisoformat(when.replace("Z", "+00:00"))
+                    if when_dt.tzinfo is None:
+                        when_dt = when_dt.replace(tzinfo=timezone.utc)
+                except Exception:
+                    raise HTTPException(status_code=400, detail="Invalid promptScheduleAt format")
+            elif isinstance(when, datetime):
+                when_dt = when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+        if when_dt is None:
+            raise HTTPException(status_code=400, detail="promptDate (YYYY-MM-DD) or promptScheduleAt is required")
+
+        update = {
+            "$set": {
+                "examFlow.promptScheduleAt": when_dt,
+                "examFlow.status": "scheduled",
+            },
+            "$unset": {
+                "examFlow.declineReason": "",
+                "examFlow.examDate": "",
+                "examFlow.feedback": "",
+                "examFlow.result": "",
+                "examFlow.resultAt": "",
+            }
+        }
+        res = user_collection.update_one({"id_number": id_number}, update)
+        if res.matched_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 @router.get("/api/admin/reports")
 async def get_reports():

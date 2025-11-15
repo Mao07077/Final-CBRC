@@ -222,6 +222,7 @@ def get_profile(id_number: str):
         "profileImageUrl": user.get("profileImageUrl", ""),
         "accountUpdateStatus": user.get("accountUpdateStatus"),
         "accountUpdateUnread": user.get("accountUpdateUnread"),
+        "createdAt": user.get("createdAt") or (user.get("_id").generation_time if user.get("_id") else None),
         "dailyActivity": graph_data,
         "totalWeek": round(total_week, 2),
         "peakHour": peak_hour,
@@ -322,3 +323,140 @@ def decline_settings_request(request_id: str = Path(...)):
     if result.deleted_count == 1:
         return {"success": True, "message": "Request declined and removed."}
     raise HTTPException(status_code=404, detail="Request not found")
+
+# --- Student Exam Flow Endpoints ---
+@router.get("/api/student/exam-flow/{id_number}")
+def get_exam_flow(id_number: str):
+    user = users_collection.find_one({"id_number": id_number})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    flow = user.get("examFlow", {})
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    # Normalize datetimes to aware UTC
+    def aware(dt):
+        try:
+            if dt is None:
+                return None
+            if hasattr(dt, "tzinfo") and dt.tzinfo:
+                return dt
+            # treat naive as UTC
+            return dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            return None
+    status = flow.get("status")
+    prompt_at = aware(flow.get("promptScheduleAt"))
+    exam_date = aware(flow.get("examDate"))
+    last_prompt = aware(flow.get("lastPromptAt"))
+    def same_day(a, b):
+        try:
+            return a.date() == b.date()
+        except Exception:
+            return False
+    should_prompt = False
+    prompt_type = None
+    if status == "scheduled" and prompt_at and now >= prompt_at and not (last_prompt and same_day(last_prompt, now)):
+        should_prompt = True
+        prompt_type = "initial"
+    elif status in ("exam_scheduled", "awaiting_result"):
+        if (exam_date and now >= exam_date) and not (last_prompt and same_day(last_prompt, now)):
+            should_prompt = True
+            prompt_type = "result"
+    data = {
+        "status": status,
+        "promptScheduleAt": prompt_at,
+        "examDate": exam_date,
+        "result": flow.get("result"),
+        "feedback": flow.get("feedback"),
+        "declineReason": flow.get("declineReason"),
+        "lastPromptAt": last_prompt,
+        "shouldPrompt": should_prompt,
+        "promptType": prompt_type,
+    }
+    return {"success": True, "flow": data}
+
+@router.put("/api/student/exam-flow/{id_number}/decision")
+def submit_exam_decision(id_number: str, payload: dict = Body(...)):
+    user = users_collection.find_one({"id_number": id_number})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    will_take = payload.get("willTake")
+    if will_take is None:
+        raise HTTPException(status_code=400, detail="willTake is required")
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    update = {"examFlow.lastPromptAt": now}
+    if will_take is False:
+        reason = payload.get("reason", "")
+        update.update({
+            "examFlow.status": "declined",
+            "examFlow.declineReason": reason,
+        })
+    else:
+        exam_date = payload.get("examDate")
+        if not exam_date:
+            raise HTTPException(status_code=400, detail="examDate is required when willTake is true")
+        # Parse ISO date
+        try:
+            from datetime import datetime, timezone
+            if isinstance(exam_date, str):
+                # Accept date-only (YYYY-MM-DD) and ISO datetime
+                if len(exam_date) == 10:
+                    y, m, d = [int(x) for x in exam_date.split('-')]
+                    exam_dt = datetime(y, m, d, 0, 0, 0, tzinfo=timezone.utc)
+                else:
+                    exam_dt = datetime.fromisoformat(exam_date.replace("Z", "+00:00"))
+                    if exam_dt.tzinfo is None:
+                        exam_dt = exam_dt.replace(tzinfo=timezone.utc)
+            else:
+                exam_dt = exam_date if exam_date.tzinfo else exam_date.replace(tzinfo=timezone.utc)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid examDate format")
+        update.update({
+            "examFlow.status": "exam_scheduled",
+            "examFlow.examDate": exam_dt,
+        })
+    users_collection.update_one({"id_number": id_number}, {"$set": update})
+    return {"success": True}
+
+@router.put("/api/student/exam-flow/{id_number}/result")
+def submit_exam_result(id_number: str, payload: dict = Body(...)):
+    user = users_collection.find_one({"id_number": id_number})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    result = payload.get("result")  # 'pass' | 'fail' | 'no_result_yet'
+    feedback = payload.get("feedback", "")
+    if result not in ("pass", "fail", "no_result_yet"):
+        raise HTTPException(status_code=400, detail="Invalid result value")
+    # Require feedback when final result provided (pass/fail)
+    if result in ("pass", "fail") and (not isinstance(feedback, str) or not feedback.strip()):
+        raise HTTPException(status_code=400, detail="Feedback is required when result is pass or fail")
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    update = {
+        "examFlow.feedback": feedback,
+        "examFlow.lastPromptAt": now,
+    }
+    if result == "no_result_yet":
+        update.update({
+            "examFlow.status": "awaiting_result",
+            "examFlow.result": result,
+        })
+    else:
+        update.update({
+            "examFlow.status": "result_provided",
+            "examFlow.result": result,
+            "examFlow.resultAt": now,
+        })
+    users_collection.update_one({"id_number": id_number}, {"$set": update})
+    return {"success": True}
+
+@router.put("/api/student/exam-flow/{id_number}/read")
+def mark_exam_prompt_read(id_number: str):
+    user = users_collection.find_one({"id_number": id_number})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    users_collection.update_one({"id_number": id_number}, {"$set": {"examFlow.lastPromptAt": now}})
+    return {"success": True}

@@ -1,4 +1,4 @@
-import { FiEdit, FiTrash2, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiEdit, FiArchive, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import usePostStore from "../../../../store/admin/postStore";
 import { useState } from "react";
 
@@ -20,7 +20,7 @@ const ImageCarousel = ({ images = [] }) => {
 };
 
 const PostsTable = ({ posts }) => {
-  const { openModal, deletePost } = usePostStore();
+  const { openModal, archivePost } = usePostStore();
 
   return (
     <div>
@@ -51,7 +51,7 @@ const PostsTable = ({ posts }) => {
             </div>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => openModal(post)} className="p-2 bg-white rounded-full shadow text-indigo-600 mr-2"><FiEdit /></button>
-              <button onClick={() => deletePost(post._id)} className="p-2 bg-white rounded-full shadow text-red-600"><FiTrash2 /></button>
+              <button title="Archive" onClick={() => archivePost(post._id)} className="p-2 bg-white rounded-full shadow text-orange-600"><FiArchive /></button>
             </div>
           </div>
         ))}

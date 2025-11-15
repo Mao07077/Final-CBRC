@@ -1,9 +1,10 @@
-import { useEffect } from "react";
-import { FiPlus } from "react-icons/fi";
+import { useEffect, useState } from "react";
+import { FiPlus, FiArchive } from "react-icons/fi";
 import usePostStore from "../../store/admin/postStore";
 import PostsTable from "../../features/admin/adminPosts/components/PostsTable";
 import PostForm from "../../features/admin/adminPosts/components/PostForm";
 import Modal from "../../components/common/Modal";
+import ArchivedPostsModal from "../../features/admin/adminPosts/components/ArchivedPostsModal";
 
 const PostManagementPage = () => {
   const {
@@ -16,6 +17,7 @@ const PostManagementPage = () => {
     closeModal,
     editingPost,
   } = usePostStore();
+  const [archivedOpen, setArchivedOpen] = useState(false);
 
   useEffect(() => {
     fetchPosts();
@@ -27,12 +29,20 @@ const PostManagementPage = () => {
         <h1 className="text-2xl md:text-3xl font-bold text-primary-dark">
           Post Management
         </h1>
-        <button
-          onClick={() => openModal(null)}
-          className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors duration-300"
-        >
-          <FiPlus className="mr-2" /> Create Post
-        </button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => setArchivedOpen(true)}
+            className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 bg-amber-600 text-white font-semibold rounded-lg shadow-md hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-opacity-75 transition-colors duration-300"
+          >
+            <FiArchive className="mr-2" /> Archived Posts
+          </button>
+          <button
+            onClick={() => openModal(null)}
+            className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors duration-300"
+          >
+            <FiPlus className="mr-2" /> Create Post
+          </button>
+        </div>
       </div>
 
       {error && <p className="text-red-500 bg-red-100 p-3 rounded-lg my-4">{error}</p>}
@@ -50,6 +60,8 @@ const PostManagementPage = () => {
       >
         <PostForm />
       </Modal>
+
+      <ArchivedPostsModal isOpen={archivedOpen} onClose={() => setArchivedOpen(false)} />
     </div>
   );
 };

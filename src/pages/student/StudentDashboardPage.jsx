@@ -6,6 +6,9 @@ import RecommendedPages from "../../features/student/dashboard/components/Recomm
 import ModuleList from "../../features/student/dashboard/components/ModuleList";
 import ScoreOverview from "../../features/student/dashboard/components/ScoreOverview";
 import StatisticsOverview from "../../features/student/dashboard/components/StatisticsOverview";
+import Modal from "../../components/common/Modal";
+import useAuthStore from "../../store/authStore";
+import examFlowService from "../../services/examFlowService";
 
 const DashboardPage = () => {
   const { fetchDashboardData, isLoading, error } = useDashboardStore();
@@ -17,11 +20,18 @@ const DashboardPage = () => {
   const [loadingAttempts, setLoadingAttempts] = useState(false);
   const [attemptsError, setAttemptsError] = useState(null);
   const [historyModal, setHistoryModal] = useState({ open: false, moduleId: null, title: '', items: [] });
+  const { userData } = useAuthStore();
+  const [examModal, setExamModal] = useState({ open: false, type: null });
+  const [decision, setDecision] = useState({ willTake: null, reason: "", examDate: "" });
+  const [result, setResult] = useState({ choice: "no_result_yet", feedback: "" });
+  const [decisionError, setDecisionError] = useState("");
+  const [resultError, setResultError] = useState("");
 
   useEffect(() => {
     fetchDashboardData(mode);
     fetchAttempts();
     fetchTrend();
+    checkExamFlow();
   }, [fetchDashboardData, mode]);
 
   const fetchAttempts = async () => {
@@ -100,6 +110,17 @@ const DashboardPage = () => {
     } finally {
       setLoadingTrend(false);
     }
+  };
+
+  const checkExamFlow = async () => {
+    try {
+      const idNumber = userData?.id_number;
+      if (!idNumber) return;
+      const res = await examFlowService.getFlow(idNumber);
+      if (res?.success && res?.flow?.shouldPrompt) {
+        setExamModal({ open: true, type: res.flow.promptType });
+      }
+    } catch {}
   };
 
   if (isLoading) {
@@ -310,6 +331,87 @@ const DashboardPage = () => {
         </div>
       </div>
     )}
+
+    {/* Exam Flow Modal */}
+    <Modal
+      isOpen={examModal.open}
+      onClose={() => {}}
+      title={examModal.type === 'initial' ? 'Licensure Exam Intent' : 'Licensure Exam Result'}
+      maxWidth="max-w-md"
+      closable={false}
+    >
+      {examModal.type === 'initial' ? (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">Are you planning to take the licensure exam?</p>
+          <div className="flex gap-2">
+            <button onClick={() => setDecision(d => ({ ...d, willTake: true }))} className={`px-3 py-2 rounded ${decision.willTake === true ? 'bg-emerald-600 text-white' : 'bg-gray-100'}`}>Yes</button>
+            <button onClick={() => setDecision(d => ({ ...d, willTake: false }))} className={`px-3 py-2 rounded ${decision.willTake === false ? 'bg-rose-600 text-white' : 'bg-gray-100'}`}>No</button>
+          </div>
+          {decision.willTake === false && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Please share your reason</label>
+              <textarea className="w-full border rounded px-3 py-2" rows={3} value={decision.reason} onChange={e => setDecision(d => ({ ...d, reason: e.target.value }))} />
+              {decisionError && <div className="text-xs text-rose-600 mt-1">{decisionError}</div>}
+            </div>
+          )}
+          {decision.willTake === true && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">When is your exam?</label>
+              <input type="date" className="w-full border rounded px-3 py-2" value={decision.examDate} onChange={e => setDecision(d => ({ ...d, examDate: e.target.value }))} />
+              {decisionError && <div className="text-xs text-rose-600 mt-1">{decisionError}</div>}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={async () => {
+                const id = userData?.id_number; if (!id) return;
+                if (decision.willTake === null) return;
+                setDecisionError("");
+                if (decision.willTake === false) {
+                  if (!decision.reason || !decision.reason.trim()) { setDecisionError('Reason is required'); return; }
+                  await examFlowService.submitDecision(id, { willTake: false, reason: decision.reason });
+                } else {
+                  if (!decision.examDate) { setDecisionError('Exam date is required'); return; }
+                  await examFlowService.submitDecision(id, { willTake: true, examDate: decision.examDate });
+                }
+                setExamModal({ open: false, type: null });
+              }}
+              className="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+            >
+              Submit
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">How was your exam result? Share a quick feedback and mark your result.</p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Feedback (optional)</label>
+            <textarea className="w-full border rounded px-3 py-2" rows={3} value={result.feedback} onChange={e => setResult(r => ({ ...r, feedback: e.target.value }))} />
+            {resultError && <div className="text-xs text-rose-600 mt-1">{resultError}</div>}
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setResult(r => ({ ...r, choice: 'pass' }))} className={`px-3 py-2 rounded ${result.choice === 'pass' ? 'bg-emerald-600 text-white' : 'bg-gray-100'}`}>Pass</button>
+            <button onClick={() => setResult(r => ({ ...r, choice: 'fail' }))} className={`px-3 py-2 rounded ${result.choice === 'fail' ? 'bg-rose-600 text-white' : 'bg-gray-100'}`}>Fail</button>
+            <button onClick={() => setResult(r => ({ ...r, choice: 'no_result_yet' }))} className={`px-3 py-2 rounded ${result.choice === 'no_result_yet' ? 'bg-amber-600 text-white' : 'bg-gray-100'}`}>No result yet</button>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={async () => {
+                const id = userData?.id_number; if (!id) return;
+                setResultError("");
+                if ((result.choice === 'pass' || result.choice === 'fail') && (!result.feedback || !result.feedback.trim())) { setResultError('Feedback is required for pass/fail'); return; }
+                await examFlowService.submitResult(id, { result: result.choice, feedback: result.feedback });
+                setExamModal({ open: false, type: null });
+              }}
+              className="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+            >
+              Submit
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   </div>
   );
 };

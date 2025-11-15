@@ -36,6 +36,10 @@ const adminService = {
     const response = await apiClient.get(`/api/admin/archived/performance/${idNumber}`);
     return response.data;
   },
+  setExamPromptSchedule: async (idNumber, promptDate) => {
+    const response = await apiClient.put(`/api/admin/accounts/${idNumber}/exam-prompt`, { promptDate });
+    return response.data;
+  },
 
   getAttendance: async () => {
     const response = await apiClient.get('/api/attendance');
