@@ -57,6 +57,21 @@ def dashboard(id_number: str, mode: Optional[str] = Query("current", description
     query = {}
     if program and program != "All Programs":
         query["program"] = program
+    # Only include modules visible to students: published now or scheduled in the past
+    # Backward compatibility: treat modules without scheduling flags as published
+    import datetime as _dt_vis
+    now_utc = _dt_vis.datetime.utcnow()
+    visibility_filter = {
+        "$and": [
+            {"archived": {"$ne": True}},
+            {"$or": [
+                {"is_published": True},
+                {"publish_at": {"$lte": now_utc}},
+                {"is_published": {"$exists": False}, "publish_at": {"$exists": False}},
+            ]}
+        ]
+    }
+    query.update(visibility_filter)
     modules_in_program = list(modules_collection.find(query))
     # Collect ALL scores (for all-time average that never resets)
     all_scores = list(scores_collection.find({"user_id": id_number}))

@@ -64,6 +64,7 @@ import PostFrom from "../../features/admin/adminPosts/components/PostForm";
 import ReportsPage from "../../pages/admin/ReportsPage";
 import AccountsUpdateRequestsPage from "../../pages/admin/AccountUpdateRequestsPage";
 import StudentPerformancePage from "../../pages/admin/StudentPerformancePage";
+import AdminModulesPage from "../../pages/admin/AdminModulesPage";
 
 const studentNavLinks = [
   { path: "/student/dashboard", label: "Dashboard", icon: <FiHome /> },
@@ -145,6 +146,7 @@ const adminNavLinks = [
     label: "Performance",
     icon: <FiBarChart2 />,
   },
+  { path: "/admin/modules", label: "Modules", icon: <FiBook /> },
 ];
 
 export const routesConfig = [
@@ -232,6 +234,7 @@ export const routesConfig = [
       { path: "reports", element: <ReportsPage /> },
       { path: "update-requests", element: <AccountsUpdateRequestsPage /> },
       { path: "student-performance", element: <StudentPerformancePage /> },
+  { path: "modules", element: <AdminModulesPage /> },
     ],
   },
 ];

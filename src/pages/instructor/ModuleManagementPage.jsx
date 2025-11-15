@@ -3,7 +3,7 @@ import useModuleStore from "../../store/instructor/moduleStore";
 import ModuleTable from "../../features/instructor/instructorModules/components/ModuleTable";
 import ModuleForm from "../../features/instructor/instructorModules/components/ModuleForm";
 import Modal from "../../components/common/Modal";
-import { FiPlus } from "react-icons/fi";
+// Removed create button per updated role policy (admin only creates modules)
 
 const ModuleManagementPage = () => {
   const {
@@ -27,12 +27,7 @@ const ModuleManagementPage = () => {
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
           Module Management
         </h1>
-        <button
-          onClick={() => openModal(null)}
-          className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors"
-        >
-          <FiPlus className="mr-2" /> Create New Module
-        </button>
+        {/* Creation button removed; instructors cannot create new modules */}
       </div>
 
       {error && (
@@ -47,13 +42,16 @@ const ModuleManagementPage = () => {
         !error && <ModuleTable modules={modules} />
       )}
 
-      <Modal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingModule ? "Edit Module" : "Create New Module"}
-      >
-        <ModuleForm />
-      </Modal>
+      {/* Modal still available only for editing existing modules; prevent opening with null */}
+      {editingModule && (
+        <Modal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          title={"Edit Module"}
+        >
+          <ModuleForm />
+        </Modal>
+      )}
     </div>
   );
 };

@@ -1,14 +1,24 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { FaSignOutAlt } from 'react-icons/fa';
 import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import useAuthStore from '../../store/authStore';
+import { useChat } from '../../context/ChatProvider';
 
 const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const logout = useAuthStore((state) => state.logout);
   const [openDropdowns, setOpenDropdowns] = useState({});
+  const { unread } = useChat() || { unread: {} };
+  const totalUnread = useMemo(() => {
+    if (!unread) return 0;
+    try {
+      return Object.values(unread).reduce((acc, v) => acc + (v ? 1 : 0), 0);
+    } catch {
+      return 0;
+    }
+  }, [unread]);
 
   const handleLogout = () => {
     logout();
@@ -57,43 +67,63 @@ const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
                     >
                       <div className="flex items-center gap-3">
                         {link.icon && React.cloneElement(link.icon, { color: 'black' })}
-                        <span>{link.label}</span>
+                        <span className="relative inline-flex items-center">
+                          {link.label}
+                          {/* Show badge on parent when dropdown is closed */}
+                          {!isOpen && totalUnread > 0 && (
+                            <span className="ml-2 inline-flex items-center justify-center text-white text-[10px] bg-red-600 rounded-full min-w-[16px] h-4 px-1">
+                              {totalUnread}
+                            </span>
+                          )}
+                        </span>
                       </div>
                       {isOpen ? <FiChevronDown size={16} color="black" /> : <FiChevronRight size={16} color="black" />}
                     </button>
                     {isOpen && (
                       <ul className="ml-4 mt-1 space-y-1">
-                        {link.children.map((child, childIndex) => (
-                          <li key={childIndex}>
-                            <NavLink
-                              to={child.path}
-                              end
-                              className={({ isActive }) =>
-                                `flex items-center gap-3 rounded-md p-2 text-sm font-medium transition-colors ${
-                                  isActive
-                                    ? 'bg-gray-400 text-black'
-                                    : 'text-black hover:bg-gray-200 hover:text-black'
-                                }`
-                              }
-                              onClick={toggleSidebar}
-                            >
-                              {child.icon && React.cloneElement(child.icon, { color: 'black' })}
-                              <span>{child.label}</span>
-                            </NavLink>
-                          </li>
-                        ))}
+                        {link.children.map((child, childIndex) => {
+                          const isMessages = child.path.endsWith('/messages');
+                          return (
+                            <li key={childIndex}>
+                              <NavLink
+                                to={child.path}
+                                end
+                                className={({ isActive }) =>
+                                  `flex items-center justify-between rounded-md p-2 text-sm font-medium transition-colors ${
+                                    isActive
+                                      ? 'bg-gray-400 text-black'
+                                      : 'text-black hover:bg-gray-200 hover:text-black'
+                                  }`
+                                }
+                                onClick={toggleSidebar}
+                              >
+                                <span className="flex items-center gap-3">
+                                  {child.icon && React.cloneElement(child.icon, { color: 'black' })}
+                                  <span>{child.label}</span>
+                                </span>
+                                {/* When dropdown is open, move badge to Messages item */}
+                                {isMessages && totalUnread > 0 && (
+                                  <span className="ml-2 inline-flex items-center justify-center text-white text-[10px] bg-red-600 rounded-full min-w-[16px] h-4 px-1">
+                                    {totalUnread}
+                                  </span>
+                                )}
+                              </NavLink>
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </li>
                 );
               }
+              const isMessagesTop = link.path?.endsWith('/messages');
               return (
                 <li key={index} className="mb-1">
                   <NavLink
                     to={link.path}
                     end
                     className={({ isActive }) =>
-                      `flex items-center gap-3 rounded-md p-3 text-sm font-medium transition-colors ${
+                      `flex items-center justify-between rounded-md p-3 text-sm font-medium transition-colors ${
                         isActive
                           ? 'bg-gray-400 text-black'
                           : 'text-black hover:bg-gray-200 hover:text-black'
@@ -101,8 +131,15 @@ const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
                     }
                     onClick={toggleSidebar}
                   >
-                    {link.icon && React.cloneElement(link.icon, { color: 'black' })}
-                    <span>{link.label}</span>
+                    <span className="flex items-center gap-3">
+                      {link.icon && React.cloneElement(link.icon, { color: 'black' })}
+                      <span>{link.label}</span>
+                    </span>
+                    {isMessagesTop && totalUnread > 0 && (
+                      <span className="ml-2 inline-flex items-center justify-center text-white text-[10px] bg-red-600 rounded-full min-w-[16px] h-4 px-1">
+                        {totalUnread}
+                      </span>
+                    )}
                   </NavLink>
                 </li>
               );

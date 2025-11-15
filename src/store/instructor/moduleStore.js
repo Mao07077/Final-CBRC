@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import apiClient from '../../api/axiosClient';
+import useAuthStore from '../authStore';
 
 const useModuleStore = create((set, get) => ({
   modules: [],
@@ -11,8 +12,11 @@ const useModuleStore = create((set, get) => ({
   // --- Actions ---
   fetchModules: (instructorId = null, program = null) => {
     set({ isLoading: true });
-    const params = instructorId ? `?instructor_id=${encodeURIComponent(instructorId)}` : "";
-    apiClient.get(`/api/instructor/modules${params}`)
+    // Default to current user's id_number if not explicitly provided
+    const id = instructorId || useAuthStore.getState()?.userData?.id_number || null;
+    const params = id ? `?instructor_id=${encodeURIComponent(id)}` : "";
+    const url = id ? `/api/instructor/assigned-modules${params}` : '/api/instructor/modules';
+    apiClient.get(url)
       .then(response => {
         let list = response.data || [];
         if (program && program !== "All Programs") {
@@ -44,17 +48,32 @@ const useModuleStore = create((set, get) => ({
     }
   },
 
-  deleteModule: async (moduleId) => {
-    if (!window.confirm("Are you sure you want to delete this module?")) return;
+  // deleteModule removed: instructors are not allowed to delete modules
+
+  // Schedule a module publish at a specific datetime (ISO string)
+  scheduleModule: async (moduleId, publishAtISO) => {
     set({ isLoading: true });
     try {
-      const response = await apiClient.delete(`/api/modules/${moduleId}`);
-      if (response.data && response.data.error) {
-        set({ error: response.data.error, isLoading: false });
-        return;
-      }
-      // Always fetch instructor modules after deletion
-      const modulesResponse = await apiClient.get('/api/instructor/modules');
+      const fd = new FormData();
+      fd.append('publish_at', publishAtISO);
+      await apiClient.put(`/api/modules/${moduleId}/schedule`, fd);
+      // refresh assigned modules
+      const id = useAuthStore.getState()?.userData?.id_number || null;
+      const modulesResponse = await apiClient.get(`/api/instructor/assigned-modules?instructor_id=${encodeURIComponent(id)}`);
+      set({ modules: modulesResponse.data, isLoading: false });
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
+    }
+  },
+
+  // Publish module immediately
+  publishNow: async (moduleId) => {
+    set({ isLoading: true });
+    try {
+      await apiClient.post(`/api/modules/${moduleId}/publish-now`);
+      // refresh assigned modules
+      const id = useAuthStore.getState()?.userData?.id_number || null;
+      const modulesResponse = await apiClient.get(`/api/instructor/assigned-modules?instructor_id=${encodeURIComponent(id)}`);
       set({ modules: modulesResponse.data, isLoading: false });
     } catch (error) {
       set({ error: error.message, isLoading: false });
@@ -62,8 +81,11 @@ const useModuleStore = create((set, get) => ({
   },
 
   // --- Modal Control ---
-  openModal: (module = null) =>
-    set({ isModalOpen: true, editingModule: module, error: null }),
+  openModal: (module) => {
+    // Guard against creation; only allow editing existing modules
+    if (!module) return; // ignore attempts to open with null
+    set({ isModalOpen: true, editingModule: module, error: null });
+  },
   closeModal: () => set({ isModalOpen: false, editingModule: null }),
 }));
 
