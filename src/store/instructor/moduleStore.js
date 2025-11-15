@@ -67,6 +67,18 @@ const useModuleStore = create((set, get) => ({
       console.log('Scheduling module', moduleId, 'publish_at (ISO input):', publishAtISO);
       const res = await apiClient.put(`/api/modules/${moduleId}/schedule`, fd);
       console.log('Schedule response:', res.status, res.data);
+      // Show a success message with the server-returned publish_at converted to local time
+      try {
+        const serverPublish = res.data?.publish_at || res.data?.publishAt || res.data?.publish_at;
+        if (serverPublish) {
+          const local = new Date(serverPublish).toLocaleString();
+          set({ success: `Module scheduled for ${local}` });
+        } else {
+          set({ success: 'Module scheduled' });
+        }
+      } catch (e) {
+        set({ success: 'Module scheduled' });
+      }
       // refresh assigned modules
       const id = useAuthStore.getState()?.userData?.id_number || null;
       const modulesResponse = await apiClient.get(`/api/instructor/assigned-modules?instructor_id=${encodeURIComponent(id)}`);

@@ -65,6 +65,10 @@ app.add_middleware(
 scheduler = BackgroundScheduler()
 scheduler.add_job(lambda: check_schedule_and_notify(users_collection, schedule_collection), 'interval', minutes=1)
 
+# Auto-publish scheduled modules every minute
+from utils import check_and_publish_modules
+scheduler.add_job(lambda: check_and_publish_modules(modules_collection), 'interval', minutes=1)
+
 # Add cleanup job for inactive study groups (runs every 5 minutes)
 def cleanup_inactive_study_groups():
     try:

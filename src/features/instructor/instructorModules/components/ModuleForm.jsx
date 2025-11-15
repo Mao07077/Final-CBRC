@@ -29,7 +29,17 @@ const ModuleForm = () => {
       // Pre-fill schedule value if module has publish_at
       if (editingModule.publish_at) {
         try {
-          const dt = new Date(editingModule.publish_at);
+          // Parse server-returned publish_at robustly: if timezone is missing, assume UTC
+          const parseServerDate = (val) => {
+            if (!val) return null;
+            if (typeof val === 'string') {
+              if (!/[Zz]|[+-]\d{2}:?\d{2}/.test(val)) {
+                return new Date(val + 'Z');
+              }
+            }
+            return new Date(val);
+          };
+          const dt = parseServerDate(editingModule.publish_at);
           const pad = (n) => String(n).padStart(2, '0');
           const yyyy = dt.getFullYear();
           const mm = pad(dt.getMonth() + 1);

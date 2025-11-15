@@ -321,6 +321,26 @@ def check_schedule_and_notify(users_collection, schedule_collection):
                 logger.info(f"[Scheduler] Sending reminder for user {user_id} task '{task}' at {current_time} {current_day}")
                 send_reminder_email(user_id, task, current_time, current_day, users_collection, schedule_collection)
 
+
+def check_and_publish_modules(modules_collection):
+    """
+    Find modules with a publish_at datetime in the past (or now) and mark them as published.
+    This enables automatic posting of scheduled modules.
+    """
+    try:
+        from datetime import datetime
+        # Use UTC now; Mongo stores datetimes as UTC
+        now = datetime.utcnow()
+        # Find modules that are not published and have publish_at <= now
+        query = {"is_published": {"$ne": True}, "publish_at": {"$lte": now}}
+        result = modules_collection.update_many(query, {"$set": {"is_published": True}})
+        if result.modified_count:
+            logger.info(f"[AutoPublish] Published {result.modified_count} modules scheduled before {now.isoformat()}")
+        else:
+            logger.debug("[AutoPublish] No modules to publish at this tick")
+    except Exception as e:
+        logger.error(f"[AutoPublish] Error while auto-publishing modules: {e}")
+
 async def paraphrase_question_with_ollama(original_question: str, correct_answer: str, wrong_answers: List[str]) -> Dict[str, Any]:
     """
     Paraphrase a pre-test question using Ollama to create a post-test question.
