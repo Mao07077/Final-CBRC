@@ -220,12 +220,22 @@ def get_profile(id_number: str):
         "program": user.get("program", ""),
         "hoursActivity": user.get("hoursActivity", 0),
         "profileImageUrl": user.get("profileImageUrl", ""),
+        "accountUpdateStatus": user.get("accountUpdateStatus"),
+        "accountUpdateUnread": user.get("accountUpdateUnread"),
         "dailyActivity": graph_data,
         "totalWeek": round(total_week, 2),
         "peakHour": peak_hour,
         "peakDay": peak_day,
         "activeDays": active_days
     }
+
+@router.put("/api/profile/{id_number}/account-update/read")
+def mark_account_update_read(id_number: str):
+    user = users_collection.find_one({"id_number": id_number})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    users_collection.update_one({"id_number": id_number}, {"$set": {"accountUpdateUnread": False}})
+    return {"success": True}
 
 @router.get("/students/{id_number}/recommended-pages", response_model=Dict[str, List[str]])
 def get_recommended_pages(id_number: str):

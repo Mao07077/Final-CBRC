@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import useReportStore from "../../store/student/reportStore";
+import Modal from "../../components/common/Modal";
 
 const FeedbackModal = ({ open, onClose, report, onMarkRead }) => {
   if (!open || !report) return null;
@@ -29,9 +30,23 @@ const FeedbackModal = ({ open, onClose, report, onMarkRead }) => {
 };
 
 const MyReportsPage = () => {
-  const { reports, loadingReports, error, fetchMyReports, markFeedbackRead } = useReportStore();
+  const {
+    reports,
+    loadingReports,
+    error,
+    fetchMyReports,
+    markFeedbackRead,
+    title,
+    setTitle,
+    content,
+    setContent,
+    setScreenshot,
+    submitReport,
+    isLoading,
+  } = useReportStore();
   const [selected, setSelected] = useState(null);
   const [open, setOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   useEffect(() => {
     fetchMyReports();
@@ -51,7 +66,10 @@ const MyReportsPage = () => {
     <div className="bg-white rounded-md shadow p-4">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold">My Reports</h1>
-        <button onClick={fetchMyReports} className="px-3 py-1.5 text-sm rounded border">Refresh</button>
+        <div className="flex gap-2">
+          <button onClick={fetchMyReports} className="px-3 py-1.5 text-sm rounded border">Refresh</button>
+          <button onClick={() => setFormOpen(true)} className="px-3 py-1.5 text-sm rounded bg-indigo-600 text-white">New Report</button>
+        </div>
       </div>
       {error && <div className="mb-3 text-sm text-red-600">{error}</div>}
       {loadingReports ? (
@@ -109,6 +127,65 @@ const MyReportsPage = () => {
       )}
 
       <FeedbackModal open={open} onClose={closeModal} report={selected} onMarkRead={markFeedbackRead} />
+
+      <Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title="Submit a Report">
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            await submitReport();
+            const state = useReportStore.getState();
+            if (!state.error) {
+              setFormOpen(false);
+              fetchMyReports();
+            }
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Issue Type</label>
+            <select
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              required
+            >
+              <option value="" disabled>Select an issue type</option>
+              <option value="Technical Issue">Technical Issue</option>
+              <option value="Content Error">Content Error</option>
+              <option value="Feedback">Feedback</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              id="content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              rows="5"
+              required
+              placeholder="Please describe the issue in detail."
+            />
+          </div>
+          <div>
+            <label htmlFor="screenshot" className="block text-sm font-medium text-gray-700 mb-1">Screenshot (Optional)</label>
+            <input
+              type="file"
+              id="screenshot"
+              onChange={(e) => setScreenshot(e.target.files?.[0] || null)}
+              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={() => setFormOpen(false)} className="px-3 py-1.5 text-sm rounded border">Cancel</button>
+            <button type="submit" disabled={isLoading} className="px-3 py-1.5 text-sm rounded bg-indigo-600 text-white disabled:opacity-50">
+              {isLoading ? "Submitting..." : "Submit"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

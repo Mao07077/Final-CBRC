@@ -66,9 +66,9 @@ def create_account(payload: dict = Body(...)):
 
 @router.get("/api/admin/accounts")
 def get_all_accounts():
-    # Return full account data including _id for admin editing
+    """Return only non-archived accounts for admin lists."""
     accounts = []
-    for doc in users_collection.find():
+    for doc in users_collection.find({"archived": {"$ne": True}}):
         acc = {
             "_id": str(doc.get("_id")),
             "role": doc.get("role"),

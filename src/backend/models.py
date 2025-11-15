@@ -40,6 +40,8 @@ class ProfileData(BaseModel):
     program: str
     hoursActivity: int = 0
     profileImageUrl: str = ""
+    accountUpdateStatus: Optional[str] = None
+    accountUpdateUnread: Optional[bool] = None
 
 class Question(BaseModel):
     question: str

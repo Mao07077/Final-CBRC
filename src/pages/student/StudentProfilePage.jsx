@@ -12,6 +12,7 @@ import {
 import useAuthStore from "../../store/authStore";
 import useDashboardStore from "../../store/student/dashboardStore";
 import profileService from "../../services/profileService";
+import Modal from "../../components/common/Modal";
 
 const StudentProfilePage = () => {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ const StudentProfilePage = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [notifyModal, setNotifyModal] = useState({ open: false, status: null, message: "" });
 
   const habitDescriptions = {
     "Study with Friends": "Collaborate and learn together with peers",
@@ -74,6 +76,23 @@ const StudentProfilePage = () => {
         setProfile(profileData);
         // Always set profileImage from backend
         setProfileImage(profileData.profileImageUrl || null);
+
+        // If admin responded to an update request, show styled modal and mark unread as read
+        if (profileData?.accountUpdateUnread && profileData?.accountUpdateStatus) {
+          const accepted = profileData.accountUpdateStatus === 'accepted';
+          const message = accepted
+            ? 'Congrats, your request is approved by admin'
+            : 'Your request was not accepted by admin';
+          setNotifyModal({ open: true, status: profileData.accountUpdateStatus, message });
+          try {
+            await profileService.markAccountUpdateRead(userData.id_number);
+            setProfile((prev) => (prev ? { ...prev, accountUpdateUnread: false } : prev));
+            // Notify other UI (e.g., Sidebar) to clear badge immediately
+            window.dispatchEvent(new CustomEvent('accountUpdateUnreadCleared'));
+          } catch (e) {
+            // ignore
+          }
+        }
 
         // Fetch dashboard data (recommended pages + metrics)
         await fetchDashboardData('current');
@@ -319,6 +338,34 @@ const StudentProfilePage = () => {
   </div>
   {/* Profile Update Request Modal */}
   <ProfileUpdateRequestModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+  {/* Admin Decision Notification Modal */}
+  <Modal
+    isOpen={notifyModal.open}
+    onClose={() => setNotifyModal({ open: false, status: null, message: "" })}
+    title={notifyModal.status === 'accepted' ? 'Profile Update Approved' : 'Profile Update Decision'}
+    maxWidth="max-w-md"
+  >
+    <div className="flex items-start gap-3">
+      <div className={`mt-1 h-8 w-8 flex items-center justify-center rounded-full ${notifyModal.status === 'accepted' ? 'bg-green-100' : 'bg-yellow-100'}`}>
+        {notifyModal.status === 'accepted' ? (
+          <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>
+        ) : (
+          <svg className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        )}
+      </div>
+      <div>
+        <p className="text-gray-800">{notifyModal.message}</p>
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={() => setNotifyModal({ open: false, status: null, message: "" })}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  </Modal>
     </div>
   );
 }

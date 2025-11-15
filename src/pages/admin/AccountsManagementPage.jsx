@@ -119,32 +119,10 @@ const AccountsManagementPage = () => {
                     <td>{acc.id_number}</td>
                     <td>{acc.role}</td>
                     <td>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={async () => { await useAccountStore.getState().unarchiveAccount(acc._id); const list = await useAccountStore.getState().fetchArchivedAccounts(); setArchivedAccounts(list); }}
-                          className="px-3 py-1 rounded bg-green-600 text-white"
-                        >Restore</button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const res = await (await import('../../services/adminService')).default.getArchivedPerformance(acc.id_number);
-                              const data = res.snapshot || res;
-                              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement('a');
-                              a.href = url;
-                              a.download = `archived_performance_${acc.id_number}.json`;
-                              document.body.appendChild(a);
-                              a.click();
-                              a.remove();
-                              URL.revokeObjectURL(url);
-                            } catch (e) {
-                              alert('Failed to download performance');
-                            }
-                          }}
-                          className="px-3 py-1 rounded border"
-                        >Download Performance</button>
-                      </div>
+                      <button
+                        onClick={async () => { await useAccountStore.getState().unarchiveAccount(acc._id); const list = await useAccountStore.getState().fetchArchivedAccounts(); setArchivedAccounts(list); }}
+                        className="px-3 py-1 rounded bg-green-600 text-white"
+                      >Restore</button>
                     </td>
                   </tr>
                 ))}

@@ -5,6 +5,7 @@ import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import useAuthStore from '../../store/authStore';
 import { useChat } from '../../context/ChatProvider';
 import useReportStore from '../../store/student/reportStore';
+import profileService from '../../services/profileService';
 
 const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
   const navigate = useNavigate();
@@ -30,6 +31,8 @@ const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
   const isStudentLayout = useMemo(() => navLinks?.some(l => (l.path || '').startsWith('/student')), [navLinks]);
   const fetchMyReports = useReportStore((s) => s.fetchMyReports);
   const reports = useReportStore((s) => s.reports);
+  const { userData } = useAuthStore();
+  const [accountUpdateUnread, setAccountUpdateUnread] = useState(false);
   const unreadFeedback = useMemo(() => {
     if (!reports) return 0;
     return reports.filter(r => r.feedback && !r.feedbackRead).length;
@@ -37,8 +40,19 @@ const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
   useEffect(() => {
     let mounted = true;
     if (isStudentLayout) fetchMyReports();
+    // Fetch profile minimal for account update unread badge
+    const loadProfile = async () => {
+      try {
+        if (!isStudentLayout || !userData?.id_number) return;
+        const prof = await profileService.getProfile(userData.id_number);
+        if (mounted) setAccountUpdateUnread(!!prof?.accountUpdateUnread);
+      } catch {}
+    };
+    loadProfile();
+    const handleCleared = () => setAccountUpdateUnread(false);
+    window.addEventListener('accountUpdateUnreadCleared', handleCleared);
     return () => { mounted = false; };
-  }, [isStudentLayout, fetchMyReports]);
+  }, [isStudentLayout, fetchMyReports, userData?.id_number]);
 
   const toggleDropdown = (index) => {
     setOpenDropdowns((prev) => ({
@@ -133,6 +147,7 @@ const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
               }
               const isMessagesTop = link.path?.endsWith('/messages');
               const isReports = link.path?.endsWith('/send-report') || link.path?.endsWith('/reports');
+              const isProfile = link.path?.endsWith('/profile');
               return (
                 <li key={index} className="mb-1">
                   <NavLink
@@ -159,6 +174,11 @@ const Sidebar = ({ navLinks = [], isSidebarOpen, toggleSidebar }) => {
                     {isReports && unreadFeedback > 0 && (
                       <span className="ml-2 inline-flex items-center justify-center text-white text-[10px] bg-red-600 rounded-full min-w-[16px] h-4 px-1">
                         {unreadFeedback}
+                      </span>
+                    )}
+                    {isProfile && accountUpdateUnread && (
+                      <span className="ml-2 inline-flex items-center justify-center text-white text-[10px] bg-red-600 rounded-full min-w-[16px] h-4 px-1">
+                        1
                       </span>
                     )}
                   </NavLink>

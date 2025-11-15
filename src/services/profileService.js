@@ -24,6 +24,11 @@ const profileService = {
   updateUserSettings: async (idNumber, settings) => {
     const response = await apiClient.put(`/user/settings/${idNumber}`, settings);
     return response.data;
+  },
+
+  markAccountUpdateRead: async (idNumber) => {
+    const response = await apiClient.put(`/api/profile/${idNumber}/account-update/read`);
+    return response.data;
   }
 };
 

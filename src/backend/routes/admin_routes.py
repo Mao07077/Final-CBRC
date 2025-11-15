@@ -114,6 +114,12 @@ async def accept_account_update_request(request_id: str):
 
     # Apply updates
     user_collection.update_one({"id_number": id_number}, {"$set": changes})
+    # Mark account update status for student notification
+    from datetime import datetime
+    user_collection.update_one(
+        {"id_number": id_number},
+        {"$set": {"accountUpdateStatus": "accepted", "accountUpdateAt": datetime.utcnow(), "accountUpdateUnread": True}}
+    )
 
     # Delete the processed request
     coll = account_update_requests_collection if source == "account_update_requests" else request_collection
@@ -130,27 +136,44 @@ async def accept_account_update_request(request_id: str):
 @router.post("/api/admin/account-requests/{request_id}/decline")
 async def decline_account_update_request(request_id: str):
     print(f"[DECLINE] Incoming request_id: {request_id}")
-    from database import account_update_requests_collection, request_collection
+    from database import account_update_requests_collection, request_collection, get_user_collection
 
-    def delete_from_collection(coll):
-        # Try ObjectId first
+    def find_doc(coll):
         if ObjectId.is_valid(request_id):
             obj_id = ObjectId(request_id)
-            result = coll.delete_one({"_id": obj_id})
-            if result.deleted_count:
-                return True
-        # Then string id
-        result = coll.delete_one({"_id": request_id})
-        return result.deleted_count > 0
+            doc = coll.find_one({"_id": obj_id})
+            if doc:
+                return doc, obj_id
+        doc = coll.find_one({"_id": request_id})
+        if doc:
+            return doc, request_id
+        return None, None
 
-    deleted = delete_from_collection(account_update_requests_collection)
-    source = "account_update_requests" if deleted else None
-    if not deleted:
-        deleted = delete_from_collection(request_collection)
-        source = "requests" if deleted else None
-
-    if not deleted:
+    # Fetch request before deletion to get id_number
+    doc, del_id = find_doc(account_update_requests_collection)
+    source = "account_update_requests"
+    if not doc:
+        doc, del_id = find_doc(request_collection)
+        source = "requests"
+    if not doc:
         raise HTTPException(status_code=404, detail="Request not found")
+
+    # Delete the request
+    coll = account_update_requests_collection if source == "account_update_requests" else request_collection
+    coll.delete_one({"_id": del_id})
+
+    # Flag user's account update status as declined
+    try:
+        id_number = doc.get("id_number")
+        if id_number:
+            user_collection = get_user_collection()
+            from datetime import datetime
+            user_collection.update_one(
+                {"id_number": id_number},
+                {"$set": {"accountUpdateStatus": "declined", "accountUpdateAt": datetime.utcnow(), "accountUpdateUnread": True}}
+            )
+    except Exception:
+        pass
     return {"success": True, "source": source}
 from fastapi import APIRouter, Body, HTTPException, Depends
 from pydantic import BaseModel
