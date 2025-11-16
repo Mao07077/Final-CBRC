@@ -8,6 +8,7 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
   const { archiveAccount } = useAccountStore();
   const [scheduleModal, setScheduleModal] = useState({ open: false, account: null, when: "" });
   const [examDetail, setExamDetail] = useState({ open: false, account: null });
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const openSchedule = (acc) => {
     setScheduleModal({ open: true, account: acc, when: "" });
   };
@@ -19,6 +20,20 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
       window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'success', message: 'Exam prompt scheduled.' } }));
     } catch (e) {
       window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'error', message: 'Failed to schedule.' } }));
+    }
+  };
+
+  const openExamDetail = async (acc) => {
+    try {
+      setLoadingDetail(true);
+      // Fetch latest accounts to avoid stale examFlow data
+      const res = await adminService.getAllAccounts();
+      const fresh = (res?.accounts || []).find(a => a.id_number === acc.id_number) || acc;
+      setExamDetail({ open: true, account: fresh });
+    } catch (e) {
+      setExamDetail({ open: true, account: acc });
+    } finally {
+      setLoadingDetail(false);
     }
   };
 
@@ -97,7 +112,7 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
                       <button onClick={() => openSchedule(acc)} className="p-2 text-gray-500 hover:text-amber-600" title="Schedule Exam Prompt">
                         <FiClock />
                       </button>
-                      <button onClick={() => setExamDetail({ open: true, account: acc })} className="px-2 py-1 text-xs border rounded">View</button>
+                      <button onClick={() => openExamDetail(acc)} className="px-2 py-1 text-xs border rounded">View Exam</button>
                     </>
                   )}
                 </td>
@@ -138,7 +153,7 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
                 {acc.role === 'student' && (
                   <>
                     <button onClick={() => openSchedule(acc)} className="p-2 text-gray-500 hover:text-amber-600"><FiClock className="mr-1"/> Exam Prompt</button>
-                    <button onClick={() => setExamDetail({ open: true, account: acc })} className="px-2 py-1 text-xs border rounded">View Exam</button>
+                    <button onClick={() => openExamDetail(acc)} className="px-2 py-1 text-xs border rounded">View Exam</button>
                   </>
                 )}
               </div>
@@ -161,6 +176,7 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
 
       {/* Exam details modal */}
       <Modal isOpen={examDetail.open} onClose={() => setExamDetail({ open: false, account: null })} title="Exam Responses" maxWidth="max-w-md">
+        {loadingDetail && <div className="text-sm text-gray-500 mb-2">Loading latest info...</div>}
         {examDetail.account ? (
           <div className="space-y-2 text-sm">
             <div><span className="font-semibold">Student:</span> {examDetail.account.firstname} {examDetail.account.lastname} ({examDetail.account.id_number})</div>

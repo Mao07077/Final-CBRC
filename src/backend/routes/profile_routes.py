@@ -359,7 +359,8 @@ def get_exam_flow(id_number: str):
         should_prompt = True
         prompt_type = "initial"
     elif status in ("exam_scheduled", "awaiting_result"):
-        if (exam_date and now >= exam_date) and not (last_prompt and same_day(last_prompt, now)):
+        # Prompt for result on the exam day and afterward, once per day
+        if (exam_date and (now.date() >= exam_date.date())) and not (last_prompt and same_day(last_prompt, now)):
             should_prompt = True
             prompt_type = "result"
     data = {
