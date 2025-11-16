@@ -386,12 +386,15 @@ def submit_exam_decision(id_number: str, payload: dict = Body(...)):
         raise HTTPException(status_code=400, detail="willTake is required")
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
-    update = {"examFlow.lastPromptAt": now}
+    update = {}
     if will_take is False:
         reason = payload.get("reason", "")
         update.update({
             "examFlow.status": "declined",
             "examFlow.declineReason": reason,
+            "examFlow.lastPromptAt": now,
+            "examFlow.decisionAt": now,
+            "examFlow.declinedAt": now,
         })
     else:
         exam_date = payload.get("examDate")
@@ -416,6 +419,8 @@ def submit_exam_decision(id_number: str, payload: dict = Body(...)):
         update.update({
             "examFlow.status": "exam_scheduled",
             "examFlow.examDate": exam_dt,
+            "examFlow.decisionAt": now,
+            "examFlow.examScheduledAt": now,
         })
     users_collection.update_one({"id_number": id_number}, {"$set": update})
     return {"success": True}

@@ -9,6 +9,10 @@ const adminService = {
     const response = await apiClient.get('/api/admin/accounts');
     return response.data;
   },
+  getAccountByIdNumber: async (idNumber) => {
+    const response = await apiClient.get(`/api/admin/accounts/${idNumber}`);
+    return response.data;
+  },
 
   updateAccount: async (accountId, accountData) => {
     const response = await apiClient.put(`/api/admin/accounts/${accountId}`, accountData);

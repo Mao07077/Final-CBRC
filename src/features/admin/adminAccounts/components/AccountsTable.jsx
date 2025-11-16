@@ -5,7 +5,7 @@ import Modal from "../../../../components/common/Modal";
 import adminService from "../../../../services/adminService";
 
 const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
-  const { archiveAccount } = useAccountStore();
+  const { archiveAccount, fetchAccounts } = useAccountStore();
   const [scheduleModal, setScheduleModal] = useState({ open: false, account: null, when: "" });
   const [examDetail, setExamDetail] = useState({ open: false, account: null });
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -16,6 +16,8 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
     if (!scheduleModal.account || !scheduleModal.when) return;
     try {
       await adminService.setExamPromptSchedule(scheduleModal.account.id_number, scheduleModal.when);
+      // Refresh accounts so admin immediately sees schedule in view modal
+      await fetchAccounts();
       setScheduleModal({ open: false, account: null, when: "" });
       window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'success', message: 'Exam prompt scheduled.' } }));
     } catch (e) {
@@ -24,12 +26,14 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
   };
 
   const openExamDetail = async (acc) => {
+    setLoadingDetail(true);
     try {
-      setLoadingDetail(true);
-      // Fetch latest accounts to avoid stale examFlow data
-      const res = await adminService.getAllAccounts();
-      const fresh = (res?.accounts || []).find(a => a.id_number === acc.id_number) || acc;
-      setExamDetail({ open: true, account: fresh });
+      const res = await adminService.getAccountByIdNumber(acc.id_number);
+      if (res?.success && res.account) {
+        setExamDetail({ open: true, account: res.account });
+      } else {
+        setExamDetail({ open: true, account: acc });
+      }
     } catch (e) {
       setExamDetail({ open: true, account: acc });
     } finally {
@@ -175,21 +179,33 @@ const AccountsTable = ({ accounts, selectedIds, onSelectionChange }) => {
       </Modal>
 
       {/* Exam details modal */}
-      <Modal isOpen={examDetail.open} onClose={() => setExamDetail({ open: false, account: null })} title="Exam Responses" maxWidth="max-w-md">
+      <Modal isOpen={examDetail.open} onClose={() => setExamDetail({ open: false, account: null })} title="Exam Details" maxWidth="max-w-md">
         {loadingDetail && <div className="text-sm text-gray-500 mb-2">Loading latest info...</div>}
         {examDetail.account ? (
           <div className="space-y-2 text-sm">
             <div><span className="font-semibold">Student:</span> {examDetail.account.firstname} {examDetail.account.lastname} ({examDetail.account.id_number})</div>
-            <div><span className="font-semibold">Status:</span> {examDetail.account.examFlow?.status || '—'}</div>
-            <div><span className="font-semibold">Prompt Date:</span> {examDetail.account.examFlow?.promptScheduleAt ? new Date(examDetail.account.examFlow.promptScheduleAt).toLocaleDateString() : '—'}</div>
-            <div><span className="font-semibold">Exam Date:</span> {examDetail.account.examFlow?.examDate ? new Date(examDetail.account.examFlow.examDate).toLocaleDateString() : '—'}</div>
+            <div><span className="font-semibold">Admin Prompt Date:</span> {examDetail.account.examFlow?.promptScheduleAt ? new Date(examDetail.account.examFlow.promptScheduleAt).toLocaleDateString() : '—'}</div>
+            <div><span className="font-semibold">Licensure Exam Date:</span> {examDetail.account.examFlow?.examDate ? new Date(examDetail.account.examFlow.examDate).toLocaleDateString() : '—'}</div>
             {examDetail.account.examFlow?.declineReason && (
               <div><span className="font-semibold">Reason (declined):</span> {examDetail.account.examFlow.declineReason}</div>
             )}
-            {examDetail.account.examFlow?.feedback && (
-              <div><span className="font-semibold">Feedback:</span> {examDetail.account.examFlow.feedback}</div>
-            )}
-            <div><span className="font-semibold">Result:</span> {examDetail.account.examFlow?.result || '—'}</div>
+            <div><span className="font-semibold">Exam Result:</span> {examDetail.account.examFlow?.result || '—'}</div>
+            <div><span className="font-semibold">Feedback:</span> {examDetail.account.examFlow?.feedback || '—'}</div>
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={async () => {
+                  setLoadingDetail(true);
+                  try {
+                    const res = await adminService.getAccountByIdNumber(examDetail.account.id_number);
+                    if (res?.success && res.account) {
+                      setExamDetail(d => ({ ...d, account: res.account }));
+                    }
+                  } catch {}
+                  setLoadingDetail(false);
+                }}
+                className="px-3 py-1 text-xs rounded border bg-gray-50 hover:bg-gray-100"
+              >Refresh</button>
+            </div>
           </div>
         ) : null}
       </Modal>

@@ -294,6 +294,15 @@ async def get_accounts():
         
         # Format account data
         formatted_accounts = []
+        from datetime import datetime
+        def iso(dt):
+            try:
+                if isinstance(dt, datetime):
+                    # Ensure timezone awareness; FastAPI will JSON serialize correctly
+                    return dt.isoformat()
+            except Exception:
+                pass
+            return dt
         for account in accounts:
             # Derive createdAt from explicit field or ObjectId timestamp
             created_at = account.get("createdAt")
@@ -312,22 +321,79 @@ async def get_accounts():
                 "email": account.get("email", ""),
                 "contact_number": account.get("contact_number", ""),
                 "is_verified": account.get("is_verified", False),
-                "createdAt": created_at,
+                "createdAt": iso(created_at),
                 "examFlow": {
                     "status": flow.get("status"),
-                    "promptScheduleAt": flow.get("promptScheduleAt"),
-                    "examDate": flow.get("examDate"),
+                    "promptScheduleAt": iso(flow.get("promptScheduleAt")),
+                    "examDate": iso(flow.get("examDate")),
                     "declineReason": flow.get("declineReason"),
                     "feedback": flow.get("feedback"),
                     "result": flow.get("result"),
-                    "resultAt": flow.get("resultAt"),
-                    "lastPromptAt": flow.get("lastPromptAt"),
+                    "resultAt": iso(flow.get("resultAt")),
+                    "lastPromptAt": iso(flow.get("lastPromptAt")),
+                    "decisionAt": iso(flow.get("decisionAt")),
+                    "declinedAt": iso(flow.get("declinedAt")),
+                    "examScheduledAt": iso(flow.get("examScheduledAt")),
                 }
             })
         
         return {"success": True, "accounts": formatted_accounts}
     except Exception as e:
         return {"success": False, "error": str(e), "accounts": []}
+
+@router.get("/api/admin/accounts/{id_number}")
+async def get_account(id_number: str):
+    """Get a single user account (with examFlow)."""
+    try:
+        user_collection = get_user_collection()
+        account = user_collection.find_one({"id_number": id_number})
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+        from datetime import datetime
+        def iso(dt):
+            try:
+                if isinstance(dt, datetime):
+                    return dt.isoformat()
+            except Exception:
+                pass
+            return dt
+        created_at = account.get("createdAt")
+        try:
+            if not created_at and account.get("_id"):
+                created_at = account["_id"].generation_time
+        except Exception:
+            created_at = None
+        flow = account.get("examFlow", {})
+        payload = {
+            "_id": str(account["_id"]),
+            "firstname": account.get("firstname", ""),
+            "lastname": account.get("lastname", ""),
+            "id_number": account.get("id_number", ""),
+            "role": account.get("role", ""),
+            "email": account.get("email", ""),
+            "contact_number": account.get("contact_number", ""),
+            "is_verified": account.get("is_verified", False),
+            "createdAt": iso(created_at),
+            "archived": account.get("archived", False),
+            "examFlow": {
+                "status": flow.get("status"),
+                "promptScheduleAt": iso(flow.get("promptScheduleAt")),
+                "examDate": iso(flow.get("examDate")),
+                "declineReason": flow.get("declineReason"),
+                "feedback": flow.get("feedback"),
+                "result": flow.get("result"),
+                "resultAt": iso(flow.get("resultAt")),
+                "lastPromptAt": iso(flow.get("lastPromptAt")),
+                "decisionAt": iso(flow.get("decisionAt")),
+                "declinedAt": iso(flow.get("declinedAt")),
+                "examScheduledAt": iso(flow.get("examScheduledAt")),
+            }
+        }
+        return {"success": True, "account": payload}
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 @router.put("/api/admin/accounts/{id_number}/exam-prompt")
 async def set_exam_prompt_schedule(id_number: str, payload: Dict[str, Any] = Body(...)):

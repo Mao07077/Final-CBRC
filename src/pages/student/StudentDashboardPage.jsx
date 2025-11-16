@@ -374,7 +374,16 @@ const DashboardPage = () => {
                   if (!decision.examDate) { setDecisionError('Exam date is required'); return; }
                   await examFlowService.submitDecision(id, { willTake: true, examDate: decision.examDate });
                 }
+                // Close current modal first
                 setExamModal({ open: false, type: null });
+                // If exam is scheduled for today or earlier, immediately check for result prompt
+                try {
+                  const flow = await examFlowService.getFlow(id);
+                  if (flow?.success && flow.flow?.shouldPrompt && flow.flow?.promptType === 'result') {
+                    setResult({ choice: 'no_result_yet', feedback: '' });
+                    setExamModal({ open: true, type: 'result' });
+                  }
+                } catch {}
               }}
               className="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
             >
