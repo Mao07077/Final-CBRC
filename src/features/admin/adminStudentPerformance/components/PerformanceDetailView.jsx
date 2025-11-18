@@ -16,7 +16,7 @@ import {
   CartesianGrid,
 } from "recharts";
 
-const PerformanceDetailView = () => {
+const PerformanceDetailView = ({ onOpenArchived }) => {
   const { selectedStudent, studentDetails, isLoadingDetails, selectStudent, selectedStudents, filteredStudents } =
     useStudentPerformanceStore();
 
@@ -138,13 +138,22 @@ const PerformanceDetailView = () => {
             </p>
           </div>
         </div>
-        <PDFDownloadLink
-          document={<StudentReportPDF student={selectedStudent} details={studentDetails} />}
-          fileName={`${(selectedStudent.name || `${selectedStudent.firstname} ${selectedStudent.lastname}`).replace(' ', '_')}_report.pdf`}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors duration-300"
-        >
-          {({ loading }) => (loading ? "Loading..." : <><FiDownload /> Download Report</>)}
-        </PDFDownloadLink>
+        <div className="w-full sm:w-auto flex flex-row flex-wrap items-center gap-3">
+          <PDFDownloadLink
+            document={<StudentReportPDF student={selectedStudent} details={studentDetails} />}
+            fileName={`${(selectedStudent.name || `${selectedStudent.firstname} ${selectedStudent.lastname}`).replace(' ', '_')}_report.pdf`}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors duration-300"
+          >
+            {({ loading }) => (loading ? "Loading..." : <><FiDownload /> Download Report</>)}
+          </PDFDownloadLink>
+          <button
+            type="button"
+            onClick={onOpenArchived}
+            className="px-4 py-2 border rounded-lg bg-white text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors duration-300"
+          >
+            Archived Performance
+          </button>
+        </div>
       </div>
 
       {/* Performance Chart */}

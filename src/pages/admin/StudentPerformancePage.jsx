@@ -15,23 +15,16 @@ const StudentPerformancePage = () => {
   return (
     // Use full viewport height so child panels can manage their own scrolling
     <div className="flex h-screen bg-gray-50 relative">
-      {/* Top-right actions */}
-      <div className="absolute top-2 right-2 z-10">
-        <button
-          onClick={() => setArchivedOpen(true)}
-          className="px-3 py-1.5 rounded border text-sm bg-white hover:bg-gray-50"
-        >
-          Archived Performance
-        </button>
-      </div>
+      {/* Top-right actions (visible only when no student is selected to avoid overlap) */}
+      {!selectedStudent && null}
       {/* On small screens, show only one panel at a time */}
       <div className={`w-full md:w-1/3 md:block ${selectedStudent ? 'hidden' : 'block'} h-full overflow-hidden`}>
-        <StudentListPanel />
+        <StudentListPanel onOpenArchived={() => setArchivedOpen(true)} />
       </div>
 
       <div className={`w-full md:w-2/3 md:block ${selectedStudent ? 'block' : 'hidden'} h-full overflow-hidden`}> 
         {error && <p className="p-4 text-red-500 bg-red-100 rounded-md m-4">{error}</p>}
-        <PerformanceDetailView />
+        <PerformanceDetailView onOpenArchived={() => setArchivedOpen(true)} />
       </div>
       <ArchivedPerformanceModal open={archivedOpen} onClose={() => setArchivedOpen(false)} />
     </div>

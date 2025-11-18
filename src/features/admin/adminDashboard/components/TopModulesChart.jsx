@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import apiClient from "../../../../api/axiosClient";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
+import InfoTooltip from "../../../../components/common/InfoTooltip";
 
 const TopModulesChart = () => {
   const [summary, setSummary] = useState(null);
@@ -38,7 +39,10 @@ const TopModulesChart = () => {
 
   return (
     <div className="card bg-white p-4">
-      <h3 className="text-lg font-semibold text-primary-dark mb-1">Top Modules by Post-Test Completions</h3>
+      <div className="flex items-center gap-2 mb-1">
+        <h3 className="text-lg font-semibold text-primary-dark">Top Modules by Post-Test Completions</h3>
+        <InfoTooltip text="Top 10 modules with the highest count of post-tests taken (current data)." />
+      </div>
       <p className="text-xs uppercase tracking-wide text-gray-500 mb-3">Top 10 modules with most post-tests taken</p>
       <div className="w-full h-80">
         <ResponsiveContainer width="100%" height="100%">
@@ -46,7 +50,12 @@ const TopModulesChart = () => {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="title" interval={0} angle={-20} textAnchor="end" height={60} />
             <YAxis allowDecimals={false} />
-            <Tooltip />
+            <Tooltip
+              contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }}
+              itemStyle={{ fontSize: 14 }}
+              labelStyle={{ fontSize: 14 }}
+              wrapperStyle={{ zIndex: 30 }}
+            />
             <Legend />
             <defs>
               <linearGradient id="modComp" x1="0" y1="0" x2="0" y2="1">

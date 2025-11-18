@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import apiClient from "../../../../api/axiosClient";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
+import InfoTooltip from "../../../../components/common/InfoTooltip";
 
 const ScoreDistribution = () => {
   const [summary, setSummary] = useState(null);
@@ -48,7 +49,10 @@ const ScoreDistribution = () => {
 
   return (
     <div className="card bg-white p-4">
-      <h3 className="text-lg font-semibold text-primary-dark mb-1">Post-Test Score Distribution</h3>
+      <div className="flex items-center gap-2 mb-1">
+        <h3 className="text-lg font-semibold text-primary-dark">Post-Test Score Distribution</h3>
+        <InfoTooltip text="How many post-test scores fall within each percentage range (0-49, 50-59, …)." />
+      </div>
       <p className="text-xs uppercase tracking-wide text-gray-500 mb-3">Counts per score range</p>
       <div className="w-full h-80">
         <ResponsiveContainer width="100%" height="100%">
@@ -56,7 +60,12 @@ const ScoreDistribution = () => {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="range" />
             <YAxis allowDecimals={false} />
-            <Tooltip />
+            <Tooltip
+              contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }}
+              itemStyle={{ fontSize: 14 }}
+              labelStyle={{ fontSize: 14 }}
+              wrapperStyle={{ zIndex: 30 }}
+            />
             <Legend />
             <defs>
               <linearGradient id="scoreHist" x1="0" y1="0" x2="0" y2="1">

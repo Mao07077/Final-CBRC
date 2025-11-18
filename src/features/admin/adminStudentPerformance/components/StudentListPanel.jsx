@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import useStudentPerformanceStore from "../../../../store/admin/studentPerformanceStore";
 
-const StudentListPanel = () => {
+const StudentListPanel = ({ onOpenArchived }) => {
   const {
     filteredStudents,
     selectStudent,
@@ -17,7 +17,16 @@ const StudentListPanel = () => {
   return (
   <div className="border-r border-gray-200 h-full flex flex-col bg-white shadow-sm overflow-hidden">
       <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Students</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-800">Students</h2>
+          <button
+            type="button"
+            onClick={onOpenArchived}
+            className="px-3 py-1.5 rounded border text-sm bg-white hover:bg-gray-50"
+          >
+            Archived Performance
+          </button>
+        </div>
         <input
           type="text"
           placeholder="Search by name or ID..."

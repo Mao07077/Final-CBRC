@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useAdminDashboardStore from "../../store/admin/adminDashboardStore";
+import InfoTooltip from "../../components/common/InfoTooltip";
 import StatCard from "../../features/admin/adminDashboard/components/StatCard";
 import AttendanceStats from "../../features/admin/adminDashboard/components/AttendanceStats";
 import PerformanceGraph from "../../features/admin/adminDashboard/components/PerformanceGraph";
@@ -21,9 +22,10 @@ const AdminDashboardPage = () => {
   return (
     <div className="p-4 sm:p-6">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-primary-dark self-start">
-          Admin Dashboard
-        </h1>
+        <div className="flex items-center gap-2 self-start">
+          <h1 className="text-2xl md:text-3xl font-bold text-primary-dark">Admin Dashboard</h1>
+          <InfoTooltip text="Platform-wide overview: user counts, attendance and performance summaries, top modules, and score distribution." />
+        </div>
         <button
           onClick={() => navigate("/admin/posts")}
           className="w-full md:w-auto px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors duration-300"

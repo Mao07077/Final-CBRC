@@ -49,7 +49,7 @@ const RecommendedPages = () => {
 
   return (
     <div className="bg-white p-6 rounded-2xl shadow-md">
-      <h2 className="text-2xl font-bold text-primary-dark mb-4">
+      <h2 className="text-2xl font-bold text-primary-dark mb-4" title="Shortcuts to pages that match your study habits.">
         Recommended For You
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
@@ -61,6 +61,7 @@ const RecommendedPages = () => {
               to={details.route}
               key={pageSlug}
               className="group block p-4 bg-light-blue rounded-lg text-center hover:bg-blue-200 transition-colors"
+              title={`Go to ${details.name}`}
             >
               <div className="text-4xl mb-2">{details.icon}</div>
               <span className="font-semibold text-primary-dark group-hover:underline">

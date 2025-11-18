@@ -7,6 +7,7 @@ import ModuleList from "../../features/student/dashboard/components/ModuleList";
 import ScoreOverview from "../../features/student/dashboard/components/ScoreOverview";
 import StatisticsOverview from "../../features/student/dashboard/components/StatisticsOverview";
 import Modal from "../../components/common/Modal";
+import InfoTooltip from "../../components/common/InfoTooltip";
 import useAuthStore from "../../store/authStore";
 import examFlowService from "../../services/examFlowService";
 
@@ -141,9 +142,10 @@ const DashboardPage = () => {
 
   return (
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">
-        Your Dashboard
-      </h1>
+      <div className="flex items-center gap-2 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Your Dashboard</h1>
+        <InfoTooltip text="Your personalized dashboard with progress, trends, and helpful shortcuts." />
+      </div>
 
       {/* Enhanced Statistics Overview */}
       <div className="mb-8">
@@ -170,7 +172,10 @@ const DashboardPage = () => {
       {/* Performance Trend (Crypto-style area/line chart) */}
       <div className="mt-8 bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Performance Trend (All-Time Averages)</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-800">Performance Trend (All-Time Averages)</h2>
+            <InfoTooltip text="Trend of average pre/post-test scores over time. Avg Pre/Post are computed as the mean across modules at each point in time; Improvement is Avg Post minus Avg Pre." />
+          </div>
           {trendData.length > 1 && (
             <span className="text-xs text-gray-500">Latest improvement: {trendData[trendData.length-1].improvement}%</span>
           )}
@@ -199,7 +204,11 @@ const DashboardPage = () => {
                 <YAxis domain={[0, 100]} tickFormatter={(v)=> `${v}%`} />
                 <Tooltip
                   labelFormatter={(v)=> new Date(v).toLocaleString()}
-                  formatter={(val, name)=> [`${val}%`, name === 'avgPre' ? 'Avg Pre' : name === 'avgPost' ? 'Avg Post' : 'Avg Improvement']}
+                  formatter={(val, name)=> [`${val}%`, name === 'avgPre' ? 'Avg Pre (mean of latest pre-tests per module)' : name === 'avgPost' ? 'Avg Post (mean of latest post-tests per module)' : 'Avg Improvement (Post - Pre)']}
+                  contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }}
+                  itemStyle={{ fontSize: 14 }}
+                  labelStyle={{ fontSize: 14 }}
+                  wrapperStyle={{ zIndex: 30 }}
                 />
                 <Legend />
                 <Area type="monotone" dataKey="avgPre" name="Avg Pre" stroke="#3b82f6" fillOpacity={1} fill="url(#colorPre)" strokeWidth={2} />
@@ -213,8 +222,11 @@ const DashboardPage = () => {
       </div>
 
       {/* Module Attempts Summary */}
-      <div className="mt-8 bg-white rounded-lg shadow p-6">
-  <h2 className="text-xl font-bold text-gray-800 mb-4">Module Attempts & Performance (Per Module Comparison)</h2>
+        <div className="mt-8 bg-white rounded-lg shadow p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <h2 className="text-xl font-bold text-gray-800">Module Attempts & Performance (Per Module Comparison)</h2>
+        <InfoTooltip text="Bars show your total pre/post attempts per module. Lines show your best (highest) pre/post percentage. Dots mark the latest attempt." />
+      </div>
         {/* Unified Comparison Graph (ComposedChart) */}
         {attempts.length > 0 && (
           <div className="w-full h-[560px] mb-4">
@@ -248,10 +260,23 @@ const DashboardPage = () => {
                 <XAxis dataKey="title" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={70} />
                 <YAxis yAxisId="attempts" orientation="left" width={40} />
                 <YAxis yAxisId="percent" orientation="right" domain={[0,100]} tickFormatter={(v)=> `${v}%`} width={50} />
-                <Tooltip formatter={(value, name) => {
-                  if (typeof name === 'string' && name.includes('%')) return [`${value}%`, name];
-                  return [value, name];
-                }} />
+                <Tooltip
+                  formatter={(value, name, props) => {
+                    if (name.includes('%')) return [`${value}%`, name];
+                    const key = props?.dataKey;
+                    if (key === 'preAttempts') return [value, 'Pre Attempts (count)'];
+                    if (key === 'postAttempts') return [value, 'Post Attempts (count)'];
+                    if (key === 'bestPre') return [`${value}%`, 'Best Pre% (highest)'];
+                    if (key === 'bestPost') return [`${value}%`, 'Best Post% (highest)'];
+                    if (key === 'lastPre') return [`${value}%`, 'Last Pre%'];
+                    if (key === 'lastPost') return [`${value}%`, 'Last Post%'];
+                    return [value, name];
+                  }}
+                  contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }}
+                  itemStyle={{ fontSize: 14 }}
+                  labelStyle={{ fontSize: 14 }}
+                  wrapperStyle={{ zIndex: 30 }}
+                />
                 <Legend />
                 {/* Attempts (stacked bars) */}
                 <Bar yAxisId="attempts" dataKey="preAttempts" name="Pre Attempts" fill="url(#gradPre)" stackId="a" onClick={(d)=> openHistory(d.payload.moduleId, d.payload.title)} />

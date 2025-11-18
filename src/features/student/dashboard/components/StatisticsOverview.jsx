@@ -58,8 +58,8 @@ const StatisticsOverview = () => {
     return `${label}: ${score}%`;
   };
 
-  const StatCard = ({ icon: Icon, title, value, subtitle, color = "blue" }) => (
-    <div className="bg-white p-6 rounded-2xl shadow-md hover:shadow-lg transition-shadow">
+  const StatCard = ({ icon: Icon, title, value, subtitle, color = "blue", tooltip }) => (
+    <div className="bg-white p-6 rounded-2xl shadow-md hover:shadow-lg transition-shadow" title={tooltip || title}>
       <div className="flex items-center justify-between mb-4">
         <div className={`p-3 rounded-lg bg-${color}-100`}>
           <Icon className={`w-6 h-6 text-${color}-600`} />
@@ -83,6 +83,7 @@ const StatisticsOverview = () => {
           value={`${completedModules}/${totalModules}`}
           subtitle={totalModules > 0 ? `${Math.round((completedModules / totalModules) * 100)}% completed` : ""}
           color="blue"
+          tooltip="How many modules you've completed out of the total."
         />
         <StatCard
           icon={Clock}
@@ -90,6 +91,7 @@ const StatisticsOverview = () => {
           value={`${studyHours}h`}
           subtitle="This month"
           color="green"
+          tooltip="Total time you studied this month."
         />
         <StatCard
           icon={Award}
@@ -97,6 +99,7 @@ const StatisticsOverview = () => {
           value={`${averageScore}%`}
           subtitle="All assessments"
           color="purple"
+          tooltip="Average score across your assessments."
         />
         <StatCard
           icon={Activity}
@@ -104,16 +107,23 @@ const StatisticsOverview = () => {
           value={`${learningStreak} days`}
           subtitle="Keep it up!"
           color="orange"
+          tooltip="Consecutive days you've been active studying."
         />
       </div>
 
       {/* Study Habits Summary */}
-      <div className="bg-white p-6 rounded-2xl shadow-md">
+      <div className="bg-white p-6 rounded-2xl shadow-md" title="Overview of your recent study habits detected from the last 7 days.">
         <h3 className="text-lg font-semibold text-gray-800 mb-2">Study Habits</h3>
         <div className="flex flex-wrap items-center gap-2 mb-2">
           {(studyHabits?.categories || []).length > 0 ? (
             studyHabits.categories.map((cat, idx) => (
-              <span key={idx} className="px-3 py-1 text-sm rounded-full bg-blue-50 text-blue-700 border border-blue-200">{cat}</span>
+              <span
+                key={idx}
+                className="px-3 py-1 text-sm rounded-full bg-blue-50 text-blue-700 border border-blue-200"
+                title={`Detected habit: ${cat}`}
+              >
+                {cat}
+              </span>
             ))
           ) : (
             <span className="text-gray-500">No habits detected yet</span>
@@ -164,7 +174,7 @@ const StatisticsOverview = () => {
       </div>
       {/* Strengths & Weaknesses */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-green-50 p-4 rounded-lg text-center">
+        <div className="bg-green-50 p-4 rounded-lg text-center" title="Your strongest subject based on recent scores.">
           <h4 className="font-semibold text-green-700 mb-2">Strength</h4>
           {strengths && strengths.length > 0 ? (
             <span className="text-lg font-bold">{strengths[0].subject} ({strengths[0].score}%)</span>
@@ -172,7 +182,7 @@ const StatisticsOverview = () => {
             <span className="text-gray-500">No strengths yet</span>
           )}
         </div>
-        <div className="bg-red-50 p-4 rounded-lg text-center">
+        <div className="bg-red-50 p-4 rounded-lg text-center" title="Your weakest subject based on recent scores.">
           <h4 className="font-semibold text-red-700 mb-2">Weakness</h4>
           {weaknesses && weaknesses.length > 0 ? (
             <span className="text-lg font-bold">{weaknesses[0].subject} ({weaknesses[0].score}%)</span>
@@ -183,7 +193,7 @@ const StatisticsOverview = () => {
       </div>
 
       {/* Weekly Progress Chart - now full width and more detailed */}
-      <div className="bg-white p-6 rounded-2xl shadow-md">
+      <div className="bg-white p-6 rounded-2xl shadow-md" title="Your study hours and average score over the last 7 days. Hours include Learn Together session time; Average Score is the daily average across recent assessments.">
         <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
           <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
           Weekly Progress
@@ -228,24 +238,24 @@ const StatisticsOverview = () => {
       </div>
 
       {/* Detailed Performance Metrics */}
-      <div className="bg-white p-6 rounded-2xl shadow-md">
+      <div className="bg-white p-6 rounded-2xl shadow-md" title="Detailed counts and accuracy across your activity.">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">
           Detailed Performance Metrics
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
+          <div className="text-center p-4 bg-blue-50 rounded-lg" title="Sum of all questions you've answered across assessments.">
             <p className="text-2xl font-bold text-blue-600">
               {detailedMetrics.totalQuestions}
             </p>
             <p className="text-sm text-gray-600">Total Questions Answered</p>
           </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg">
+          <div className="text-center p-4 bg-green-50 rounded-lg" title="Number of answers marked correct across all assessments.">
             <p className="text-2xl font-bold text-green-600">
               {detailedMetrics.correctAnswers}
             </p>
             <p className="text-sm text-gray-600">Correct Answers</p>
           </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
+          <div className="text-center p-4 bg-purple-50 rounded-lg" title="Overall accuracy = Correct / Total Questions × 100%.">
             <p className="text-2xl font-bold text-purple-600">
               {detailedMetrics.accuracy}%
             </p>
@@ -255,7 +265,7 @@ const StatisticsOverview = () => {
       </div>
 
       {/* Subject Performance Bar Chart */}
-      <div className="bg-white p-6 rounded-2xl shadow-md">
+      <div className="bg-white p-6 rounded-2xl shadow-md" title="Scores per subject/module to highlight strengths and weaknesses. Hover bars for exact percentages.">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">
           Subject Performance Breakdown
         </h3>
@@ -268,6 +278,8 @@ const StatisticsOverview = () => {
             <XAxis dataKey="module" stroke="#666" />
             <YAxis stroke="#666" />
             <Tooltip
+              formatter={(val, name, props) => [`${val}%`, 'Score']}
+              labelFormatter={(label) => `Module: ${label}`}
               contentStyle={{
                 backgroundColor: "white",
                 border: "1px solid #e5e7eb",
@@ -282,8 +294,8 @@ const StatisticsOverview = () => {
           </BarChart>
         </ResponsiveContainer>
         <div className="flex justify-between mt-4">
-          <span className="text-sm text-gray-600">Pre-tests taken: {preTestCount}</span>
-          <span className="text-sm text-gray-600">Post-tests taken: {postTestCount}</span>
+          <span className="text-sm text-gray-600" title="Count of pre-tests you've taken across modules.">Pre-tests taken: {preTestCount}</span>
+          <span className="text-sm text-gray-600" title="Count of post-tests you've taken across modules.">Post-tests taken: {postTestCount}</span>
         </div>
       </div>
     </div>

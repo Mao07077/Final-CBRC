@@ -162,6 +162,12 @@ const StudentDataPrintingPage = () => {
     doc.setFontSize(11);
     doc.text('Study Activity Overview', left, cursorY);
     cursorY += 12;
+    // Caption
+    doc.setFontSize(9);
+    doc.setTextColor(90);
+    doc.text('Bars show Flashcards created, Study Sessions taken, and Learn Together Hours.', left, cursorY);
+    doc.setTextColor(0);
+    cursorY += 12;
 
       const chartX = left;
       const chartY = cursorY + 6;
@@ -204,10 +210,16 @@ const StudentDataPrintingPage = () => {
       doc.setFontSize(12);
       doc.text('Performance Trend (All-Time Averages)', left, cursorY);
       cursorY += 10;
+      // Caption
+      doc.setFontSize(9);
+      doc.setTextColor(90);
+      doc.text('Avg Pre/Post are means across modules at each point; Improvement = Avg Post - Avg Pre.', left, cursorY);
+      doc.setTextColor(0);
+      cursorY += 10;
     const trendX = left;
     const trendY = cursorY + 8;
     const trendW = pageWidth - left * 2;
-    const trendH = 100; // reduced further to fit single page
+    const trendH = 140; // increased height for better visibility
       const history = activity?.attemptsHistory || [];
       // Flatten attempts
       const events = [];
@@ -234,8 +246,9 @@ const StudentDataPrintingPage = () => {
       const yLabelW = doc.getTextWidth('100%') + 10;
       const axisX = trendX + yLabelW;
       const xPlotW = Math.max(10, trendW - yLabelW);
-      // Draw axes
-      doc.setDrawColor(200);
+      // Draw axes with thicker line for stronger contrast
+      doc.setDrawColor(180);
+      doc.setLineWidth(1.2);
       doc.line(axisX, trendY, axisX, trendY + trendH);
       doc.line(axisX, trendY + trendH, axisX + xPlotW, trendY + trendH);
       const yScale = (v) => trendY + trendH - (Math.max(0, Math.min(100, v)) / 100) * trendH;
@@ -243,11 +256,11 @@ const StudentDataPrintingPage = () => {
       const xMax = points.length ? points[points.length - 1].x : (xMin + 1);
       const xScale = (x) => axisX + ((x - xMin) / Math.max(1, (xMax - xMin))) * xPlotW;
       // Grid lines and y-axis labels (right-aligned just left of axis)
-      doc.setDrawColor(235);
+      doc.setDrawColor(220); // slightly darker grid for visibility
       for (let p = 0; p <= 100; p += 20) {
         const gy = yScale(p);
         doc.line(axisX, gy, axisX + xPlotW, gy);
-        doc.setFontSize(8);
+        doc.setFontSize(9);
         doc.setTextColor(120);
         const lbl = `${p}%`;
         doc.text(lbl, axisX - 6, gy + 3, { align: 'right' });
@@ -256,20 +269,29 @@ const StudentDataPrintingPage = () => {
       const drawLine = (key, r, g, b) => {
         if (points.length < 2) return;
         doc.setDrawColor(r, g, b);
+        doc.setLineWidth(3.0); // 200% thicker series lines
         for (let i = 1; i < points.length; i++) {
           doc.line(xScale(points[i-1].x), yScale(points[i-1][key]), xScale(points[i].x), yScale(points[i][key]));
+        }
+        // point markers for emphasis
+        for (let i = 0; i < points.length; i++) {
+          const px = xScale(points[i].x);
+          const py = yScale(points[i][key]);
+          doc.setFillColor(r, g, b);
+          doc.circle(px, py, 2.2, 'F');
         }
       };
       drawLine('avgPre', 59, 130, 246); // blue
       drawLine('avgPost', 16, 185, 129); // green
       drawLine('improvement', 245, 158, 11); // amber
       // Legend
-      doc.setFontSize(9);
+      doc.setFontSize(11);
       doc.setTextColor(33);
       const lgY = trendY + trendH + 14;
-      doc.setDrawColor(59,130,246); doc.line(trendX, lgY-4, trendX+18, lgY-4); doc.text('Avg Pre', trendX+22, lgY);
-      doc.setDrawColor(16,185,129); doc.line(trendX+80, lgY-4, trendX+98, lgY-4); doc.text('Avg Post', trendX+102, lgY);
-      doc.setDrawColor(245,158,11); doc.line(trendX+170, lgY-4, trendX+188, lgY-4); doc.text('Avg Improvement', trendX+192, lgY);
+      doc.setLineWidth(2.0);
+      doc.setDrawColor(59,130,246); doc.line(trendX, lgY-4, trendX+26, lgY-4); doc.text('Avg Pre', trendX+32, lgY);
+      doc.setDrawColor(16,185,129); doc.line(trendX+100, lgY-4, trendX+126, lgY-4); doc.text('Avg Post', trendX+132, lgY);
+      doc.setDrawColor(245,158,11); doc.line(trendX+200, lgY-4, trendX+226, lgY-4); doc.text('Avg Improvement', trendX+232, lgY);
       cursorY = lgY + 18;
 
     // Summary Details removed per user request to shorten PDF
@@ -278,6 +300,12 @@ const StudentDataPrintingPage = () => {
   cursorY += 8;
       doc.setFontSize(12);
       doc.text('Per-Module Comparison (Best vs Prev Best Post%)', left, cursorY);
+      cursorY += 10;
+      // Caption
+      doc.setFontSize(9);
+      doc.setTextColor(90);
+      doc.text('Green bar = current best Post%. Orange = previous best. Higher green means improvement.', left, cursorY);
+      doc.setTextColor(0);
       cursorY += 10;
       const cmpX = left;
       const cmpY = cursorY + 8;

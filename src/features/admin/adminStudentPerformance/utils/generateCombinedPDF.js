@@ -28,6 +28,12 @@ function drawStudyActivityOverview(doc, left, pageWidth, cursorY, activity) {
   doc.setFontSize(11);
   doc.text('Study Activity Overview', left, cursorY);
   cursorY += 12;
+  // Caption
+  doc.setFontSize(9);
+  doc.setTextColor(90);
+  doc.text('Bars show Flashcards created, Study Sessions taken, and Learn Together Hours.', left, cursorY);
+  doc.setTextColor(0);
+  cursorY += 12;
 
   const labels = ['Flashcards', 'Sessions', 'Learn Together Hours'];
   const values = [activity?.flashcards_count ?? 0, activity?.sessions_count ?? 0, activity?.session_hours ?? 0];
@@ -69,6 +75,12 @@ function drawStudyActivityOverview(doc, left, pageWidth, cursorY, activity) {
 function drawPerformanceTrend(doc, left, pageWidth, cursorY, attemptsHistory) {
   doc.setFontSize(12);
   doc.text('Performance Trend (All-Time Averages)', left, cursorY);
+  cursorY += 10;
+  // Caption
+  doc.setFontSize(9);
+  doc.setTextColor(90);
+  doc.text('Avg Pre/Post are means across modules at each point; Improvement = Avg Post - Avg Pre.', left, cursorY);
+  doc.setTextColor(0);
   cursorY += 10;
   const trendX = left;
   const trendY = cursorY + 8;
@@ -143,6 +155,12 @@ function drawPerformanceTrend(doc, left, pageWidth, cursorY, attemptsHistory) {
 function drawPerModuleComparison(doc, left, pageWidth, cursorY, modules) {
   doc.setFontSize(12);
   doc.text('Per-Module Comparison (Best vs Prev Best Post%)', left, cursorY);
+  cursorY += 10;
+  // Caption
+  doc.setFontSize(9);
+  doc.setTextColor(90);
+  doc.text('Green bar = current best Post%. Orange = previous best. Higher green means improvement.', left, cursorY);
+  doc.setTextColor(0);
   cursorY += 10;
   const cmpX = left;
   const cmpY = cursorY + 8;

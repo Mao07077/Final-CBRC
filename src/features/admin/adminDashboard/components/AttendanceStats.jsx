@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../../../api/axiosClient";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
+import InfoTooltip from "../../../../components/common/InfoTooltip";
 
 const AttendanceStats = () => {
   const [summary, setSummary] = useState(null);
@@ -32,14 +33,22 @@ const AttendanceStats = () => {
 
   return (
     <div className="card bg-white p-4 mb-4">
-      <h3 className="text-lg font-semibold text-primary-dark mb-1">Attendance Overview (All Students)</h3>
+      <div className="flex items-center gap-2 mb-1">
+        <h3 className="text-lg font-semibold text-primary-dark">Attendance Overview (All Students)</h3>
+        <InfoTooltip text="Count of students who met attendance (≥ 0.5h/day) vs total enrolled students." />
+      </div>
       <p className="text-xs uppercase tracking-wide text-gray-500 mb-3">Attended vs total students</p>
       <ResponsiveContainer width="100%" height={250}>
         <BarChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" />
           <YAxis allowDecimals={false} />
-          <Tooltip />
+          <Tooltip
+            contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }}
+            itemStyle={{ fontSize: 14 }}
+            labelStyle={{ fontSize: 14 }}
+            wrapperStyle={{ zIndex: 30 }}
+          />
           <Legend />
           <defs>
             <linearGradient id="attA" x1="0" y1="0" x2="0" y2="1">

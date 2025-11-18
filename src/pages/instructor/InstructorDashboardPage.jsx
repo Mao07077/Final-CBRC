@@ -7,6 +7,7 @@ import StatCard from "../../features/instructor/instructorDashboard/components/S
 import AttendanceChart from "../../features/instructor/instructorDashboard/components/AttendanceChart";
 import StudyHoursHistogram from "../../features/instructor/instructorDashboard/components/StudyHoursHistogram";
 import ModuleCompletionChart from "../../features/instructor/instructorDashboard/components/ModuleCompletionChart";
+import InfoTooltip from "../../components/common/InfoTooltip";
 
 const InstructorDashboardPage = () => {
   const { stats, attendanceData, hoursHistogram, moduleCompletions, isLoading, fetchDashboardData } = useInstructorDashboardStore();
@@ -20,9 +21,10 @@ const InstructorDashboardPage = () => {
 
   return (
     <div>
-      <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-6">
-        Instructor Dashboard
-      </h1>
+      <div className="flex items-center gap-2 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800">Instructor Dashboard</h1>
+        <InfoTooltip text="Overview of your class: key stats, recent attendance and study activity, plus module completion insights." />
+      </div>
 
   {/* Top Row: Stats */}
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">

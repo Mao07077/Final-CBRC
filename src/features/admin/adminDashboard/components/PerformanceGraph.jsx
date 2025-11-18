@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import apiClient from "../../../../api/axiosClient";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
+import InfoTooltip from "../../../../components/common/InfoTooltip";
 
 const PerformanceGraph = () => {
   const [summary, setSummary] = useState(null);
@@ -59,14 +60,23 @@ const PerformanceGraph = () => {
 
   return (
     <div className="card bg-white p-4 mb-4">
-      <h3 className="text-lg font-semibold text-primary-dark mb-1">Performance Summary</h3>
+      <div className="flex items-center gap-2 mb-1">
+        <h3 className="text-lg font-semibold text-primary-dark">Performance Summary</h3>
+        <InfoTooltip text="Class-wide performance: average pre score, post-test accuracy, and min/max post scores." />
+      </div>
       <p className="text-xs uppercase tracking-wide text-gray-500 mb-3">Post-test accuracy and score distribution</p>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" />
           <YAxis domain={[0,100]} tickFormatter={(v)=> `${v}%`} />
-          <Tooltip formatter={(v)=> [`${v}%`, 'Value']} />
+          <Tooltip
+            formatter={(v)=> [`${v}%`, 'Value']}
+            contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }}
+            itemStyle={{ fontSize: 14 }}
+            labelStyle={{ fontSize: 14 }}
+            wrapperStyle={{ zIndex: 30 }}
+          />
           <Legend />
           <defs>
             <linearGradient id="perfA" x1="0" y1="0" x2="0" y2="1">
