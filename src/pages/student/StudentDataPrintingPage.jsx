@@ -246,9 +246,9 @@ const StudentDataPrintingPage = () => {
       const yLabelW = doc.getTextWidth('100%') + 10;
       const axisX = trendX + yLabelW;
       const xPlotW = Math.max(10, trendW - yLabelW);
-      // Draw axes with thicker line for stronger contrast
+      // Axes: increase thickness by ~30%
       doc.setDrawColor(180);
-      doc.setLineWidth(1.2);
+      doc.setLineWidth(0.39);
       doc.line(axisX, trendY, axisX, trendY + trendH);
       doc.line(axisX, trendY + trendH, axisX + xPlotW, trendY + trendH);
       const yScale = (v) => trendY + trendH - (Math.max(0, Math.min(100, v)) / 100) * trendH;
@@ -269,7 +269,7 @@ const StudentDataPrintingPage = () => {
       const drawLine = (key, r, g, b) => {
         if (points.length < 2) return;
         doc.setDrawColor(r, g, b);
-        doc.setLineWidth(3.0); // 200% thicker series lines
+        doc.setLineWidth(0.78); // +30% thicker series lines
         for (let i = 1; i < points.length; i++) {
           doc.line(xScale(points[i-1].x), yScale(points[i-1][key]), xScale(points[i].x), yScale(points[i][key]));
         }
@@ -278,20 +278,20 @@ const StudentDataPrintingPage = () => {
           const px = xScale(points[i].x);
           const py = yScale(points[i][key]);
           doc.setFillColor(r, g, b);
-          doc.circle(px, py, 2.2, 'F');
+          doc.circle(px, py, 0.65, 'F'); // +30% larger markers
         }
       };
       drawLine('avgPre', 59, 130, 246); // blue
       drawLine('avgPost', 16, 185, 129); // green
       drawLine('improvement', 245, 158, 11); // amber
       // Legend
-      doc.setFontSize(11);
+      doc.setFontSize(10);
       doc.setTextColor(33);
       const lgY = trendY + trendH + 14;
-      doc.setLineWidth(2.0);
-      doc.setDrawColor(59,130,246); doc.line(trendX, lgY-4, trendX+26, lgY-4); doc.text('Avg Pre', trendX+32, lgY);
-      doc.setDrawColor(16,185,129); doc.line(trendX+100, lgY-4, trendX+126, lgY-4); doc.text('Avg Post', trendX+132, lgY);
-      doc.setDrawColor(245,158,11); doc.line(trendX+200, lgY-4, trendX+226, lgY-4); doc.text('Avg Improvement', trendX+232, lgY);
+      doc.setLineWidth(0.52); // +30% thicker legend swatches
+      doc.setDrawColor(59,130,246); doc.line(trendX, lgY-4, trendX+22, lgY-4); doc.text('Avg Pre', trendX+28, lgY);
+      doc.setDrawColor(16,185,129); doc.line(trendX+90, lgY-4, trendX+112, lgY-4); doc.text('Avg Post', trendX+118, lgY);
+      doc.setDrawColor(245,158,11); doc.line(trendX+180, lgY-4, trendX+202, lgY-4); doc.text('Avg Improvement', trendX+208, lgY);
       cursorY = lgY + 18;
 
     // Summary Details removed per user request to shorten PDF

@@ -100,11 +100,6 @@ const studentNavLinks = [
     ],
   },
   {
-    path: "/student/send-report",
-    label: "Send Report",
-    icon: <FiAlertTriangle />,
-  },
-  {
     path: "/student/reports",
     label: "My Reports",
     icon: <FiFileText />,

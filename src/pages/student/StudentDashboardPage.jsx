@@ -27,6 +27,7 @@ const DashboardPage = () => {
   const [result, setResult] = useState({ choice: "no_result_yet", feedback: "" });
   const [decisionError, setDecisionError] = useState("");
   const [resultError, setResultError] = useState("");
+  const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '' });
 
   useEffect(() => {
     fetchDashboardData(mode);
@@ -395,9 +396,21 @@ const DashboardPage = () => {
                 if (decision.willTake === false) {
                   if (!decision.reason || !decision.reason.trim()) { setDecisionError('Reason is required'); return; }
                   await examFlowService.submitDecision(id, { willTake: false, reason: decision.reason });
+                  // Show tailored thank-you
+                  setConfirmModal({
+                    open: true,
+                    title: 'Thank you',
+                    message: 'Thanks for letting us know you will not take the licensure exam for now. Reason noted: ' + decision.reason.trim()
+                  });
                 } else {
                   if (!decision.examDate) { setDecisionError('Exam date is required'); return; }
                   await examFlowService.submitDecision(id, { willTake: true, examDate: decision.examDate });
+                  // Show tailored thank-you
+                  setConfirmModal({
+                    open: true,
+                    title: 'Thank you',
+                    message: 'Great! Your exam date is recorded: ' + new Date(decision.examDate).toLocaleDateString()
+                  });
                 }
                 // Close current modal first
                 setExamModal({ open: false, type: null });
@@ -418,7 +431,7 @@ const DashboardPage = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-sm text-gray-700">How was your exam result? Share a quick feedback and mark your result.</p>
+          <p className="text-sm text-gray-700">Your instructor is checking in: How was your exam result? Share a quick feedback and mark your result.</p>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Feedback (optional)</label>
             <textarea className="w-full border rounded px-3 py-2" rows={3} value={result.feedback} onChange={e => setResult(r => ({ ...r, feedback: e.target.value }))} />
@@ -436,6 +449,14 @@ const DashboardPage = () => {
                 setResultError("");
                 if ((result.choice === 'pass' || result.choice === 'fail') && (!result.feedback || !result.feedback.trim())) { setResultError('Feedback is required for pass/fail'); return; }
                 await examFlowService.submitResult(id, { result: result.choice, feedback: result.feedback });
+                // Tailored thank-you messages
+                if (result.choice === 'pass') {
+                  setConfirmModal({ open: true, title: 'Congratulations!', message: 'Congratulations on passing! Thank you for your feedback.' });
+                } else if (result.choice === 'fail') {
+                  setConfirmModal({ open: true, title: 'Thank you', message: 'Thanks for sharing. We’re here to help you improve. Your feedback is recorded.' });
+                } else {
+                  setConfirmModal({ open: true, title: 'Thank you', message: 'Thanks for the update. We’ll re-prompt you daily until a result is available.' });
+                }
                 setExamModal({ open: false, type: null });
               }}
               className="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
@@ -445,6 +466,26 @@ const DashboardPage = () => {
           </div>
         </div>
       )}
+    </Modal>
+
+    {/* Confirmation Modal */}
+    <Modal
+      isOpen={confirmModal.open}
+      onClose={() => setConfirmModal({ open: false, title: '', message: '' })}
+      title={confirmModal.title || 'Thank you'}
+      maxWidth="max-w-md"
+    >
+      <div className="space-y-4">
+        <p className="text-sm text-gray-700">{confirmModal.message}</p>
+        <div className="text-right">
+          <button
+            className="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+            onClick={() => setConfirmModal({ open: false, title: '', message: '' })}
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </Modal>
   </div>
   );
