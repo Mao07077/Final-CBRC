@@ -708,17 +708,43 @@ const StudySessionRoom = ({ sessionInfo, userId, userName, onLeaveSession }) => 
 
     return () => clearInterval(iv);
   }, [roomInfo]);
-  // Presence ping every 10 minutes (600000 ms). While modal open we pause timer.
+  // Activity-driven inactivity detection while connected: start counting when no activity, reset on activity
   useEffect(() => {
-    // If modal currently open, do not schedule new interval; timer paused already
     if (presenceOpen) return;
-    const iv = setInterval(() => {
-      // Start pause and show modal
-      pauseStartRef.current = Date.now();
-      setPresenceOpen(true);
-  }, 600000); // 10 minutes
-    return () => clearInterval(iv);
-  }, [presenceOpen]);
+    if (connectionStatus !== 'connected') return; // only while in an active session
+
+    const lastActivityRef = { current: Date.now() };
+
+    const onActivity = () => {
+      lastActivityRef.current = Date.now();
+      // Do NOT auto-dismiss the presence modal on activity.
+      // The user must press Continue to resume the session.
+    };
+
+    const checker = setInterval(() => {
+      if (presenceOpen) return;
+      const now = Date.now();
+      if (now - lastActivityRef.current >= 600000) { // 10 seconds
+        pauseStartRef.current = Date.now();
+        setPresenceOpen(true);
+      }
+    }, 1000);
+
+    window.addEventListener('mousemove', onActivity);
+    window.addEventListener('mousedown', onActivity);
+    window.addEventListener('keydown', onActivity);
+    window.addEventListener('touchstart', onActivity);
+    window.addEventListener('wheel', onActivity);
+
+    return () => {
+      clearInterval(checker);
+      window.removeEventListener('mousemove', onActivity);
+      window.removeEventListener('mousedown', onActivity);
+      window.removeEventListener('keydown', onActivity);
+      window.removeEventListener('touchstart', onActivity);
+      window.removeEventListener('wheel', onActivity);
+    };
+  }, [presenceOpen, connectionStatus]);
 
   const handlePresenceConfirm = () => {
     if (pauseStartRef.current) {

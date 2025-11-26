@@ -26,25 +26,47 @@ const ModuleContentPage = () => {
 
   // Trigger presence modal every 10 mins ONLY while file modal (PDF) is open
   useEffect(() => {
-    // Clear any existing interval first
-    if (presenceIntervalRef.current) {
-      clearInterval(presenceIntervalRef.current);
-      presenceIntervalRef.current = null;
-    }
-    if (showFileModal && !presenceOpen) {
-      presenceIntervalRef.current = setInterval(() => {
+    // Only monitor activity while the file modal is open
+    if (!showFileModal) return;
+
+    const lastActivityRef = { current: Date.now() };
+
+    const onActivity = () => {
+      lastActivityRef.current = Date.now();
+      // Do NOT auto-dismiss the presence modal on activity.
+      // The user must press Continue to resume the session.
+    };
+
+    const checker = setInterval(() => {
+      if (presenceOpen) return; // already shown
+      const now = Date.now();
+      if (now - lastActivityRef.current >= 600000) { // 10 seconds of inactivity
+        pauseStartRef.current = Date.now();
         setPresenceOpen(true);
-      }, 600000); // 10 minutes
-    }
-    return () => {
-      if (presenceIntervalRef.current) {
-        clearInterval(presenceIntervalRef.current);
-        presenceIntervalRef.current = null;
       }
+    }, 1000);
+
+    window.addEventListener('mousemove', onActivity);
+    window.addEventListener('mousedown', onActivity);
+    window.addEventListener('keydown', onActivity);
+    window.addEventListener('touchstart', onActivity);
+    window.addEventListener('wheel', onActivity);
+
+    return () => {
+      clearInterval(checker);
+      window.removeEventListener('mousemove', onActivity);
+      window.removeEventListener('mousedown', onActivity);
+      window.removeEventListener('keydown', onActivity);
+      window.removeEventListener('touchstart', onActivity);
+      window.removeEventListener('wheel', onActivity);
     };
   }, [showFileModal, presenceOpen]);
 
   const handlePresenceConfirm = () => {
+    if (pauseStartRef.current) {
+      pausedAccumRef.current += (Date.now() - pauseStartRef.current);
+      pauseStartRef.current = null;
+    }
     setPresenceOpen(false);
   };
 

@@ -94,14 +94,40 @@ const PostTestPage = () => {
     }
   };
 
-  // Presence interval (10 min)
+  // Activity-driven inactivity detection: start counting when no activity, reset on activity
   useEffect(() => {
-    if (presenceOpen) return; // don't queue new while open
-    const iv = setInterval(() => {
-      pauseStartRef.current = Date.now();
-      setPresenceOpen(true);
-    }, 600000); // 10 minutes
-    return () => clearInterval(iv);
+    if (!true) {} // keep hook order consistent
+    const lastActivityRef = { current: Date.now() };
+
+    const onActivity = () => {
+      lastActivityRef.current = Date.now();
+      // Do NOT auto-dismiss the presence modal on activity.
+      // Continue must be pressed to resume.
+    };
+
+    const checker = setInterval(() => {
+      if (presenceOpen) return;
+      const now = Date.now();
+      if (now - lastActivityRef.current >= 600000) { // 10 seconds
+        pauseStartRef.current = Date.now();
+        setPresenceOpen(true);
+      }
+    }, 1000);
+
+    window.addEventListener('mousemove', onActivity);
+    window.addEventListener('mousedown', onActivity);
+    window.addEventListener('keydown', onActivity);
+    window.addEventListener('touchstart', onActivity);
+    window.addEventListener('wheel', onActivity);
+
+    return () => {
+      clearInterval(checker);
+      window.removeEventListener('mousemove', onActivity);
+      window.removeEventListener('mousedown', onActivity);
+      window.removeEventListener('keydown', onActivity);
+      window.removeEventListener('touchstart', onActivity);
+      window.removeEventListener('wheel', onActivity);
+    };
   }, [presenceOpen]);
 
   const confirmPresence = () => {

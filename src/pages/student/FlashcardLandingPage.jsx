@@ -192,24 +192,40 @@ const FlashcardLandingPage = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center justify-center mt-8 space-x-8">
-                  <button
-                    onClick={() => setModalIndex(i => Math.max(i - 1, 0))}
-                    className="flex items-center gap-2 px-8 py-4 bg-white rounded-xl shadow-md font-semibold text-blue-700 hover:bg-blue-100 transition-colors text-lg"
-                    disabled={modalIndex === 0}
-                  >
-                    Prev
-                  </button>
-                  <span className="text-2xl font-bold text-blue-700">
-                    {modalIndex + 1} / {generatedFlashcards.length}
-                  </span>
-                  <button
-                    onClick={() => setModalIndex(i => Math.min(i + 1, generatedFlashcards.length))}
-                    className="flex items-center gap-2 px-8 py-4 bg-white rounded-xl shadow-md font-semibold text-blue-700 hover:bg-blue-100 transition-colors text-lg"
-                    disabled={modalIndex === generatedFlashcards.length - 1}
-                  >
-                    Next
-                  </button>
+                <div className="flex items-center justify-center mt-8 space-x-6">
+                  {(() => {
+                    const total = generatedFlashcards.length || 0;
+                    const disabledPrev = modalIndex <= 0;
+                    const disabledNext = modalIndex >= total - 1 || total === 0;
+                    return (
+                      <>
+                        <button
+                          onClick={() => setModalIndex(i => Math.max(i - 1, 0))}
+                          disabled={disabledPrev}
+                          aria-label="Previous card"
+                          className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition-all ease-in-out focus:outline-none focus:ring-2 focus:ring-primary/30 ${disabledPrev ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-200' : 'bg-white text-primary-dark shadow-md hover:shadow-lg border border-primary/10 hover:bg-gray-50'}`}
+                        >
+                          <span className="text-lg">←</span>
+                          <span className="hidden sm:inline">Prev</span>
+                        </button>
+
+                        <div className="px-4 py-2 bg-primary text-white rounded-full shadow-md min-w-[96px] text-center">
+                          <span className="text-xs sm:text-sm font-medium opacity-90">Card</span>
+                          <div className="text-lg font-bold leading-none">{Math.max(0, modalIndex + 1)} / {total}</div>
+                        </div>
+
+                        <button
+                          onClick={() => setModalIndex(i => Math.min(i + 1, Math.max(0, total - 1)))}
+                          disabled={disabledNext}
+                          aria-label="Next card"
+                          className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition-all ease-in-out focus:outline-none focus:ring-2 focus:ring-primary/30 ${disabledNext ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-200' : 'bg-white text-primary-dark shadow-md hover:shadow-lg border border-primary/10 hover:bg-gray-50'}`}
+                        >
+                          <span className="hidden sm:inline">Next</span>
+                          <span className="text-lg">→</span>
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
                 {/* X close icon at top right */}
                 <button

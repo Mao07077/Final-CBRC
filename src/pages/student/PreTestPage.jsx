@@ -92,13 +92,42 @@ const PreTestPage = () => {
   };
 
   // Presence ping interval must be declared before any conditional returns to keep hook order stable
+  // Inactivity detection: start counting when no mouse/keyboard activity; reset on activity
   useEffect(() => {
-    if (presenceOpen) return;
-    const iv = setInterval(() => {
-      pauseStartRef.current = Date.now();
-      setPresenceOpen(true);
-    }, 600000); // 10 minutes
-    return () => clearInterval(iv);
+    const lastActivityRef = { current: Date.now() };
+
+    const onActivity = () => {
+      // Update last activity timestamp
+      lastActivityRef.current = Date.now();
+      // Do NOT auto-dismiss the presence modal on activity.
+      // The user must press the Continue button to resume.
+    };
+
+    // Check inactivity every 1s
+    const checker = setInterval(() => {
+      if (presenceOpen) return; // already shown
+      const now = Date.now();
+      if (now - lastActivityRef.current >= 600000) { // 10 seconds of inactivity
+        pauseStartRef.current = Date.now();
+        setPresenceOpen(true);
+      }
+    }, 1000);
+
+    // Attach listeners
+    window.addEventListener('mousemove', onActivity);
+    window.addEventListener('mousedown', onActivity);
+    window.addEventListener('keydown', onActivity);
+    window.addEventListener('touchstart', onActivity);
+    window.addEventListener('wheel', onActivity);
+
+    return () => {
+      clearInterval(checker);
+      window.removeEventListener('mousemove', onActivity);
+      window.removeEventListener('mousedown', onActivity);
+      window.removeEventListener('keydown', onActivity);
+      window.removeEventListener('touchstart', onActivity);
+      window.removeEventListener('wheel', onActivity);
+    };
   }, [presenceOpen]);
 
   const handlePresenceConfirm = () => {
